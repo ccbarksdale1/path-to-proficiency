@@ -184,6 +184,25 @@ How you teach:
     return { token: sign(school, { r: "t", id: t.id }), ...boot({ school, me: t, admin: !!t.admin }) };
   };
 
+  /* forgot code: whoever runs the site sets RESET_CODE in Netlify, then the admin picks a new teacher code */
+  A.recover = async (b, ip) => {
+    const school = await loadSchool();
+    if (!school) bad("This school is not set up yet.");
+    if (!env.RESET_CODE || String(env.RESET_CODE).length < 6) bad("Code reset is not turned on. In Netlify, add an environment variable named RESET_CODE (at least 6 characters), redeploy, and try again.", 403);
+    await checkLock(ip);
+    const a = Buffer.from(sha(str(b.reset, 200))), w = Buffer.from(sha(String(env.RESET_CODE)));
+    if (!crypto.timingSafeEqual(a, w)) { await noteFail(ip); bad("That reset code did not match the one in Netlify.", 401) }
+    const code = str(b.code, 6);
+    if (!/^\d{4,6}$/.test(code)) bad("Pick a new teacher code with 4 to 6 digits.");
+    const t = school.teachers.find(x => x.admin) || school.teachers[0];
+    const h = codeHash(school, code);
+    if (school.teachers.some(x => x.hash === h && x !== t)) bad("Another teacher already uses that code. Pick another.");
+    t.hash = h;
+    await saveSchool(school);
+    await clearFail(ip);
+    return { token: sign(school, { r: "t", id: t.id }), ...boot({ school, me: t, admin: !!t.admin }) };
+  };
+
   A.boot = async b => boot(await teacherCtx(b.token));
 
   A.teacherSave = async b => {
