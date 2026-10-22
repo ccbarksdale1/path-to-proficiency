@@ -248,6 +248,63 @@ button.link.small{font-size:.9rem;text-decoration:none}
 .dotty i:nth-child(2){animation-delay:.15s}.dotty i:nth-child(3){animation-delay:.3s}
 @keyframes dot{0%,80%,100%{opacity:.3;transform:none}40%{opacity:1;transform:translateY(-3px)}}
 @media (prefers-reduced-motion:reduce){.dotty i{animation:none}}
+/* ---- home page ---- */
+.wrap.landing{max-width:1080px;gap:28px}
+.lnav{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--paper) 92%,transparent);backdrop-filter:blur(8px);padding:10px 0;border-bottom:1px solid var(--rule)}
+.lnav .brand b{font-family:var(--display);font-size:1.2rem}
+.lnav-links{display:flex;gap:18px;flex-wrap:wrap}
+.lnav-links a{color:var(--ink);text-decoration:none;font-weight:600;font-size:.95rem}
+.lnav-links a:hover{color:var(--blue)}
+@media (max-width:760px){.lnav-links{display:none}}
+.eyebrow{font-family:var(--display);font-weight:600;color:var(--blue);font-size:.95rem;letter-spacing:.02em}
+.lhero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:28px;align-items:center;padding:12px 0}
+.lhero-copy{display:flex;flex-direction:column;gap:16px}
+.lhero .hero{font-size:clamp(2rem,5vw,3.1rem);max-width:16ch}
+.lhero .art{box-shadow:0 20px 50px -30px rgba(20,60,40,.6)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips span{font-size:.85rem;padding:5px 12px;border-radius:99px;background:var(--go-soft);color:var(--go);font-weight:600}
+@media (max-width:760px){.lhero{grid-template-columns:1fr}}
+.lsec{display:flex;flex-direction:column;gap:18px;scroll-margin-top:80px}
+.lsec-h{display:flex;flex-direction:column;gap:6px;max-width:62ch}
+.lsec-h h2{font-size:clamp(1.4rem,3.2vw,2rem);font-weight:700}
+.why3{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.wcard{background:var(--card);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 0 var(--rule),0 6px 24px -14px rgba(20,40,80,.25)}
+.wico{font-size:1.7rem;width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:var(--sky)}
+.steps5{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:760px){.steps5{grid-template-columns:1fr}}
+.steplist{display:flex;flex-direction:column;gap:8px}
+@media (max-width:760px){.steplist{flex-direction:row;overflow-x:auto;padding-bottom:4px}.stepb{min-width:170px}}
+.stepb{display:flex;gap:12px;align-items:center;text-align:left;background:var(--card);color:var(--ink);border:2px solid var(--rule);padding:10px 12px}
+.stepb small{display:block;color:var(--soft);font-weight:500;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em}
+.stepb .sn{width:34px;height:34px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--sky);font-family:var(--display);font-weight:700}
+.stepb.on{border-color:var(--blue);background:var(--blue-soft)}
+.stepb.on .sn{background:var(--blue);color:var(--card)}
+.steppanel{background:var(--card);border-radius:var(--r);padding:22px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 0 var(--rule),0 6px 24px -14px rgba(20,40,80,.25);min-height:330px}
+.mock{background:var(--paper);border:2px solid var(--rule);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.mock-h{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:600}
+.mrow{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--rule)}
+.me-b{align-self:flex-end;background:var(--blue);color:var(--card);padding:8px 14px;border-radius:16px 16px 4px 16px}
+.mock .scout svg{width:38px;height:38px}.mock .bubble{font-size:1rem}
+.jwrap{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;align-items:center;background:linear-gradient(180deg,var(--sky),var(--card));border-radius:var(--r);padding:20px}
+@media (max-width:760px){.jwrap{grid-template-columns:1fr}}
+.jside{display:flex;flex-direction:column;gap:14px}
+.jlist{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;font-size:.95rem}
+.jwrap .stop{transition:background .3s ease}
+.dprev .goal .big{font-size:1.8rem}
+.dp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.dprev .hb{grid-template-columns:minmax(0,130px) minmax(0,1fr) 3.2em}
+.feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px 20px}
+.feat b{display:block;margin-bottom:2px}.feat p{font-size:.92rem}
+.faq{display:flex;flex-direction:column;gap:8px}
+.fq{background:var(--card);border-radius:14px;border:2px solid var(--rule)}
+.fq button{width:100%;display:flex;justify-content:space-between;gap:12px;background:none;color:var(--ink);text-align:left;font-size:1.02rem}
+.fq button span:last-child{font-size:1.3rem;color:var(--blue)}
+.fq p{padding:0 18px 16px;color:var(--soft)}
+.fq.open{border-color:var(--blue)}
+.lcta{text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center;background:var(--mtn1);color:#fff;border-radius:var(--r);padding:36px 20px}
+.lcta h2{font-size:clamp(1.5rem,3.5vw,2.1rem)}
+.lcta button{background:#fff;color:var(--mtn1)}.lcta button.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.5)}
+@media (prefers-reduced-motion:reduce){.pop{animation:none}}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1595,7 +1652,7 @@ let S={screen:"landing",code:"",err:""};
 function header(right="",sub=`${TEACHER} · ${TEST_NAME}`){return `<div class="top"><div class="brand">${LOGO}<div><h1>Path to Proficiency</h1><small>${esc(sub)}</small></div></div><div class="row"><span id="savestate"></span>${right}</div></div>`}
 let lastView="";
 const SCREENS={};
-function render(){app.className="wrap"+(S.screen==="teacher"||S.screen==="setup"?" teach":"");SCREENS[S.screen]();
+function render(){app.className="wrap"+(S.screen==="teacher"||S.screen==="setup"?" teach":"")+(S.screen==="landing"?" landing":"");SCREENS[S.screen]();
   const view=[S.screen,S.qid,S.tab,S.tt,S.bdq,S.cid].join("|"); if(view!==lastView){lastView=view;window.scrollTo?.(0,0)}
   if(S.flash){const el=document.getElementById(S.flash.id);if(el)el.textContent=S.flash.msg;S.flash=null}
   markSaved()}
@@ -1603,30 +1660,127 @@ function signOut(){stopPlay();TOKEN=null;TB=SB=CUR=null;ls.set(SKEY,null,session
 const flash=(id,msg)=>{S.flash={id,msg}};
 function busy(btn,txt){if(btn){btn.disabled=true;btn.dataset.t=btn.textContent;btn.textContent=txt||"Working…"}}
 
+/* ---------- home page ---------- */
+const LD={step:0,dq:{hl:new Set(),sel:null,done:false,r:0},dtab:"class",jour:1,faq:-1};
+const L_STEPS=[
+ {t:"Find the gaps",k:"Starting point",d:"The teacher enters which questions each student missed on the test, by hand or from a spreadsheet. Every student gets their own trail, built from the standards they missed.",
+  art:()=>`<div class="mock"><div class="mock-h">Questions missed</div>${[["Ava","#2, #5, #11"],["Ben","#7"],["Cara","none"]].map(([n,m])=>`<div class="mrow"><b>${n}</b><span>${m}</span></div>`).join("")}<div class="mrow muted" style="font-size:.85rem"><span>Trail starts with the standards they missed</span></div></div>`},
+ {t:"Read and highlight",k:"Read slow",d:"Before solving, students tap the key words: the numbers and the words that say what to do. The app shows which ones they found and which they missed.",
+  art:()=>`<div class="mock"><p class="qtext" style="line-height:2"><span class="tok hit">Sam</span> has <span class="tok hit">3</span> bags with <span class="tok hit">4</span> apples in <span class="tok hit">each</span> bag. <span class="tok miss">How</span> <span class="tok miss">many</span> apples?</p><div class="pill go" style="align-self:flex-start">Found 4 of 6 key words</div></div>`},
+ {t:"Learn from mistakes",k:"Breakdown",d:"A wrong answer is never just “wrong.” Students see why their exact choice was wrong, then watch a read-aloud, step-by-step breakdown of the right way.",
+  art:()=>`<div class="mock"><div class="fb oops" style="padding:10px 12px"><p><b>The answer is C.</b> 4 × 7 = 28. That is too small.</p></div><div class="stage" style="min-height:0;padding:10px">${skipHTML([4,8])}</div><p class="say" style="font-size:.95rem">Skip count by 4s until you reach 32. That is 8 jumps.</p></div>`},
+ {t:"Ask Scout",k:"AI tutor",d:"Stuck? Scout, a friendly AI tutor, gives hints and asks guiding questions. Scout won’t give away the answer until the student tries, and the teacher can turn it off.",
+  art:()=>`<div class="mock">${scout("What does the box stand for? 4 groups of how many make 32?")}<div class="me-b">I think 8!</div>${scout("Great thinking! Check it: 4 × 8 = ? ⭐")}</div>`},
+ {t:"Reach the summit",k:"Mastery",d:"Ten right in a row on a standard reaches the checkpoint (the teacher can change the number). Then the trail climbs to the next standard, and practice never runs out.",
+  art:()=>`<div class="mock" style="align-items:center;text-align:center"><span class="flags">${Array.from({length:10},(_,i)=>`<i class="${i<10?'on':''}">★</i>`).join("")}</span><div class="newbadge" style="justify-content:center">⚑ Checkpoint reached! +5 stars</div></div>`},
+];
+const L_JOUR=[
+ {std:"3.NBT.2",n:"Adding and subtracting",s:"skip"},{std:"3.OA.4",n:"Finding the missing number",s:"todo"},{std:"3.OA.2",n:"What division means",s:"todo"},
+ {std:"3.G.2",n:"Equal parts and fractions",s:"todo"},{std:"3.NBT.1",n:"Rounding",s:"todo"}];
+const L_FAQ=[
+ ["Who is it for?","Students practicing grade 3 math (it comes with a full grade 3 benchmark test built in), plus their teachers and school leaders. Teachers can import their own tests for other units or grades."],
+ ["What devices does it work on?","Any device with a web browser: Chromebooks, iPads, laptops, and phones. Progress is saved online, so students can switch devices."],
+ ["How do students log in?","With a 6-letter class code and their own 4-digit code. No email or password. A classroom device remembers the class, so students only type 4 digits."],
+ ["Can I use my own tests?","Yes. Upload a test as a PDF and the AI reads it, or use a spreadsheet. You check every question and answer before it is saved."],
+ ["Is the AI tutor safe for kids?","Scout only talks about the math question on screen, uses short and kind sentences, and never asks for personal information. Teachers can turn Scout off for a class, and each student has a daily limit."],
+ ["What does it cost to run?","The app itself is free to use. The optional AI tutor uses a paid AI service, which usually costs a few dollars a month for a classroom."],
+];
+const lPreview={
+ class:()=>`<div class="dp-grid"><div class="mock"><div class="mock-h">Path to 60%</div><div class="goal" style="gap:18px"><div><span class="big">55%</span><span class="muted">11 of 20 finished</span></div><div><span class="big">60%</span><span class="muted">goal: 12</span></div></div><div class="meter"><span style="width:55%"></span><i style="left:60%"></i></div><p style="font-size:.9rem"><b>1 more student</b> reaches the goal.</p></div>
+   <div class="mock"><div class="mock-h">Needs attention</div><ul class="attn"><li><b>Jaylen</b><span class="pill purple">3.OA.4</span><p>Missed 4 of last 5. Pull into a small group and review breakdown #9.</p></li><li><b>Mia</b><span class="pill purple">3.G.2</span><p>Missed 3 of last 5 on equal parts.</p></li></ul></div></div>`,
+ items:()=>`<div class="mock"><div class="mock-h">Item analysis: lowest first, so you know what to reteach</div>${[[29,"3.NBT.1",38],[12,"3.OA.4",45],[24,"3.G.2",52],[16,"3.OA.2",64],[3,"3.OA.1",81]].map(([n,s,p])=>`<div class="hb"><span class="hl2"><b>#${n}</b> <span class="muted">${s}</span></span><span class="track"><span style="width:${p}%;background:${heat(p)}"></span></span><b>${p}%</b></div>`).join("")}</div>`,
+ compare:()=>`<div class="mock"><div class="mock-h">Compare classes by standard</div><div class="tablewrap"><table class="roster cmp"><thead><tr><th>Standard</th><th>Homeroom</th><th>Room 12</th><th>Room 14</th></tr></thead><tbody>
+   ${[["3.NBT.1",[48,72,66]],["3.NBT.2",[85,90,78]],["3.OA.4",[42,58,71]],["3.G.2",[67,54,80]]].map(([s,v])=>`<tr><td><b>${s}</b></td>${v.map(x=>`<td><span class="hc" style="--c:${heat(x)}">${x}%</span></td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`,
+ student:()=>`<div class="mock"><div class="mock-h">Every student</div><div class="tablewrap"><table class="roster"><thead><tr><th>Student</th><th>Path</th><th>Working on</th><th>Accuracy</th></tr></thead><tbody>
+   ${[["Ava",6,"3.OA.4","82%"],["Ben",8,"Proficient","91%"],["Cara",3,"3.G.2","64%"]].map(([n,d,w,a])=>`<tr><td><b>${n}</b></td><td><span class="bar"><span style="width:${d/8*100}%;background:var(--go)"></span></span> ${d}/8</td><td>${w==="Proficient"?`<span style="color:var(--go);font-weight:700">${w}</span>`:w}</td><td>${a}</td></tr>`).join("")}</tbody></table></div></div>`,
+};
 function landing(){
-  const dev=ls.get(CKEY);
-  app.innerHTML=header("", "3rd grade math")+`
-  <div class="card land"><div class="hero-row">
-   <div style="display:flex;flex-direction:column;gap:14px">
-    <h2 class="hero">Every student has a path to proficiency.</h2>
-    <p class="lead">Help every student find what they know, strengthen what they don’t, and build the skills they need to succeed in math.</p>
-    <div class="row"><button id="stu">Student login</button><button class="ghost" id="demo">Try it as a student</button></div>
+  const dev=ls.get(CKEY),st=L_STEPS[LD.step],q=QS.q2,D=LD.dq;
+  const found=foundKeys(q,D.hl).size;
+  const demoQ=`<div class="notebook ${D.done?'ro':''}" id="try">
+     <div class="row" style="justify-content:space-between"><span class="label">Try a real question · 3.OA.4</span>${D.done?`<button class="ghost small" id="d-again">Try again</button>`:""}</div>
+     ${bodyHTML(q,D.hl,D.done?"check":"tap")}
+     <p class="note" style="font-size:1.15rem">${D.done?(D.sel===q.ans?"Yes! That’s right.":"Mistakes help us climb."):D.hl.size<2?"Step 1: tap the key words.":"Step 2: pick your answer."}</p>
+     <div class="choices">${q.choices.map((c,i)=>{const l=L[i];let cl="";if(D.done){if(l===q.ans)cl=" right";else if(l===D.sel)cl=" wrong"}else if(l===D.sel)cl=" sel";
+       return `<button class="choice${cl}" data-dl="${l}" ${D.done||D.hl.size<2?"disabled":""}><b class="l">${l}</b><div>${choiceInner(c)}</div></button>`}).join("")}</div>
+     ${D.done?`<div class="fb ${D.sel===q.ans?"go":"oops"}"><p><b>${D.sel===q.ans?`You found ${found} of ${q.keys.length} key words.`:`The answer is ${q.ans}.`}</b> ${D.sel===q.ans?"":fmt(q.why[D.sel]||"")}</p></div>
+       <div class="stage" style="min-height:0">${(()=>{for(let i=D.r;i>=0;i--)if(q.steps[i].show)return showHTML(q.steps[i].show);return""})()}</div>
+       <p class="say">${fmt(q.steps[D.r].say)}</p>
+       <div class="row"><button class="ghost small" id="d-prev" ${D.r===0?"disabled":""}>Back</button><span class="muted">Step ${D.r+1} of ${q.steps.length}</span><button class="ghost small" id="d-next" ${D.r===q.steps.length-1?"disabled":""}>Next step</button></div>`:""}
+   </div>`;
+  const J=LD.jour,jour=L_JOUR.map((x,i)=>({...x,state:x.s==="skip"?"done":i<J?"done":i===J?"now":"later"}));
+  app.innerHTML=`
+  <nav class="lnav"><div class="brand">${LOGO}<div><b>Path to Proficiency</b><small>Grade 3 math</small></div></div>
+   <div class="lnav-links"><a href="#how">How it works</a><a href="#journey">Journey</a><a href="#data">Teacher data</a><a href="#faq">FAQ</a></div>
+   <div class="row"><button class="ghost small" data-go="tch">Teacher login</button><button class="small" data-go="stu">Student login</button></div></nav>
+
+  <section class="lhero">
+   <div class="lhero-copy">
+    <span class="eyebrow">Math practice that finds the gaps and fills them</span>
+    <h1 class="hero">Every student has a path to proficiency.</h1>
+    <p class="lead">Path to Proficiency turns each student’s test results into a personal practice trail. Students fix the exact mistakes they made, step by step, with a friendly AI tutor at their side. Teachers see who is stuck, on what, and what to reteach next.</p>
+    <div class="row"><button data-go="stu">Student login</button><button class="ghost" data-go="demo">Try it as a student</button></div>
     ${dev?`<p class="muted" style="font-size:.9rem">This device is set up for <b>${esc(dev.name)}</b>${dev.teacher?` · ${esc(dev.teacher)}`:""}.</p>`:""}
-   </div>${HERO_ART}</div>
-  </div>
-  <div class="card"><h2>How the climb works</h2>
-   <ol class="how">
-    <li><b>Starting point: find the gaps.</b> The teacher enters the questions each student missed on the test. Each student’s trail starts with the standards they missed.</li>
-    <li><b>Practice trail: learn from every mistake.</b> Students highlight key words, solve, and get a step-by-step breakdown that explains their exact mistake. Stuck? Scout, the AI tutor, gives hints without giving away the answer.</li>
-    <li><b>Summit: show mastery.</b> Students reach each checkpoint by getting ${MAST()} right in a row, then climb to the next standard. Practice never runs out.</li>
-   </ol></div>
-  <p class="muted" style="text-align:center">Teacher? <button class="link" id="tch">Teacher login</button></p>`;
-  document.getElementById("stu").onclick=()=>{S.mode="student";S.code="";S.err="";S.screen=ls.get(CKEY)?"signin":"joinclass";render()};
-  document.getElementById("tch").onclick=async()=>{S.mode="teacher";S.code="";S.err="";
-    try{const st=await api("status");S.screen=st.ready?"signin":"setup"}catch(e){S.screen="signin";S.err=e.message}render()};
-  document.getElementById("demo").onclick=()=>{useTest(null);S.demo=true;S.role="student";db={mastery:MASTERY_DEFAULT,videos:{},goal:60};TEACHER="Demo";
-    S.student=initStudent({...JSON.parse(JSON.stringify(SAMPLE[0])),name:"Amari (sample)"});S.screen="home";render()};
+    <div class="chips"><span>✓ Built on Common Core standards</span><span>✓ Read-aloud for every step</span><span>✓ Works on any device</span></div>
+   </div>${HERO_ART}
+  </section>
+
+  <section class="lsec"><div class="lsec-h"><span class="eyebrow">Why it matters</span><h2>Math builds on itself. So do the gaps.</h2></div>
+   <div class="why3">
+    <div class="wcard"><span class="wico">🧱</span><h3>Small gaps grow</h3><p>A skill missed in grade 3, like what division means, shows up again in fractions, word problems, and every grade after. Catching it now is easier than catching it later.</p></div>
+    <div class="wcard"><span class="wico">🎯</span><h3>Practice the right thing</h3><p>Worksheets give every student the same problems. Here, each student only practices the standards they actually missed, and skips what they already know.</p></div>
+    <div class="wcard"><span class="wico">💡</span><h3>Understand the mistake</h3><p>Getting it right next time starts with knowing why it was wrong. Every wrong answer comes with a plain-language reason and a step-by-step fix.</p></div>
+   </div></section>
+
+  <section class="lsec" id="how"><div class="lsec-h"><span class="eyebrow">How it works</span><h2>Five steps from test results to mastery</h2><p class="muted">Tap a step to see it.</p></div>
+   <div class="steps5">
+    <div class="steplist" role="tablist" aria-label="Steps">${L_STEPS.map((s,i)=>`<button role="tab" aria-selected="${i===LD.step}" data-step="${i}" class="stepb${i===LD.step?" on":""}"><span class="sn">${i+1}</span><span><small>${s.k}</small><b>${s.t}</b></span></button>`).join("")}</div>
+    <div class="steppanel pop" role="tabpanel"><h3>${LD.step+1}. ${st.t}</h3><p>${st.d}</p>${st.art()}
+     <div class="row"><button class="ghost small" id="s-prev" ${LD.step===0?"disabled":""}>← Back</button><button class="small" id="s-next" ${LD.step===L_STEPS.length-1?"disabled":""}>Next step →</button></div></div>
+   </div></section>
+
+  <section class="lsec"><div class="lsec-h"><span class="eyebrow">See it for yourself</span><h2>Try a question the way students do</h2><p class="muted">This is question #2 from the built-in grade 3 test.</p></div>
+   ${demoQ}</section>
+
+  <section class="lsec" id="journey"><div class="lsec-h"><span class="eyebrow">The learning journey</span><h2>One trail per student, from base camp to the summit</h2><p class="muted">Here is Ava’s trail. She got adding and subtracting right on the test, so that checkpoint is already done.</p></div>
+   <div class="jwrap"><ol class="trail">${jour.map((x,i)=>`<li class="stop ${x.state}"><span class="num">${x.state==="done"?"✓":i+1}</span><span><span class="name">${x.n}</span><br><span class="muted" style="font-size:.85rem">${x.std}</span></span>${x.s==="skip"?'<span class="pill go">Got it on the test</span>':x.state==="done"?'<span class="pill go">Mastered</span>':x.state==="now"?'<span class="pill now">Ava is here</span>':'<span class="pill">Coming up</span>'}</li>`).join("")}
+     <li class="stop summit${J>=L_JOUR.length?" reached":""}"><span class="num">★</span><span><span class="name">Summit of Mastery</span><br><span class="muted" style="font-size:.85rem">Every standard mastered</span></span>${J>=L_JOUR.length?'<span class="pill gold">Proficient!</span>':""}</li></ol>
+    <div class="jside">${scout(J>=L_JOUR.length?"Ava reached the summit! She is proficient on every standard she missed.":J<=1?"Ava starts where she needs help most. Ten right in a row reaches each checkpoint.":`Checkpoint! Ava mastered ${esc(L_JOUR[J-1].n.toLowerCase())}. Next up: ${esc(L_JOUR[Math.min(J,L_JOUR.length-1)].n.toLowerCase())}.`)}
+     <div class="row"><button id="j-next">${J>=L_JOUR.length?"Start over":"Climb to the next checkpoint"}</button></div>
+     <ul class="jlist"><li><b>Badges</b> for first steps, persistence, and every checkpoint</li><li><b>Stars</b> for every right answer</li><li><b>Videos</b> from the teacher on each standard, if they add them</li></ul></div>
+   </div></section>
+
+  <section class="lsec" id="data"><div class="lsec-h"><span class="eyebrow">For teachers and schools</span><h2>The data you get, updated as students practice</h2><p class="muted">Sample data shown.</p></div>
+   <div class="tabs" role="tablist" aria-label="Teacher views">${[["class","Class progress"],["student","Every student"],["items","Item analysis"],["compare","Compare classes"]].map(([id,l])=>`<button class="small" role="tab" aria-pressed="${LD.dtab===id}" data-dt="${id}">${l}</button>`).join("")}</div>
+   <div class="dprev pop">${lPreview[LD.dtab]()}</div>
+   <div class="feat">${[["Path to your goal","See how many students finished their trail, and how many more you need to reach your class goal."],["Who needs help now","Students who miss 3 of their last 5 on a standard are flagged, with the question to review together."],["Ready-made small groups","Students working on the same standard are grouped for you."],["What to reteach","Every test question ranked from hardest to easiest, with a step-by-step breakdown for the board."],["Compare classes","Side-by-side by teacher and standard, for grade-level teams and school leaders."],["Import tests and scores","Bring in a test from a PDF or spreadsheet, and scores from a CSV."]].map(([t,d])=>`<div><b>${t}</b><p class="muted">${d}</p></div>`).join("")}</div>
+  </section>
+
+  <section class="lsec" id="faq"><div class="lsec-h"><span class="eyebrow">Questions</span><h2>Good to know</h2></div>
+   <div class="faq">${L_FAQ.map(([qq,a],i)=>`<div class="fq${LD.faq===i?" open":""}"><button data-faq="${i}" aria-expanded="${LD.faq===i}"><span>${qq}</span><span aria-hidden="true">${LD.faq===i?"−":"+"}</span></button>${LD.faq===i?`<p>${a}</p>`:""}</div>`).join("")}</div></section>
+
+  <section class="lcta"><h2>Ready to start the climb?</h2><p>Students: grab your class code. Teachers: sign in to set up your classes.</p>
+   <div class="row" style="justify-content:center"><button data-go="stu">Student login</button><button class="ghost" data-go="tch">Teacher login</button><button class="ghost" data-go="demo">Try it as a student</button></div></section>
+  <p class="muted" style="text-align:center;font-size:.85rem">Path to Proficiency · Made for grade 3 math classrooms</p>`;
+  const go={stu:()=>{S.mode="student";S.code="";S.err="";S.screen=ls.get(CKEY)?"signin":"joinclass";render()},
+    tch:async()=>{S.mode="teacher";S.code="";S.err="";try{const st=await api("status");S.screen=st.ready?"signin":"setup"}catch(e){S.screen="signin";S.err=e.message}render()},
+    demo:()=>{useTest(null);S.demo=true;S.role="student";db={mastery:MASTERY_DEFAULT,videos:{},goal:60};TEACHER="Demo";
+      S.student=initStudent({...JSON.parse(JSON.stringify(SAMPLE[0])),name:"Amari (sample)"});S.screen="home";render()}};
+  app.querySelectorAll("[data-go]").forEach(b=>b.onclick=go[b.dataset.go]);
+  const keep=fn=>()=>{const y=window.scrollY;fn();render();window.scrollTo(0,y)};
+  app.querySelectorAll("[data-step]").forEach(b=>b.onclick=keep(()=>LD.step=+b.dataset.step));
+  document.getElementById("s-prev").onclick=keep(()=>LD.step--);document.getElementById("s-next").onclick=keep(()=>LD.step++);
+  app.querySelectorAll("#try .tok").forEach(el=>{if(D.done)return;el.tabIndex=0;el.setAttribute("role","button");const f=keep(()=>{const i=+el.dataset.t;D.hl.has(i)?D.hl.delete(i):D.hl.add(i)});el.onclick=f;el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();f()}}});
+  app.querySelectorAll("[data-dl]").forEach(b=>b.onclick=keep(()=>{D.sel=b.dataset.dl;D.done=true;D.r=0}));
+  const da=document.getElementById("d-again");if(da)da.onclick=keep(()=>{LD.dq={hl:new Set(),sel:null,done:false,r:0}});
+  const dp=document.getElementById("d-prev");if(dp)dp.onclick=keep(()=>D.r--);
+  const dn=document.getElementById("d-next");if(dn)dn.onclick=keep(()=>D.r++);
+  document.getElementById("j-next").onclick=keep(()=>{LD.jour=LD.jour>=L_JOUR.length?1:LD.jour+1});
+  app.querySelectorAll("[data-dt]").forEach(b=>b.onclick=keep(()=>LD.dtab=b.dataset.dt));
+  app.querySelectorAll("[data-faq]").forEach(b=>b.onclick=keep(()=>LD.faq=LD.faq===+b.dataset.faq?-1:+b.dataset.faq));
+  app.querySelectorAll(".lnav-links a").forEach(a=>a.onclick=e=>{e.preventDefault();document.querySelector(a.getAttribute("href"))?.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"})});
 }
+
 SCREENS.landing=landing;
 
 function joinclass(){
