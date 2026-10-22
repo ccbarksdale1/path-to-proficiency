@@ -1650,9 +1650,10 @@ function signin(){
    <div class="code-dots" aria-label="${S.code.length} digits typed">${Array.from({length:teacherMode?Math.max(4,S.code.length):4},(_,i)=>`<span class="${i<S.code.length?'on':''}"></span>`).join("")}</div>
    <div class="pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-n="${n}">${n}</button>`).join("")}<button data-n="back" aria-label="Delete">⌫</button><button data-n="0">0</button><button data-n="go">Go</button></div>
    <p class="err" role="alert">${esc(S.err)}</p>
-   ${teacherMode?"":`<p class="muted" style="font-size:.85rem">Not your class? <button class="link" id="chg">Change class</button></p>`}</div>`;
+   ${teacherMode?`<p class="muted" style="font-size:.85rem">Forgot your code? <button class="link" id="forgot">Reset it</button></p>`:`<p class="muted" style="font-size:.85rem">Not your class? <button class="link" id="chg">Change class</button></p>`}</div>`;
   document.getElementById("back").onclick=()=>{S.screen="landing";S.err="";render()};
   const chg=document.getElementById("chg");if(chg)chg.onclick=()=>{S.screen="joinclass";S.join="";S.err="";render()};
+  const fg=document.getElementById("forgot");if(fg)fg.onclick=()=>{S.screen="recover";S.err="";render()};
   app.querySelectorAll(".pad button").forEach(b=>b.onclick=async()=>{const n=b.dataset.n;S.err="";
     if(n==="back")S.code=S.code.slice(0,-1);
     else if(n==="go"){const code=S.code;S.code="";
@@ -1685,6 +1686,29 @@ function setup(){
     try{startTeacher(await api("setup",{schoolName:v("s-school"),name:v("s-name"),code:v("s-code")}))}catch(er){S.err=er.message;render()}};
 }
 SCREENS.setup=setup;
+
+/* forgot the admin's teacher code: uses RESET_CODE from Netlify */
+function recover(){
+  app.innerHTML=header(`<button class="ghost" id="back">Back</button>`,"Reset teacher code")+`<div class="card"><h2>Forgot your teacher code?</h2>
+   <ol class="how"><li>In Netlify, open your project, then <b>Project configuration → Environment variables → Add a variable</b>.</li>
+    <li>Name it <b>RESET_CODE</b> and give it a secret phrase you’ll remember (at least 6 characters). Tick “Contains secret values”.</li>
+    <li>Go to <b>Deploys → Trigger deploy → Deploy project</b> and wait for “Published”.</li>
+    <li>Type that phrase below and pick a new teacher code. This resets the school admin’s code.</li></ol>
+   <form class="grid" id="rf">
+    <label class="f" style="grid-column:1/-1">Reset code from Netlify<input id="r-reset" type="password" required autocomplete="off"></label>
+    <label class="f">New teacher code (4 to 6 digits)<input id="r-code" inputmode="numeric" pattern="[0-9]{4,6}" required></label>
+    <label class="f">Type it again<input id="r-code2" inputmode="numeric" pattern="[0-9]{4,6}" required></label>
+    <button type="submit">Reset my code</button></form>
+   <p class="err" id="r-err" role="alert">${esc(S.err)}</p>
+   <p class="muted" style="font-size:.85rem">Other teachers who forget their code can have the admin set a new one under Teachers.</p></div>`;
+  document.getElementById("back").onclick=()=>{S.screen="signin";S.mode="teacher";S.err="";render()};
+  document.getElementById("rf").onsubmit=async e=>{e.preventDefault();const v=id=>document.getElementById(id).value.trim();
+    if(v("r-code")!==v("r-code2")){document.getElementById("r-err").textContent="The two codes are different.";return}
+    busy(e.submitter,"Resetting…");
+    try{startTeacher(await api("recover",{reset:document.getElementById("r-reset").value,code:v("r-code")}));alert("Your teacher code is reset. You can now remove RESET_CODE in Netlify.")}
+    catch(er){S.err=er.message;render()}};
+}
+SCREENS.recover=recover;
 
 /* ---------- student ---------- */
 function startStudent(d){
