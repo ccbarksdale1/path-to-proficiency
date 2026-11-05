@@ -77,7 +77,7 @@ export function makeApi({ store, env }) {
   const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false,
     flu: { on: c.flu?.on !== false, secs: c.flu?.secs || 180, pass: c.flu?.pass || 28, n: c.flu?.n || 30 } });
   const testMeta = t => ({ id: t.id, name: t.name, grade: t.grade || "", ownerId: t.ownerId || null, created: t.created || 0, nq: Object.keys(t.qs || {}).length, skills: (t.skills || []).length });
-  const BUILTIN = { id: "a1", name: "Assessment 1 (built in)", builtIn: true, grade: "3", nq: 30, skills: 8 };
+  const BUILTIN = { id: "a1", name: "Grade 3 benchmark (8 standards, enter missed question numbers)", builtIn: true, grade: "3", nq: 0, skills: 8 };
   const STDTESTS = [["std3", "3", 33], ["std4", "4", 34], ["std5", "5", 34]].map(([id, g, n]) => ({ id, name: `Grade ${g}: all standards (no test)`, builtIn: true, grade: g, nq: 0, skills: n }));
   const builtinIds = new Set(["a1", ...STDTESTS.map(t => t.id)]);
 
