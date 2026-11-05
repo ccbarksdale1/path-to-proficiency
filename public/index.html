@@ -359,6 +359,19 @@ ol.miss li{padding:10px 12px;border-radius:12px;background:var(--oops-soft)}
 .gchip{display:inline-block;padding:3px 10px;border-radius:99px;font-weight:700;font-size:.85rem;background:var(--gc);color:#fff}
 .g0{--gc:#2B59C3}.g1{--gc:#1A7D50}.g2{--gc:#C8463B}.g3{--gc:#8A5A00}.g4{--gc:#6B3FA0}.g5{--gc:#0E7C86}.g6{--gc:#B03A78}.g7{--gc:#555F6D}
 .rot td{vertical-align:middle}.reteach p{font-size:.92rem;white-space:normal}
+/* ---- readiness, growth, MTSS, reports ---- */
+.rbar{display:flex;height:22px;border-radius:8px;overflow:hidden;gap:2px;background:var(--card)}
+.rb{display:grid;place-items:center;color:#fff;font-weight:700;font-size:.8rem;min-width:22px}
+.rb.go{background:var(--go)}.rb.gold{background:var(--star)}.rb.oops{background:var(--oops)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle}.dot.go{background:var(--go)}.dot.gold{background:var(--star)}.dot.oops{background:var(--oops)}
+.chart svg{width:100%;height:auto;display:block}.chart .pt:hover circle:last-of-type{r:6}
+.mstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.mstats div{background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:10px;display:flex;flex-direction:column}
+.mstats b{font-size:1.4rem;font-family:var(--display)}.mstats span{font-size:.8rem;color:var(--soft)}
+.mrep h3{margin-top:8px}
+.rep-box{border:2px solid var(--oops-soft)}
+details.card>summary{cursor:pointer}
+@media print{.lnav,.tabs,button{display:none!important}}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -2141,7 +2154,7 @@ function render(){app.className="wrap"+(S.screen==="teacher"||S.screen==="setup"
   const view=[S.screen,S.qid,S.tab,S.tt,S.bdq,S.cid].join("|"); if(view!==lastView){lastView=view;window.scrollTo?.(0,0)}
   if(S.flash){const el=document.getElementById(S.flash.id);if(el)el.textContent=S.flash.msg;S.flash=null}
   markSaved()}
-function signOut(){stopPlay();TOKEN=null;TB=SB=CUR=null;ls.set(SKEY,null,sessionStorage);useTest(null);TEACHER="Your teacher";S={screen:"landing",code:"",err:""};render()}
+function signOut(){stopPlay();document.getElementById("chirp")?.remove();TOKEN=null;TB=SB=CUR=null;ls.set(SKEY,null,sessionStorage);useTest(null);TEACHER="Your teacher";S={screen:"landing",code:"",err:""};render()}
 const flash=(id,msg)=>{S.flash={id,msg}};
 function busy(btn,txt){if(btn){btn.disabled=true;btn.dataset.t=btn.textContent;btn.textContent=txt||"Working…"}}
 
@@ -2168,7 +2181,7 @@ const L_FAQ=[
  ["How do students log in?","With a 6-letter class code and their own 4-digit code. No email or password. A classroom device remembers the class, so students only type 4 digits."],
  ["Can I use my own tests?","Yes. Upload a test as a PDF and the AI reads it, or use a spreadsheet. You check every question and answer before it is saved."],
  ["Is the AI tutor safe for kids?","Scout only talks about the math question on screen, uses short and kind sentences, and never asks for personal information. Teachers can turn Scout off for a class, and each student has a daily limit."],
- ["What does it cost to run?","The app itself is free to use. The optional AI tutor uses a paid AI service, which usually costs a few dollars a month for a classroom."],
+ ["Is our data backed up?","Yes. The site saves an automatic backup every night, and admins can download a full copy at any time."],["What does it cost to run?","The app itself is free to use. The optional AI tutor uses a paid AI service, which usually costs a few dollars a month for a classroom."],
 ];
 const lPreview={
  class:()=>`<div class="dp-grid"><div class="mock"><div class="mock-h">Path to 60%</div><div class="goal" style="gap:18px"><div><span class="big">55%</span><span class="muted">11 of 20 finished</span></div><div><span class="big">60%</span><span class="muted">goal: 12</span></div></div><div class="meter"><span style="width:55%"></span><i style="left:60%"></i></div><p style="font-size:.9rem"><b>1 more student</b> reaches the goal.</p></div>
@@ -2258,7 +2271,7 @@ function landing(){
   <section class="lsec" id="data"><div class="lsec-h"><span class="eyebrow">For teachers and schools</span><h2>The data you get, updated as students practice</h2><p class="muted">Sample data shown.</p></div>
    <div class="tabs" role="tablist" aria-label="Teacher views">${[["class","Class progress"],["why","Why they missed it"],["student","Every student"],["items","Item analysis"],["compare","Compare classes"]].map(([id,l])=>`<button class="small" role="tab" aria-pressed="${LD.dtab===id}" data-dt="${id}">${l}</button>`).join("")}</div>
    <div class="dprev pop">${lPreview[LD.dtab]()}</div>
-   <div class="feat">${[["Path to your goal","See how many students finished their trail, and how many more you need to reach your class goal."],["Who needs help now","Students who miss 3 of their last 5 on a standard are flagged, with the question to review together."],["Ready-made small groups","Students working on the same standard are grouped for you."],["Why they missed it","The mistakes behind wrong answers, grouped and ranked, with the students who make each one."],["What to reteach","Every test question ranked from hardest to easiest, with a step-by-step breakdown for the board."],["Assign standards","Give any of the 33 standards to one student, a group, or the whole class."],["Station planner","Groups built from data, a rotation schedule, and printable group cards."],["Fluency tracking","Levels, best scores, passes, and the facts your class misses most."],["Compare classes","Side-by-side by teacher and standard, for grade-level teams and school leaders."],["Import tests and scores","Bring in a test from a PDF or spreadsheet, and scores from a CSV."]].map(([t,d])=>`<div><b>${t}</b><p class="muted">${d}</p></div>`).join("")}</div>
+   <div class="feat">${[["Path to your goal","See how many students finished their trail, and how many more you need to reach your class goal."],["Who needs help now","Students who miss 3 of their last 5 on a standard are flagged, with the question to review together."],["Ready-made small groups","Students working on the same standard are grouped for you."],["Why they missed it","The mistakes behind wrong answers, grouped and ranked, with the students who make each one."],["What to reteach","Every test question ranked from hardest to easiest, with a step-by-step breakdown for the board."],["Assign standards","Give any of the 33 standards to one student, a group, or the whole class."],["Station planner","Groups built from data, a rotation schedule, and printable group cards."],["Fluency tracking","Levels, best scores, passes, and the facts your class misses most."],["MTSS intervention reports","One-click, printable Tier 2 and 3 records: minutes, standards, accuracy growth, and mistakes."],["Benchmark readiness","An on-track, close, or needs-support estimate for every student, weighted toward the major work of grade 3."],["Growth over time","Weekly accuracy and practice charts for the class and each student."],["Spanish support","Students can switch directions, Chirp, and Scout’s help to Spanish."],["Compare classes","Side-by-side by teacher and standard, for grade-level teams and school leaders."],["Import tests and scores","Bring in a test from a PDF or spreadsheet, and scores from a CSV."]].map(([t,d])=>`<div><b>${t}</b><p class="muted">${d}</p></div>`).join("")}</div>
   </section>
 
   <section class="lsec" id="faq"><div class="lsec-h"><span class="eyebrow">Questions</span><h2>Good to know</h2></div>
@@ -2374,7 +2387,7 @@ function startStudent(d){
   TOKEN=d.token;ls.set(SKEY,{token:d.token,role:"student"},sessionStorage);SB=d;S.role="student";S.demo=false;
   if(d.test)TESTS[d.test.id]=d.test;useTest(d.test);addExtras(d.student.assigned);
   db={mastery:d.cls.mastery,videos:d.cls.videos||{},goal:d.cls.goal};TEACHER=d.teacher||"Your teacher";
-  S.student=viewStudent({...d.student,prog:d.prog});S.screen="home";S.err="";render();
+  S.student=viewStudent({...d.student,prog:d.prog});S.lang=(d.prog&&d.prog._pref&&d.prog._pref.lang)||"en";S.screen="home";S.err="";render();
 }
 function home(){
   const s=S.student,p=s.prog,cur=curSkill(s),first=s.name.replace(" (sample)","");
@@ -2386,23 +2399,23 @@ function home(){
     :done>0?`${done} checkpoint${done===1?"":"s"} done! Read slow, highlight your key words, then solve.`
     :`Hi, ${esc(first)}! Read slow, highlight your key words, then solve.`;
   const mission=cur?`<div class="card mission">
-     <div class="top"><h2>Today’s Math Mission</h2><span class="stars" aria-label="${p.stars} stars">★ ${p.stars}</span></div>
+     <div class="top"><h2>${t("Today’s Math Mission")}</h2><span class="stars" aria-label="${p.stars} stars">★ ${p.stars}</span></div>
      <div class="skill">${ico(cur.id)}<div><b style="font-size:1.15rem">${esc(cur.name)}</b><br><span class="muted">${esc(cur.std)}</span></div></div>
      <div class="row"><span class="flags" aria-label="${sk.streak} of ${MASTERY} in a row">${Array.from({length:MASTERY},(_,i)=>`<i class="${i<sk.streak?'on':''}">${i<sk.streak?'★':i+1}</i>`).join("")}</span><span class="muted">Get ${MASTERY} right in a row to reach the checkpoint</span></div>
      ${scout(msg)}
-     <div class="row"><button id="go">${sk.streak||Object.keys(p.log).length?"Keep climbing":"Start my mission"}</button>${db.videos[cur.id]?`<a class="btnlink" href="${esc(db.videos[cur.id])}" target="_blank" rel="noopener">▶ Watch the lesson</a>`:""}</div>
+     <div class="row"><button id="go">${t(sk.streak||Object.keys(p.log).length?"Keep climbing":"Start my mission")}</button>${db.videos[cur.id]?`<a class="btnlink" href="${esc(db.videos[cur.id])}" target="_blank" rel="noopener">▶ Watch the lesson</a>`:""}</div>
    </div>`:`<div class="card mission" style="align-items:flex-start">${HERO_ART}${scout(msg)}</div>`;
-  app.innerHTML=header(`<button class="ghost" id="out">Sign out</button>`)+mission+fluCard()+`
+  app.innerHTML=header(`${langToggle()}<button class="ghost" id="out">${t("Sign out")}</button>`)+mission+fluCard()+`
   <div class="card">
-   <div class="top"><h2>My trail</h2><span class="pill gold">${done} of ${TR.length} checkpoints</span></div>
+   <div class="top"><h2>${t("My trail")}</h2><span class="pill gold">${done} of ${TR.length} checkpoints</span></div>
    ${s.missed&&s.missed.length?`<p class="muted">On the test you missed ${missedText(s.missed)}. Your trail starts with those.</p>`:""}
    <ol class="trail">${TR.map((k,i)=>{const st=p.skills[k.id].status,cls=st==="todo"?(k===cur?"now":"later"):"done";
-     const pill=st==="skip"?'<span class="pill go">Got it on the test</span>':st==="done"?'<span class="pill go">Mastered</span>':k===cur?'<span class="pill now">You are here</span>':asg.has(k.std)?'<span class="pill purple">From your teacher</span>':'<span class="pill">Coming up</span>';
+     const pill=st==="skip"?`<span class="pill go">${t("Got it on the test")}</span>`:st==="done"?`<span class="pill go">${t("Mastered")}</span>`:k===cur?`<span class="pill now">${t("You are here")}</span>`:p.skills[k.id].reopen?'<span class="pill gold">Refresh</span>':asg.has(k.std)?`<span class="pill purple">${t("From your teacher")}</span>`:`<span class="pill">${t("Coming up")}</span>`;
      return `<li class="stop ${cls}"><span class="num">${cls==="done"?"✓":i+1}</span><span style="display:flex;gap:10px;align-items:center;min-width:0">${ico(k.id)}<span><span class="name">${esc(k.name)}</span><br><span class="muted" style="font-size:.85rem">${esc(k.std)}</span></span></span>${pill}</li>`}).join("")}
      <li class="stop summit${cur?'':' reached'}"><span class="num">★</span><span><span class="name">Summit of Mastery</span><br><span class="muted" style="font-size:.85rem">Finish every checkpoint</span></span>${cur?'':'<span class="pill gold">You made it!</span>'}</li></ol>
   </div>
-  <div class="card"><h2>My badges</h2>${badgesHTML(p)}</div>`;
-  document.getElementById("out").onclick=signOut;
+  <div class="card"><h2>${t("My badges")}</h2>${badgesHTML(p)}</div>`;
+  document.getElementById("out").onclick=signOut;wireLang();
   const g=document.getElementById("go"); if(g) g.onclick=()=>{newQ();S.screen="practice";render()};
   const fg=document.getElementById("flu-go"); if(fg) fg.onclick=fluStart;
 }
@@ -2416,8 +2429,9 @@ function topUp(sk,id,n=4){
   if(!pool.length)return;
   let guard=0;while(sk.queue.length<n&&guard++<50){const c=pool.filter(x=>!sk.queue.includes(x)),from=c.length?c:pool;sk.queue.push(from[Math.floor(Math.random()*from.length)])}
 }
-function newQ(){const k=curSkill(S.student),sk=S.student.prog.skills[k.id];
-  while(sk.queue.length&&!getQ(sk.queue[0]))sk.queue.shift(); topUp(sk,k.id);
+function newQ(){const cur=curSkill(S.student),rv=!S.demo&&pickReview(S.student),k=rv||cur,sk=S.student.prog.skills[k.id];S.rev=!!rv;S.rep=null;S.reopened=false;
+  if(rv){S.k=k.id;S.qid=reviewQid(k);S.q=viewQ(getQ(S.qid));S.step=1;S.hl=new Set();S.sel=[];S.result=null;S.r=0;S.full=false;S.mastered=false;S.chat=null;stopPlay();return}
+  while(sk.queue.length&&(!getQ(sk.queue[0])||isHidden(sk.queue[0])))sk.queue.shift(); topUp(sk,k.id);
   S.k=k.id;S.qid=sk.queue[0];S.q=viewQ(getQ(S.qid));S.step=1;S.hl=new Set();S.sel=[];S.result=null;S.r=0;S.full=false;S.mastered=false;S.chat=null;stopPlay()}
 
 function answerArea(q){
@@ -2425,15 +2439,15 @@ function answerArea(q){
   if(q.type==="mc"||q.type==="multi"){
     const one=q.choices.some(c=>typeof c==="string"&&c.length>40)||q.choices.some(c=>c.table);
     const need=q.type==="multi"?2:1;
-    return `<p class="note">${q.type==="multi"?'Pick TWO answers, then tap Check.':'Pick your answer, then tap Check.'}</p>
+    return `<p class="note">${q.type==="multi"?t('Pick TWO answers, then tap Check.'):t('Pick your answer, then tap Check.')}</p>
      <div class="choices${one?' one':''}">${q.choices.map((c,i)=>{const l=L[i];let cl="",tag="";
       const isAns=q.type==="mc"?q.ans===l:q.ans.includes(l);
       if(done){if(isAns){cl=" right";tag=`<span class="tag ok">✓ Right answer</span>`}else if(S.sel.includes(l)){cl=" wrong";tag=`<span class="tag no">✗ Your answer</span>`}}
       else if(S.sel.includes(l))cl=" sel";
       return `<button class="choice${cl}" data-l="${l}" ${done?'disabled':''} aria-pressed="${S.sel.includes(l)}"><b class="l">${l}</b><div>${choiceInner(c)}${tag}</div></button>`}).join("")}</div>
-     ${!done?`<button id="check" ${S.sel.length!==need?'disabled':''}>${need===2?"Check my answers":"Check my answer"}</button>`:''}`;
+     ${!done?`<button id="check" ${S.sel.length!==need?'disabled':''}>${need===2?t("Check my answers"):t("Check my answer")}</button>`:''}`;
   }
-  if(q.type==="input") return `<div class="row"><label class="f" style="font-size:1rem;color:var(--ink)">Your answer<input class="num" id="num" inputmode="decimal" ${done?'disabled':''} value="${esc(S.sel[0]||"")}"></label>${done?"":'<button id="check">Check my answer</button>'}</div>`;
+  if(q.type==="input") return `<div class="row"><label class="f" style="font-size:1rem;color:var(--ink)">${t("Your answer")}<input class="num" id="num" inputmode="decimal" ${done?'disabled':''} value="${esc(S.sel[0]||"")}"></label>${done?"":`<button id="check">${t("Check my answer")}</button>`}</div>`;
   if(q.type==="matrix") return `<table class="matrix"><thead><tr><th></th>${q.cols.map(c=>`<th>Rounds to ${c}</th>`).join("")}</tr></thead><tbody>
     ${q.rows.map((r,i)=>`<tr><td>${r.n}</td>${q.cols.map(c=>{let cl="",mk="";if(done&&S.sel[i]===c){cl=c===r.a?"right":"wrong";mk=c===r.a?" ✓":" ✗"}else if(done&&c===r.a){cl="right";mk=" ✓"}
       return `<td class="${cl}"><input type="radio" name="m${i}" id="m${i}-${c}" value="${c}" ${S.sel[i]===c?'checked':''} ${done?'disabled':''} aria-label="${r.n} rounds to ${c}"><b class="mk">${mk}</b></td>`}).join("")}</tr>`).join("")}</tbody></table>
@@ -2445,19 +2459,19 @@ const tutorOn=()=>!S.demo&&S.role==="student"&&SB&&SB.ai&&SB.cls.tutor!==false;
 function chatHTML(){
   if(!tutorOn())return"";
   const c=S.chat;
-  if(!c||!c.open)return `<div class="row"><button class="ghost" id="ask">💬 Ask Scout for help</button></div>`;
+  if(!c||!c.open)return `<div class="row"><button class="ghost" id="ask">${t("💬 Ask Scout for help")}</button></div>`;
   const chips=S.result==="wrong"?["Why was my answer wrong?","Can you show me another way?","I still don’t get it."]
     :S.result==="right"?["Why does this work?","Give me a harder one to think about."]
     :["What is this question asking?","Give me a hint.","What should I do first?"];
   return `<div class="card chat pop" aria-label="Chat with Scout">
    <div class="top"><h3>Ask Scout</h3><button class="ghost small" id="chat-x">Close</button></div>
    <div class="msgs" id="msgs" aria-live="polite">
-    ${scout("Hi! I’m Scout. I can give you hints. Ask me anything about this question!")}
+    ${scout(t("Hi! I’m Scout. I can give you hints. Ask me anything about this question!"))}
     ${c.msgs.map((m,i)=>m.role==="user"?`<div class="me"><span>${esc(m.content)}</span></div>`:`${scout(esc(m.content)+(TTS?` <button class="link small sayc" data-i="${i}" aria-label="Read this to me">🔊</button>`:""))}`).join("")}
     ${c.busy?scout('<span class="dotty" aria-label="Scout is thinking"><i></i><i></i><i></i></span>'):""}
    </div>
    ${c.err?`<p class="err" role="alert">${esc(c.err)}</p>`:""}
-   <div class="row">${chips.map(t=>`<button class="ghost small chip" ${c.busy?"disabled":""}>${esc(t)}</button>`).join("")}</div>
+   <div class="row">${chips.map(x=>`<button class="ghost small chip" ${c.busy?"disabled":""}>${esc(t(x))}</button>`).join("")}</div>
    <form id="chat-f" class="row"><input id="chat-in" maxlength="300" placeholder="Type your question" autocomplete="off" style="flex:1;min-width:160px;font:inherit;color:var(--ink);background:var(--paper);border:2px solid var(--rule);border-radius:10px;padding:10px 12px" aria-label="Your question for Scout"><button type="submit" ${c.busy?"disabled":""}>Send</button></form>
   </div>`;
 }
@@ -2476,7 +2490,7 @@ async function sendChat(text){
   const qd={parts:q.parts.map(p=>p.img?{img:1,alt:ALT[p.img]||"a picture from the test"}:p.viz?{fig:vizText(p.viz)}:p),choices:(q.choices||[]).map(ch=>ch&&ch.img?{alt:(ALT[ch.img]||"a picture").replace(/^Choice [A-E]: /,""),eq:ch.eq}:ch),
     ans:q.type==="matrix"?q.rows.map(r=>`${r.n} → ${r.a}`).join(", "):q.ans,type:q.type,steps:q.steps,std:k&&k.std,skillName:k&&k.name};
   if(q.type==="matrix")qd.parts=[...q.parts,"Rows: "+q.rows.map(r=>r.n).join(", ")+". Columns: "+q.cols.join(", ")];
-  try{const d=await api("tutor",{q:qd,testId:TESTID,picked:S.sel.join(" and "),result:S.result,messages:c.msgs,grade:ACT?.grade||"3"});
+  try{const d=await api("tutor",{q:qd,testId:TESTID,picked:S.sel.join(" and "),result:S.result,messages:c.msgs,grade:ACT?.grade||"3",lang:S.lang});
     c.msgs.push({role:"assistant",content:d.reply})}
   catch(e){c.err=e.message;c.msgs.pop()}
   c.busy=false;if(S.screen==="practice"&&S.chat===c){render();document.getElementById("chat-in")?.focus()}
@@ -2486,19 +2500,19 @@ function practice(){
   const s=S.student,p=s.prog,k=SKILLS.find(x=>x.id===S.k),sk=p.skills[k.id],q=S.q,MASTERY=MAST();
   const nKeys=q.keys.length,found=foundKeys(q,S.hl).size;
   let below="";
-  if(S.step===1) below=`<div class="card pop"><p class="note">Step 1: Tap your key words. Highlight the numbers and the words that tell you what to do.</p>
-     <div class="row"><button id="done1" ${S.hl.size<2?'disabled':''}>I found my key words</button><span class="muted">${S.hl.size} highlighted</span></div></div>`;
+  if(S.step===1) below=`<div class="card pop"><p class="note">${t("Step 1: Tap your key words. Highlight the numbers and the words that tell you what to do.")}</p>
+     <div class="row"><button id="done1" ${S.hl.size<2?'disabled':''}>${t("I found my key words")}</button><span class="muted">${S.hl.size} ${S.lang==="es"?"marcadas":"highlighted"}</span></div></div>`;
   else below=`<div class="card pop">
      ${S.step===2&&!S.result?`<div class="fb info"><p><b>You found ${found} of ${nKeys} key words.</b> ${found<nKeys?'The wavy lines show the ones you missed. Read them again.':'Great reading!'}</p></div>
-     <p class="note">Step 2: Solve it. Work it out with your pencil, then answer.</p>`:''}
+     <p class="note">${t("Step 2: Solve it. Work it out with your pencil, then answer.")}</p>`:''}
      ${answerArea(q)}${S.result?feedback(q):''}</div>`;
-  app.innerHTML=header(`<button class="ghost" id="back">My trail</button>`)+`
-   <div class="row" style="justify-content:space-between"><span class="label">${esc(k.std)} · ${esc(k.name)}</span>
-    <span class="flags" aria-label="Checkpoint progress: ${sk.streak} of ${MASTERY} in a row"><span class="muted" style="font-size:.85rem;margin-right:4px">Checkpoint</span>${Array.from({length:MASTERY},(_,i)=>`<i class="${i<sk.streak?'on':''}">${i<sk.streak?'★':i+1}</i>`).join("")}</span></div>
+  app.innerHTML=header(`${langToggle()}<button class="ghost" id="back">${t("My trail")}</button>`)+`
+   <div class="row" style="justify-content:space-between"><span class="label">${S.rev?`<span class="pill purple">${t("Review")}</span> `:""}${esc(k.std)} · ${esc(k.name)}</span>
+    ${S.rev?"":`<span class="flags" aria-label="Checkpoint progress: ${sk.streak} of ${MASTERY} in a row"><span class="muted" style="font-size:.85rem;margin-right:4px">${t("Checkpoint")}</span>${Array.from({length:MASTERY},(_,i)=>`<i class="${i<sk.streak?'on':''}">${i<sk.streak?'★':i+1}</i>`).join("")}</span>`}</div>
    <div class="steps-bar"><span class="on"></span><span class="${S.step>1?'on':''}"></span><span class="${S.result?'on':''}"></span></div>
-   <div class="notebook ${S.step>1?'ro':''}"><div class="row" style="justify-content:space-between"><span class="label">${qLabel(S.qid)}</span>${sayBtn("say-q")}</div>${bodyHTML(q,S.hl,S.step===1?"tap":"check")}</div>${below}${chatHTML()}`;
+   <div class="notebook ${S.step>1?'ro':''}"><div class="row" style="justify-content:space-between"><span class="label">${S.rev?t("Review question"):t(qLabel(S.qid).replace(/ #\d+$/,""))+(qLabel(S.qid).match(/ #\d+$/)||[""])[0]}</span><div class="row">${sayBtn("say-q",t("🔊 Read to me"))}<button class="ghost small" id="rep-btn" title="Report a problem" aria-label="Report a problem with this question">🚩</button></div></div>${bodyHTML(q,S.hl,S.step===1?"tap":"check")}</div>${reportBox()}${below}${chatHTML()}`;
   document.getElementById("back").onclick=()=>{stopPlay();S.screen="home";render()};
-  wireChat();
+  wireChat();wireReport();wireLang();
   const sq=document.getElementById("say-q"); if(sq) sq.onclick=()=>{stopPlay();speak(S.step===1?q.parts.map(p=>typeof p==="string"?p:p.eq||p.fig||"").join(". "):qSpeech(q))};
   if(S.step===1){
     app.querySelectorAll(".tok").forEach(el=>{const f=()=>{const i=+el.dataset.t;S.hl.has(i)?S.hl.delete(i):S.hl.add(i);render()};el.onclick=f;el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();f()}}});
@@ -2531,14 +2545,15 @@ function grade(q){
   lg.tries++; if(ok)lg.right++; if(lg.first===null)lg.first=ok;
   if(ok) award(p,"first");
   (p.recent=p.recent||[]).push({k:k.id,q:S.qid,ok}); if(p.recent.length>30)p.recent.shift();
-  p.last=Date.now();
+  p.last=Date.now();track(p,k.id,ok,Date.now()-(S.shownAt||Date.now()));
   if(!ok){const from=q._from||{},pick=q.type==="mc"?from[S.sel[0]]||S.sel[0]:q.type==="multi"?S.sel.filter(l=>!q.ans.includes(l)).map(l=>from[l]||l).sort().join(""):q.type==="input"?String(Number(String(S.sel[0]).replace(/,/g,""))):"r"+q.rows.findIndex((r,j)=>S.sel[j]!==r.a);
     (p.miss=p.miss||[]).push({q:S.qid,k:k.id,p:pick,t:Date.now()});if(p.miss.length>80)p.miss.splice(0,p.miss.length-80)}
+  if(S.rev){gradeReview(q,ok);if(ok)p.stars++;chirpTick(ok);save();render();return}
   if(sk.queue[0]===S.qid)sk.queue.shift();
   if(ok){sk.streak++;p.stars++}
   else{sk.streak=0;topUp(sk,k.id,3);sk.queue.splice(3,0,S.qid)} // comes back after 3 other questions, with the choices in a new order
   S.mastered=ok&&sk.streak>=MAST();
-  if(S.mastered){sk.status="done";p.stars+=5;award(p,"trail");if(!curSkill(s))award(p,"summit")} // counts right away, even if they leave this page
+  if(S.mastered){sk.status="done";sk.doneAt=Date.now();delete sk.reopen;p.stars+=5;award(p,"trail");if(!curSkill(s))award(p,"summit")} // counts right away, even if they leave this page
   chirpTick(ok); save(); render();
 }
 function whyText(q){
@@ -2550,22 +2565,25 @@ function whyText(q){
 }
 function stepsPlayer(q){
   const steps=q.steps; let show="";for(let i=S.r;i>=0;i--){if(steps[i].show){show=showHTML(steps[i].show);break}}
-  return `<div class="row" style="justify-content:space-between"><h3>Watch the breakdown</h3><span class="muted">Step ${S.r+1} of ${steps.length}</span></div>
+  return `<div class="row" style="justify-content:space-between"><h3>${t("Watch the breakdown")}</h3><span class="muted">Step ${S.r+1} of ${steps.length}</span></div>
    ${show?`<div class="stage" aria-live="polite">${show}</div>`:''}<p class="say">${fmt(steps[S.r].say)}</p>
    <div class="row"><button class="ghost small" id="prev" ${S.r===0?'disabled':''}>Back</button><button class="ghost small" id="play">${S.playing?'Pause':TTS?'▶ Play and read':'▶ Play'}</button><button class="ghost small" id="fwd" ${S.r===steps.length-1?'disabled':''}>Next step</button>${sayBtn("say-step","🔊 Read this step")}</div>`;
 }
 function feedback(q){
   const sk=S.student.prog.skills[S.k],vid=db.videos[q.skill],MASTERY=MAST();
   const nb=(S.newBadges||[]).map(id=>BADGES.find(b=>b.id===id)).map(b=>`<div class="newbadge pop"><span class="medal" aria-hidden="true">${b.m}</span>New badge: ${b.name}!</div>`).join("");
-  if(S.result==="right") return `<div class="fb go"><p style="display:flex;align-items:center"><span class="burst" aria-hidden="true"></span><b>Yes! That’s right.</b>&nbsp;+1 star</p>
+  if(S.rev&&S.result==="right") return `<div class="fb go"><p style="display:flex;align-items:center"><span class="burst" aria-hidden="true"></span><b>${t("Yes! You still remember this one.")}</b>&nbsp;+1 ★</p>
+     ${S.full?stepsPlayer(q):`<button class="ghost small" id="see" style="align-self:flex-start">${t("See the breakdown")}</button>`}<button id="next">${t("Next question")}</button></div>`;
+  if(S.result==="right") return `<div class="fb go"><p style="display:flex;align-items:center"><span class="burst" aria-hidden="true"></span><b>${t("Yes! That’s right.")}</b>&nbsp;+1 ★</p>
      <p class="note" style="color:var(--go)">${S.mastered?`That makes ${MASTERY} in a row. You reached the checkpoint!`:`${CHEERS[(sk.streak+Object.keys(S.student.prog.log).length)%CHEERS.length]} ${MASTERY-sk.streak} more in a row to reach the checkpoint.`}</p>${nb}
-     ${S.full?stepsPlayer(q):`<button class="ghost small" id="see" style="align-self:flex-start">See the breakdown</button>`}
-     <button id="next">${S.mastered?"See my badge":"Next question"}</button></div>`;
-  return `${scout(S.fast?"Whoa, that was fast! Did you work it out, or guess? Let’s slow down and learn from this one.":"Mistakes help us climb. Let’s learn from this one.")}
-   <div class="fb oops"><p><b>The answer is ${esc(ansText(q))}. Here’s what happened:</b></p><p>${whyText(q)}</p>${sayBtn("say-why","🔊 Read this to me")}</div>
+     ${S.full?stepsPlayer(q):`<button class="ghost small" id="see" style="align-self:flex-start">${t("See the breakdown")}</button>`}
+     <button id="next">${S.mastered?"See my badge":t("Next question")}</button></div>`;
+  return `${scout(t(S.fast?"Whoa, that was fast! Did you work it out, or guess? Let’s slow down and learn from this one.":"Mistakes help us climb. Let’s learn from this one."))}
+   ${S.reopened?`<div class="fb info"><p><b>Time for a refresh!</b> ${esc(SKILLS.find(x=>x.id===S.k)?.name||"")} is back on your trail for a little more practice.</p></div>`:""}
+   <div class="fb oops"><p><b>${t("The answer is")} ${esc(ansText(q))}. ${t("Here’s what happened:")}</b></p><p>${whyText(q)}</p>${sayBtn("say-why","🔊 Read this to me")}</div>
    ${stepsPlayer(q)}
    ${vid?`<a href="${esc(vid)}" target="_blank" rel="noopener">Watch ${esc(TEACHER)}’s video on this skill</a>`:''}
-   <button id="next">Try another one</button>`;
+   <button id="next">${t("Try another one")}</button>`;
 }
 let timer=null; function stopPlay(){clearTimeout(timer);timer=null;S.playing=false;if(TTS)speechSynthesis.cancel()}
 /* play the breakdown: each step is read aloud and the next one starts when the reading ends (6 seconds a step without a voice) */
@@ -2621,7 +2639,7 @@ async function openClass(id,tab){
     const d=(await api("classData",{ids:[id]})).classes[0];
     useTest(await getTest(d.cls.testId));
     addExtras(allAssigned(d.students));
-    CUR={cls:d.cls,raw:d.students,students:d.students.map(viewStudent)};
+    CUR={cls:d.cls,rev:d.rev,raw:d.students,students:d.students.map(viewStudent)};
     db={mastery:d.cls.mastery,videos:d.cls.videos||{},goal:d.cls.goal};
     TEACHER=tName(d.cls.teacherId);
     S.cid=id;S.tt="class";S.tab=tab||S.tab||"class";S.edit=0;
@@ -2631,23 +2649,24 @@ async function openClass(id,tab){
 function teacher(){
   const tt=S.tt||"classes";
   if(tt!=="class"){TEACHER=TB.me.name}
-  const top=[["classes","My classes"],["compare","Compare classes"],["standards","Standards"],["tests","Tests"],["teachers",isAdmin()?"Teachers":"My account"]];
+  const top=[["classes","My classes"],["compare","Compare classes"],["standards","Standards"],["tests","Tests"],["reports","Reports"],["teachers",isAdmin()?"Teachers":"My account"]];
   const nav=`<div class="tabs" role="group" aria-label="Teacher pages">${top.map(([id,l])=>`<button data-tt="${id}" aria-pressed="${tt===id||(tt==="class"&&id==="classes")}">${l}</button>`).join("")}</div>`;
   let body="";
   if(tt==="class"&&CUR){
     const tab=S.tab||"class";
     const tabs=`<div class="card" style="gap:10px;padding:14px 16px"><div class="top"><div><span class="label">Class</span><h2>${esc(CUR.cls.name)}</h2><span class="muted" style="font-size:.85rem">${esc(tName(CUR.cls.teacherId))} · ${esc(TEST_NAME)} · class code <b style="letter-spacing:.1em">${esc(CUR.cls.join)}</b></span></div>
       <button class="ghost small" id="allc">← All classes</button></div>
-      <div class="tabs" role="group" aria-label="Class pages">${[["class","Class progress"],["why","Why they missed it"],["plan","Station planner"],["fluency","Fluency"],["bd","Question breakdowns"],["items","Item analysis"],["setup","Students"],["settings","Class settings"]].map(([id,l])=>`<button class="small" data-tab="${id}" aria-pressed="${tab===id}">${l}</button>`).join("")}</div></div>`;
-    body=tabs+({class:tClass,why:tWhy,plan:tPlanner,fluency:tFluency,bd:tBreak,items:tItems,setup:tSetup,settings:tSettings})[tab]();
-  } else body=({classes:tClasses,compare:tCompare,standards:tStandards,tests:tTests,teachers:tTeachers,class:tClasses})[tt]();
+      <div class="tabs" role="group" aria-label="Class pages">${[["class","Class progress"],["why","Why they missed it"],["plan","Station planner"],["fluency","Fluency"],["mtss","MTSS"],["bd","Question breakdowns"],["items","Item analysis"],["setup","Students"],["settings","Class settings"]].map(([id,l])=>`<button class="small" data-tab="${id}" aria-pressed="${tab===id}">${l}</button>`).join("")}</div></div>`;
+    body=tabs+({class:tClass,why:tWhy,plan:tPlanner,fluency:tFluency,mtss:tMtss,bd:tBreak,items:tItems,setup:tSetup,settings:tSettings})[tab]();
+  } else body=({classes:tClasses,compare:tCompare,standards:tStandards,tests:tTests,reports:tReports,teachers:tTeachers,class:tClasses})[tt]();
   app.innerHTML=header(`<button class="ghost" id="out">Sign out</button>`,`${TB.school.name} · ${TB.me.name}${isAdmin()?" (admin)":""}`)+nav+(S.err?`<div class="fb oops" role="alert"><p>${esc(S.err)}</p></div>`:"")+body;
   document.getElementById("out").onclick=signOut;
-  app.querySelectorAll("[data-tt]").forEach(b=>b.onclick=()=>{S.tt=b.dataset.tt;S.err="";if(S.tt!=="class")useTest(null);render()});
+  app.querySelectorAll("[data-tt]").forEach(b=>b.onclick=()=>{S.tt=b.dataset.tt;S.err="";S.reports=null;S.backups=null;if(S.tt!=="class")useTest(null);render()});
   const allc=document.getElementById("allc");if(allc)allc.onclick=()=>{S.tt="classes";useTest(null);render()};
-  app.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;S.err="";render()});
-  if(tt==="class"&&CUR)({class:()=>{},why:()=>{},plan:wirePlanner,fluency:wireFluency,bd:wireBreak,items:()=>{},setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
-  else ({classes:wireClasses,compare:wireCompare,standards:wireStandards,tests:wireTests,teachers:wireTeachers,class:wireClasses})[tt]();
+  app.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;S.err="";S.mtssId=null;render()});
+  const cd=document.getElementById("csv-dl");if(cd)cd.onclick=()=>saveFile(`${CUR.cls.name.replace(/[^\w]+/g,"-")}-${new Date().toISOString().slice(0,10)}.csv`,classCSV());
+  if(tt==="class"&&CUR)({class:()=>{},why:()=>{},plan:wirePlanner,fluency:wireFluency,mtss:wireMtss,bd:wireBreak,items:()=>{},setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
+  else ({classes:wireClasses,compare:wireCompare,standards:wireStandards,tests:wireTests,reports:wireReports,teachers:wireTeachers,class:wireClasses})[tt]();
 }
 SCREENS.teacher=teacher;
 
@@ -2706,11 +2725,11 @@ function tClass(){
      <td><span class="bar"><span style="width:${TR.length?done/TR.length*100:0}%;background:var(--go)"></span></span> ${done}/${TR.length}${(s.assigned||[]).length?`<br><span class="muted" style="font-size:.8rem">Assigned: ${esc(s.assigned.join(", "))}</span>`:""}</td>
      <td>${cur?`${esc(cur.std)}<br><span class="muted">${esc(cur.name)}</span>`:'<span style="color:var(--go);font-weight:700">Proficient</span>'}</td>
      <td>${tries?Math.round(right/tries*100)+"%":"—"}<br><span class="muted">${tries} answered</span></td>
-     <td>${p.tutor?.total||0}</td></tr>`}).join("");
-  return `${goalCard}${attnCard}${groupsCard}<div class="card"><h2>Every student</h2>
+     <td>${(()=>{const r=readiness(s),b=band(r);return r==null?"—":`<span class="pill ${b.c}">${r}%</span>`})()}</td><td>${p.tutor?.total||0}</td></tr>`}).join("");
+  return `${goalCard}${readinessCard()}${attnCard}${groupsCard}<div class="card"><div class="top"><h2>Every student</h2><button class="ghost small" id="csv-dl">Download class data (CSV)</button></div>
    <p class="muted">Each student’s path skips any standard where they got every test question right. Students marked “sample” are examples and are not counted in your goal.</p>
-   <div class="tablewrap"><table class="roster"><thead><tr><th>Student</th><th>Missed on test</th><th>Path</th><th>Working on</th><th>Accuracy</th><th>Asked Scout</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="muted">No students yet.</td></tr>`}</tbody></table></div>
-   <p class="muted" style="font-size:.85rem">Progress saves online, so students can use any device. <button class="link" id="reload">Refresh</button></p></div>`;
+   <div class="tablewrap"><table class="roster"><thead><tr><th>Student</th><th>Missed on test</th><th>Path</th><th>Working on</th><th>Accuracy</th><th>Readiness</th><th>Asked Scout</th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="muted">No students yet.</td></tr>`}</tbody></table></div>
+   <p class="muted" style="font-size:.85rem">Progress saves online, so students can use any device. <button class="link" id="reload">Refresh</button></p></div>${growthCard()}`;
 }
 const heat=p=>p>=70?"var(--go)":p>=50?"var(--star)":"var(--oops)";
 document.addEventListener("click",e=>{if(e.target.id==="reload"&&CUR){openClass(CUR.cls.id,"class")}});
@@ -2772,9 +2791,11 @@ function tItems(){
 document.addEventListener("click",e=>{const b=e.target.closest("[data-goq]");if(b){S.tab="bd";S.bdq=+b.dataset.goq;render()}});
 
 /* ---------- students ---------- */
-const rosterOut=list=>list.map(s=>({id:s.id,name:s.name,code:s.code,missed:s.missed||{},assigned:s.assigned||[],sample:!!s.sample}));
+const rosterOut=list=>list.map(s=>({id:s.id,name:s.name,code:s.code,missed:s.missed||{},assigned:s.assigned||[],...(s.mtss?{mtss:s.mtss}:{}),sample:!!s.sample}));
 async function saveRoster(list,extra={}){
-  const d=await api("rosterSave",{classId:CUR.cls.id,students:rosterOut(list),...extra});
+  let d;try{d=await api("rosterSave",{classId:CUR.cls.id,rev:CUR.rev,students:rosterOut(list),...extra})}
+  catch(e){if(/Someone else changed/.test(e.message)){const tab=S.tab;await openClass(CUR.cls.id,tab);alert(e.message+" Please make your change again.")}throw e}
+  CUR.rev=d.rev||"";
   const progById=Object.fromEntries(CUR.raw.map(s=>[s.id,s.prog]));
   list.forEach(s=>{if(s.id&&s.prog)progById[s.id]=s.prog});
   if(extra.progs)Object.assign(progById,extra.progs);
@@ -3034,9 +3055,10 @@ function tTeachers(){
     <label class="f chk"><span><input type="checkbox" id="nt-admin"> School admin</span></label><button type="submit">Add teacher</button></form><p class="err" id="nt-err" role="alert"></p></div>
   <div class="card"><h2>Assign classes</h2><p class="muted">Pick the teacher for each class.</p>
    ${TB.classes.length?`<div class="tablewrap"><table class="roster"><thead><tr><th>Class</th><th>Test</th><th>Teacher</th></tr></thead><tbody>${TB.classes.map(c=>`<tr><td><b>${esc(c.name)}</b></td><td>${esc(testName(c.testId))}</td><td><select data-asg="${c.id}" aria-label="Teacher for ${esc(c.name)}">${TB.teachers.map(t=>`<option value="${t.id}" ${t.id===c.teacherId?"selected":""}>${esc(t.name)}</option>`).join("")}</select></td></tr>`).join("")}</tbody></table></div><p class="muted" id="asg-msg" role="status"></p>`:`<p class="muted">No classes yet.</p>`}</div>
-  ${account}`;
+  ${backupCard()}${account}`;
 }
 function wireTeachers(){
+  wireBackups();
   document.getElementById("me-f").onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Saving…");
     try{Object.assign(TB,await api("teacherSave",{id:TB.me.id,name:document.getElementById("me-name").value,code:document.getElementById("me-code").value.trim()}));TEACHER=TB.me.name;flash("me-msg","Saved.");render()}
     catch(er){document.getElementById("me-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save"}};
@@ -3409,7 +3431,7 @@ function fluCard(){
   const fp=S.demo?{level:0,att:[]}:fluProg(),c=fluCfg(),L=FLU_LEVELS[fp.level]||FLU_LEVELS[0],best=Math.max(0,...fp.att.filter(x=>x.lvl===fp.level).map(x=>x.r));
   return `<div class="card flu-card"><div class="top"><h2>⚡ Fluency</h2><span class="pill gold">Level ${fp.level+1} of ${FLU_LEVELS.length}</span></div>
    <p><b>${esc(L.name)}</b></p><p class="muted">Get ${c.pass} of ${c.n} right in ${Math.round(c.secs/60*10)/10} minute${c.secs===60?"":"s"} to level up.${best?` Your best: <b>${best}</b>.`:""}</p>
-   <div class="row"><button id="flu-go">Start fluency</button></div></div>`;
+   <div class="row"><button id="flu-go">${t("Start fluency")}</button></div></div>`;
 }
 let fluTimer=null;
 function fluStart(){const fp=S.demo?{level:0}:fluProg(),c=fluCfg();S.F={lvl:fp.level||0,qs:fluSheet(fp.level||0,c.n),i:0,res:[],start:Date.now(),secs:c.secs,pass:c.pass,done:false,ready:true};S.screen="fluency";render()}
@@ -3426,26 +3448,26 @@ function fluency(){
      <h2>⚡ Fluency · Level ${F.lvl+1}</h2><p class="lead">${esc(FLU_LEVELS[F.lvl].name)}</p>
      <p>You have <b>${Math.floor(F.secs/60)}:${String(F.secs%60).padStart(2,"0")}</b> to answer ${F.qs.length} questions. Get <b>${F.pass}</b> right to level up.</p>
      <p class="muted">Type the answer and press Enter. If you’re stuck, skip it and keep going.</p>
-     <button id="flu-start" style="font-size:1.2rem;padding:16px 28px">Ready, set, go!</button></div>`;
+     <button id="flu-start" style="font-size:1.2rem;padding:16px 28px">${t("Ready, set, go!")}</button></div>`;
     document.getElementById("back").onclick=()=>{S.screen="home";render()};
     document.getElementById("flu-start").onclick=()=>{F.go=true;F.start=Date.now();fluTimer=setInterval(()=>{const left=F.secs-Math.floor((Date.now()-F.start)/1000);const el=document.getElementById("flu-t"),bar=document.getElementById("flu-bar");
       if(el)el.textContent=`${Math.floor(Math.max(0,left)/60)}:${String(Math.max(0,left)%60).padStart(2,"0")}`;if(bar)bar.style.width=Math.max(0,left/F.secs*100)+"%";if(left<=0)fluEnd()},250);render()};return}
   if(F.done){const missed=F.res.filter(x=>!x.ok),skipped=F.qs.slice(F.res.length);
     app.innerHTML=header(`<button class="ghost" id="back">My trail</button>`)+`<div class="card pop" style="text-align:center;align-items:center">
-      <h2>${F.passed?(F.levelUp?"Level up! 🎉":"You passed! 🎉"):"Nice work!"}</h2>
+      <h2>${t(F.passed?(F.levelUp?"Level up! 🎉":"You passed! 🎉"):"Nice work!")}</h2>
       <div class="flu-score"><b>${F.right}</b><span>of ${F.qs.length} right</span></div>
       <p>${F.passed?`You needed ${F.pass}. ${F.levelUp?`Next up: Level ${F.lvl+2}, ${esc(FLU_LEVELS[F.lvl+1].name)}.`:"You finished the top level!"}`:`You need ${F.pass} to level up. That’s ${F.pass-F.right} more. You can do it!`}</p>
       <p class="muted">Time: ${Math.floor(F.used/60)}:${String(F.used%60).padStart(2,"0")}</p>
-      <div class="row"><button id="flu-again">${F.passed&&F.levelUp?"Try the next level":"Try again"}</button><button class="ghost" id="back2">Back to my trail</button></div></div>
-     ${missed.length||skipped.length?`<div class="card"><h3>Practice these</h3><div class="flu-miss">${[...missed.map(x=>`<span><s>${esc(x.v)}</s> ${esc(x.q.t.replace("∎","?"))} = <b>${x.q.ans}</b></span>`),...skipped.slice(0,8).map(q=>`<span class="muted">${esc(q.t.replace("∎","?"))} = <b>${q.ans}</b></span>`)].join("")}</div></div>`:""}`;
+      <div class="row"><button id="flu-again">${t(F.passed&&F.levelUp?"Try the next level":"Try again")}</button><button class="ghost" id="back2">${t("Back to my trail")}</button></div></div>
+     ${missed.length||skipped.length?`<div class="card"><h3>${t("Practice these")}</h3><div class="flu-miss">${[...missed.map(x=>`<span><s>${esc(x.v)}</s> ${esc(x.q.t.replace("∎","?"))} = <b>${x.q.ans}</b></span>`),...skipped.slice(0,8).map(q=>`<span class="muted">${esc(q.t.replace("∎","?"))} = <b>${q.ans}</b></span>`)].join("")}</div></div>`:""}`;
     document.getElementById("back").onclick=document.getElementById("back2").onclick=()=>{S.screen="home";render()};
     document.getElementById("flu-again").onclick=fluStart;return}
   const q=F.qs[F.i],right=F.res.filter(x=>x.ok).length;
-  app.innerHTML=`<div class="flu-top"><span class="label">Level ${F.lvl+1} · ${esc(FLU_LEVELS[F.lvl].name)}</span><span class="flu-time" id="flu-t">${Math.floor(F.secs/60)}:00</span><button class="ghost small" id="flu-stop">Stop</button></div>
+  app.innerHTML=`<div class="flu-top"><span class="label">Level ${F.lvl+1} · ${esc(FLU_LEVELS[F.lvl].name)}</span><span class="flu-time" id="flu-t">${Math.floor(F.secs/60)}:00</span><button class="ghost small" id="flu-stop">${t("Stop")}</button></div>
    <div class="meter flu-meter"><span id="flu-bar" style="width:100%"></span></div>
    <div class="flu-grid" aria-label="${F.res.length} of ${F.qs.length} answered">${F.qs.map((_,i)=>`<i class="${i<F.res.length?(F.res[i].ok?"ok":"no"):i===F.i?"now":""}"></i>`).join("")}</div>
    <div class="card flu-q"><div class="flu-prob">${esc(q.t.replace("∎","☐"))}${q.t.includes("∎")||q.t.startsWith("Round")?"":" ="}</div>
-    <form id="flu-f" class="row" style="justify-content:center"><input id="flu-in" class="num" inputmode="numeric" autocomplete="off" aria-label="Your answer" style="width:160px;font-size:2rem;text-align:center"><button type="submit">Enter</button><button type="button" class="ghost" id="flu-skip">Skip</button></form>
+    <form id="flu-f" class="row" style="justify-content:center"><input id="flu-in" class="num" inputmode="numeric" autocomplete="off" aria-label="Your answer" style="width:160px;font-size:2rem;text-align:center"><button type="submit">${t("Enter")}</button><button type="button" class="ghost" id="flu-skip">${t("Skip")}</button></form>
     <div class="pad flu-pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button type="button" data-k="${n}">${n}</button>`).join("")}<button type="button" data-k="back" aria-label="Delete">⌫</button><button type="button" data-k="0">0</button><button type="button" data-k="go">Go</button></div>
     <p class="muted" style="text-align:center">${right} right so far</p></div>`;
   const left=F.secs-Math.floor((Date.now()-F.start)/1000);document.getElementById("flu-t").textContent=`${Math.floor(Math.max(0,left)/60)}:${String(Math.max(0,left)%60).padStart(2,"0")}`;document.getElementById("flu-bar").style.width=Math.max(0,left/F.secs*100)+"%";
@@ -3490,6 +3512,8 @@ let chirpTimer=null;
 function chirpMsg(kind){
   const s=S.student,first=(s&&s.name||"").replace(" (sample)",""),p=s&&s.prog,k=S.k&&p&&p.skills[S.k],M=MAST(),today=new Date().toDateString();
   const todayN=p?(p.today&&p.today.d===today?p.today.n:0):0,rec=(p&&p.recent||[]).slice(-6),wrongs=rec.filter(r=>!r.ok).length,pick=a=>a[Math.floor(Math.random()*a.length)];
+  if(S.lang==="es"){const E=CHIRP_ES;if(kind==="fluPass")return E.fluPass;if(kind==="fluTry")return E.fluTry;if(kind==="mastered")return E.mastered;
+    if(k&&k.streak>=3)return E.streak(k.streak);if(k&&k.streak>0&&M-k.streak<=3)return E.near(M-k.streak);if(wrongs>=3)return E.tough;if(todayN>=10&&Math.random()<.5)return E.today(todayN);return pick(E.gen)}
   if(kind==="fluPass")return pick([`Wow, ${first}! Your brain is getting faster!`,`Fact champion! Look at you go, ${first}!`,"Tweet tweet! That was super speedy!"]);
   if(kind==="fluTry")return pick([`Every try makes you faster, ${first}. Let’s go again!`,"Practice those facts and you’ll fly past it next time!","Speed comes with practice. I believe in you!"]);
   if(kind==="mastered")return pick([`Checkpoint! I’m so proud of you, ${first}!`,"You did it! Up, up, and away to the next one!"]);
@@ -3507,7 +3531,7 @@ function chirp(kind){
   const old=document.getElementById("chirp");if(old)old.remove();clearTimeout(chirpTimer);
   const el=document.createElement("div");el.id="chirp";el.className="chirp";el.setAttribute("role","status");
   const msg=chirpMsg(kind);
-  el.innerHTML=`<div class="chirp-bird">${CHIRP_SVG}</div><div class="chirp-b"><b>Chirp says:</b> ${esc(msg)}${TTS?` <button class="link small" id="chirp-say" aria-label="Read this to me">🔊</button>`:""}</div><button class="chirp-x" aria-label="Close">×</button>`;
+  el.innerHTML=`<div class="chirp-bird">${CHIRP_SVG}</div><div class="chirp-b"><b>${t("Chirp says:")}</b> ${esc(msg)}${TTS?` <button class="link small" id="chirp-say" aria-label="Read this to me">🔊</button>`:""}</div><button class="chirp-x" aria-label="Close">×</button>`;
   document.body.appendChild(el);
   const close=()=>{el.classList.add("out");setTimeout(()=>el.remove(),500)};
   el.querySelector(".chirp-x").onclick=close;const sb=el.querySelector("#chirp-say");if(sb)sb.onclick=()=>speak(msg);
@@ -3610,6 +3634,205 @@ function printPlan(){
    <div class="g">${S.plan.groups.map((g,gi)=>{const I=infos[gi];return `<div class="c"><h3>${esc(g.name)}</h3><p><b>${I.focus?esc(I.focus.std+" "+I.focus.name):"Challenge work"}</b></p><p>${I.studs.map(s=>esc(s.name)).join(", ")}</p>${I.mis?`<p><i>Shared mistake:</i> ${esc(I.mis.ex)}</p>`:""}${S.reteach&&S.reteach[gi]?`<p style="white-space:pre-wrap">${esc(S.reteach[gi])}</p>`:""}</div>`}).join("")}</div><script>print()<\/script>`);
   w.document.close();
 }
+
+/* ================= time and growth tracking ================= */
+const dayKey=(t=Date.now())=>{const d=new Date(t);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`};
+function track(p,kid,ok,ms){const d=dayKey(),D=p.days||(p.days={}),x=(D[d]=D[d]||{}),y=x[kid]||(x[kid]={n:0,ok:0,ms:0});y.n++;if(ok)y.ok++;y.ms+=Math.max(0,Math.min(ms||0,180000));
+  const ks=Object.keys(D).sort();if(ks.length>150)ks.slice(0,ks.length-150).forEach(k=>delete D[k]);if(!p.first)p.first=Date.now()}
+const weekOf=k=>{const d=new Date(k+"T12:00:00");d.setDate(d.getDate()-((d.getDay()+6)%7));return dayKey(d)};
+function weekly(progs,kid){const W={};progs.forEach(p=>Object.entries(p.days||{}).forEach(([d,x])=>{const w=weekOf(d),o=W[w]||(W[w]={n:0,ok:0,ms:0,days:new Set()});
+  Object.entries(x).forEach(([k,v])=>{if(kid&&k!==kid)return;o.n+=v.n;o.ok+=v.ok;o.ms+=v.ms;if(v.n)o.days.add(d)})}));
+  return Object.keys(W).sort().map(w=>({w,...W[w],acc:W[w].n?Math.round(W[w].ok/W[w].n*100):null})).filter(x=>x.n)}
+const minsOf=(p,kid,since=0)=>Math.round(Object.entries(p.days||{}).reduce((a,[d,x])=>a+(new Date(d+"T12:00:00").getTime()>=since?Object.entries(x).reduce((b,[k,v])=>b+(!kid||k===kid?v.ms:0),0):0),0)/60000);
+const shortDate=k=>{const d=new Date(k+"T12:00:00");return `${d.getMonth()+1}/${d.getDate()}`};
+
+/* simple charts: one measure each, thin marks, hover titles */
+function lineChart(pts,o={}){if(!pts.length)return `<p class="muted">Not enough practice yet.</p>`;
+  const W=560,H=200,L=40,R=12,T=14,B=30,max=o.max||Math.max(1,...pts.map(p=>p.y)),x=i=>L+(pts.length===1?(W-L-R)/2:i*(W-L-R)/(pts.length-1)),y=v=>T+(H-T-B)*(1-v/max);
+  let s="";[0,.25,.5,.75,1].forEach(f=>{const v=Math.round(max*f);s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--rule)" stroke-width="1"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--soft)">${v}${o.unit||""}</text>`});
+  if(o.goal!=null)s+=`<line x1="${L}" x2="${W-R}" y1="${y(o.goal)}" y2="${y(o.goal)}" stroke="var(--purple-ink)" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${L+6}" y="${y(o.goal)-5}" text-anchor="start" font-size="11" fill="var(--purple-ink)">${esc(o.goalLabel||"goal")}</text>`;
+  s+=`<polyline points="${pts.map((p,i)=>`${x(i)},${y(p.y)}`).join(" ")}" fill="none" stroke="var(--go)" stroke-width="2" stroke-linejoin="round"/>`;
+  pts.forEach((p,i)=>{s+=`<g class="pt"><circle cx="${x(i)}" cy="${y(p.y)}" r="12" fill="transparent"/><circle cx="${x(i)}" cy="${y(p.y)}" r="4.5" fill="var(--go)" stroke="var(--card)" stroke-width="2"/><title>${esc(p.tip||p.label+": "+p.y+(o.unit||""))}</title></g>`;
+    if(pts.length<=12||i%Math.ceil(pts.length/12)===0)s+=`<text x="${x(i)}" y="${H-10}" text-anchor="middle" font-size="11" fill="var(--soft)">${esc(p.label)}</text>`});
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.title||"chart")}">${s}</svg></div>`}
+function barChart(pts,o={}){if(!pts.length)return "";
+  const W=560,H=150,L=40,R=12,T=10,B=30,max=Math.max(1,...pts.map(p=>p.y)),bw=Math.min(36,(W-L-R)/pts.length-6),x=i=>L+(i+.5)*(W-L-R)/pts.length,y=v=>T+(H-T-B)*(1-v/max);
+  let s=`<line x1="${L}" x2="${W-R}" y1="${y(0)}" y2="${y(0)}" stroke="var(--rule)"/>`+`<text x="${L-6}" y="${y(max)+4}" text-anchor="end" font-size="11" fill="var(--soft)">${max}</text>`;
+  pts.forEach((p,i)=>{const h=y(0)-y(p.y);s+=`<g><rect x="${x(i)-bw/2}" y="${y(p.y)}" width="${bw}" height="${Math.max(0,h)}" rx="4" fill="var(--blue)" opacity=".85"/><title>${esc(p.tip||p.label+": "+p.y)}</title></g>`;
+    if(pts.length<=12||i%Math.ceil(pts.length/12)===0)s+=`<text x="${x(i)}" y="${H-10}" text-anchor="middle" font-size="11" fill="var(--soft)">${esc(p.label)}</text>`});
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.title||"chart")}">${s}</svg></div>`}
+
+/* ================= benchmark readiness (estimate) ================= */
+/* weights follow the grade 3 major work emphasis: major clusters 3, supporting 1.5, additional 1. Not an official MAAP blueprint. */
+const STD_W=c=>/^3\.(OA|NF)\./.test(c)||/^3\.MD\.(1|2|5|6|7)/.test(c)?3:/^3\.(MD\.(3|4|8)|G\.)/.test(c)?1.5:1;
+function stdScore(s,k){const sk=s.prog.skills[k.id];if(!sk||sk.status==="off")return null;
+  if(sk.status==="done"||sk.status==="skip")return sk.reopen?.5:1;
+  const rec=(s.prog.recent||[]).filter(r=>r.k===k.id).slice(-10);return rec.length>=5&&rec.filter(r=>r.ok).length/rec.length>=.7?.5:0}
+function readiness(s){let w=0,v=0;SKILLS.forEach(k=>{const sc=stdScore(s,k);if(sc==null)return;const ww=STD_W(k.std);w+=ww;v+=ww*sc});return w?Math.round(v/w*100):null}
+const band=r=>r==null?{t:"—",c:""}:r>=80?{t:"On track",c:"go"}:r>=60?{t:"Close",c:"gold"}:{t:"Needs support",c:"oops"};
+function readinessCard(){
+  const real=realStudents(),rs=real.map(s=>({s,r:readiness(s)})),n={go:0,gold:0,oops:0};rs.forEach(x=>{const b=band(x.r);if(b.c)n[b.c]++});const N=real.length||1;
+  return `<div class="card"><div class="top"><h2>Benchmark readiness <span class="muted" style="font-weight:500;font-size:.9rem">(estimate)</span></h2></div>
+   <div class="rbar" role="img" aria-label="${n.go} on track, ${n.gold} close, ${n.oops} need support">${[["go","On track"],["gold","Close"],["oops","Needs support"]].map(([c,l])=>n[c]?`<span class="rb ${c}" style="flex:${n[c]}" title="${l}: ${n[c]}">${n[c]}</span>`:"").join("")}</div>
+   <div class="row" style="gap:16px">${[["go","On track"],["gold","Close"],["oops","Needs support"]].map(([c,l])=>`<span><span class="dot ${c}"></span> ${l}: <b>${n[c]}</b> (${Math.round(n[c]/N*100)}%)</span>`).join("")}</div>
+   <p class="muted" style="font-size:.85rem">Each student’s estimate combines every standard on their trail: mastered or right on the test counts fully, 70% or better on recent practice counts half. Standards in the major work of grade 3 (OA, NF, and most MD) count 3 times as much as NBT, and supporting standards 1.5 times. This is a guide, not a MAAP score.</p></div>`;
+}
+
+/* ================= growth card (class) ================= */
+function growthCard(){
+  const real=realStudents(),wk=weekly(real.map(s=>s.prog));
+  return `<div class="card"><h2>Growth over time</h2><p class="muted">Class accuracy each week in practice (all standards). Hover a point to see the numbers.</p>
+   ${lineChart(wk.map(x=>({label:shortDate(x.w),y:x.acc,tip:`Week of ${shortDate(x.w)}: ${x.acc}% right (${x.ok} of ${x.n})`})),{max:100,unit:"%",goal:70,goalLabel:"70%",title:"Weekly class accuracy"})}
+   ${wk.length?`<h3>Questions answered each week</h3>${barChart(wk.map(x=>({label:shortDate(x.w),y:x.n,tip:`Week of ${shortDate(x.w)}: ${x.n} questions, ${Math.round(x.ms/60000)} minutes`})),{title:"Questions answered per week"})}`:""}</div>`;
+}
+
+/* ================= spaced review ================= */
+const REVIEW_DAYS=7,REVIEW_EVERY=5;
+function pickReview(s){const p=s.prog,now=Date.now();S.sinceRev=(S.sinceRev||0)+1;if(S.sinceRev<REVIEW_EVERY)return null;
+  const due=SKILLS.filter(k=>{const sk=p.skills[k.id];if(!sk||!(sk.status==="done"||sk.status==="skip"))return false;if(!genOf(k)&&!k.qs.length&&!k.twins.length)return false;
+    const t=sk.rv?.t||sk.doneAt||p.first||now;return now-t>=REVIEW_DAYS*864e5});
+  if(!due.length)return null;S.sinceRev=0;return due.sort((a,b)=>(p.skills[a.id].rv?.t||0)-(p.skills[b.id].rv?.t||0))[0]}
+function reviewQid(k){const g=genOf(k),pool=[...k.twins,...k.qs.map(n=>"q"+n)].filter(getQ);return g&&(!pool.length||Math.random()<.6)?genId(g):pool[Math.floor(Math.random()*pool.length)]}
+function gradeReview(q,ok){const p=S.student.prog,sk=p.skills[S.k];sk.rv={t:Date.now(),n:(sk.rv?.n||0)+1,ok:(sk.rv?.ok||0)+(ok?1:0)};
+  if(ok){sk.rvMiss=0;if(sk.reopen&&sk.status!=="todo")delete sk.reopen}else{sk.rvMiss=(sk.rvMiss||0)+1;if(sk.rvMiss>=2){sk.was=sk.status;sk.status="todo";sk.streak=0;sk.rvMiss=0;sk.reopen=true;S.reopened=true}}}
+
+/* ================= MTSS ================= */
+function stdRows(s){return SKILLS.map(k=>{const sk=s.prog.skills[k.id];if(!sk||sk.status==="off")return null;
+  const days=Object.entries(s.prog.days||{}).filter(([,x])=>x[k.id]).sort(),n=days.reduce((a,[,x])=>a+x[k.id].n,0),ok=days.reduce((a,[,x])=>a+x[k.id].ok,0),ms=days.reduce((a,[,x])=>a+x[k.id].ms,0);
+  const rec=(s.prog.recent||[]).filter(r=>r.k===k.id);
+  return {k,sk,n,ok,mins:Math.round(ms/60000),sessions:days.length,first:days[0]?.[0],last:days[days.length-1]?.[0],acc:n?Math.round(ok/n*100):null,
+    fa:days.length?Math.round(days[0][1][k.id].ok/days[0][1][k.id].n*100):null,la:days.length>1?Math.round(days[days.length-1][1][k.id].ok/days[days.length-1][1][k.id].n*100):null,
+    st:sk.status==="done"?"Mastered":sk.status==="skip"?"Right on the test":sk.reopen?"Needs a refresh":rec.length?"In progress":"Not started"}}).filter(Boolean)}
+function tMtss(){
+  const real=CUR.raw.filter(s=>!isSample(s)).map((r,i)=>({r,s:CUR.students.find(x=>x.id===r.id)})),mo=Date.now()-30*864e5;
+  if(S.mtssId){const x=real.find(y=>y.r.id===S.mtssId);if(x)return mtssReport(x.r,x.s)}
+  return `<div class="card"><h2>MTSS and intervention records</h2><p class="muted">Mark a student’s tier, then open their report. Every report is built from their practice: standards worked on, time, accuracy growth, mistakes, and fluency. Add your goal and notes, then print it for meetings.</p>
+   <div class="tablewrap"><table class="roster"><thead><tr><th>Student</th><th>Tier</th><th>Readiness</th><th>Working on</th><th>Minutes (30 days)</th><th></th></tr></thead><tbody>
+   ${real.map(({r,s})=>{const cur=curSkill(s),rd=readiness(s),b=band(rd);return `<tr><td><b>${esc(r.name)}</b></td><td><select data-tier="${r.id}" aria-label="Tier for ${esc(r.name)}"><option value="">Tier 1</option><option value="2" ${r.mtss?.tier==="2"?"selected":""}>Tier 2</option><option value="3" ${r.mtss?.tier==="3"?"selected":""}>Tier 3</option></select></td>
+     <td>${rd==null?"—":`<span class="pill ${b.c}">${b.t} · ${rd}%</span>`}</td><td>${cur?esc(cur.std):'<span style="color:var(--go);font-weight:700">Finished</span>'}</td><td>${minsOf(s.prog,null,mo)}</td><td><button class="ghost small" data-mrep="${r.id}">Open report</button></td></tr>`}).join("")||`<tr><td colspan="6" class="muted">No students yet.</td></tr>`}</tbody></table></div><p class="muted" id="tier-msg" role="status"></p></div>`;
+}
+function mtssReport(r,s){
+  const m=r.mtss||{},rows=stdRows(s),rd=readiness(s),b=band(rd),wk=weekly([s.prog]),f=(r.prog||{})._flu,cur=curSkill(s),mis=missGroups([s]).slice(0,5),total=minsOf(s.prog),days=Object.keys(s.prog.days||{}).length;
+  const since=m.start?new Date(m.start+"T00:00:00").getTime():0;
+  return `<div class="row"><button class="ghost small" id="m-back">← All students</button><button class="small" id="m-print">Print report</button></div>
+  <div class="card mrep" id="mrep">
+   <div class="top"><div><span class="label">Intervention progress report</span><h2>${esc(r.name)}</h2><p class="muted">${esc(CUR.cls.name)} · ${esc(tName(CUR.cls.teacherId))} · ${esc(TB.school.name)} · printed ${new Date().toLocaleDateString()}</p></div>
+    <div style="text-align:right"><span class="pill ${b.c}" style="font-size:.9rem">${b.t}${rd!=null?` · ${rd}%`:""}</span><br><span class="muted" style="font-size:.8rem">benchmark readiness (estimate)</span></div></div>
+   <form class="grid noprint-ok" id="m-f">
+    <label class="f">Tier<select id="m-tier"><option value="">Tier 1</option><option value="2" ${m.tier==="2"?"selected":""}>Tier 2</option><option value="3" ${m.tier==="3"?"selected":""}>Tier 3</option></select></label>
+    <label class="f">Intervention start<input type="date" id="m-start" value="${esc(m.start||"")}"></label>
+    <label class="f" style="grid-column:1/-1">Goal<input id="m-goal" maxlength="300" value="${esc(m.goal||"")}" placeholder="e.g. Master 3.OA.4 with 80% accuracy by Dec 15"></label>
+    <label class="f" style="grid-column:1/-1">Notes<textarea id="m-notes" rows="3" maxlength="2000" placeholder="Small group times, strategies tried, parent contact…">${esc(m.notes||"")}</textarea></label>
+    <button type="submit">Save</button></form><p class="muted" id="m-msg" role="status"></p>
+   <div class="mstats">${[["Minutes practiced",total],["Days with practice",days],["Minutes since start",m.start?minsOf(s.prog,null,since):"—"],["Fluency level",f?`${(f.level||0)+1} of ${FLU_LEVELS.length}`:"—"],["Now working on",cur?cur.std:"Finished"]].map(([l,v])=>`<div><b>${esc(String(v))}</b><span>${l}</span></div>`).join("")}</div>
+   <h3>Accuracy each week</h3>${lineChart(wk.map(x=>({label:shortDate(x.w),y:x.acc,tip:`Week of ${shortDate(x.w)}: ${x.acc}% (${x.ok}/${x.n}), ${Math.round(x.ms/60000)} min`})),{max:100,unit:"%",goal:80,goalLabel:"80%",title:"Weekly accuracy"})}
+   <h3>Standards</h3><div class="tablewrap"><table class="roster"><thead><tr><th>Standard</th><th>Status</th><th>Questions</th><th>Accuracy</th><th>First day → latest day</th><th>Days</th><th>Minutes</th></tr></thead><tbody>
+    ${rows.map(x=>`<tr><td><b>${esc(x.k.std)}</b><br><span class="muted">${esc(x.k.name)}</span></td><td>${x.st}</td><td>${x.n}</td><td>${x.acc==null?"—":x.acc+"%"}</td><td>${x.fa==null?"—":x.la==null?x.fa+"%":`${x.fa}% → ${x.la}%`}${x.first?`<br><span class="muted" style="font-size:.8rem">${shortDate(x.first)}–${shortDate(x.last)}</span>`:""}</td><td>${x.sessions}</td><td>${x.mins}</td></tr>`).join("")}</tbody></table></div>
+   <h3>Most common mistakes</h3>${mis.length?`<ol class="miss">${mis.map(x=>`<li><div class="mhead"><b>${esc((LIBG[x.k]||SKILLS.find(k=>k.id===x.k)||{}).code||(SKILLS.find(k=>k.id===x.k)||{}).std||"")}</b><span class="muted">${x.n} time${x.n===1?"":"s"}</span></div><p class="mex">“${fmt(x.ex)}”</p></li>`).join("")}</ol>`:`<p class="muted">No mistakes recorded yet.</p>`}
+   ${f&&(f.att||[]).length?`<h3>Fluency</h3><div class="tablewrap"><table class="roster"><thead><tr><th>Date</th><th>Level</th><th>Score</th><th>Passed</th></tr></thead><tbody>${f.att.slice(-8).reverse().map(a=>`<tr><td>${new Date(a.d).toLocaleDateString()}</td><td>${a.lvl+1}</td><td>${a.r}/${a.n}</td><td>${a.p?"Yes":"No"}</td></tr>`).join("")}</tbody></table></div>`:""}
+   <p class="muted" style="font-size:.8rem">Minutes are estimated from time spent on each question (up to 3 minutes per question). Readiness is an estimate from practice and test data, not a MAAP score.</p>
+  </div>`;
+}
+function wireMtss(){
+  app.querySelectorAll("[data-tier]").forEach(sel=>sel.onchange=async()=>{const id=sel.dataset.tier,msg=document.getElementById("tier-msg");
+    try{await saveRoster(CUR.raw.map(s=>s.id===id?{...s,mtss:{...(s.mtss||{}),tier:sel.value}}:s));msg.textContent="Saved."}catch(e){msg.textContent=e.message}});
+  app.querySelectorAll("[data-mrep]").forEach(b=>b.onclick=()=>{S.mtssId=b.dataset.mrep;render()});
+  const bk=document.getElementById("m-back");if(bk)bk.onclick=()=>{S.mtssId=null;render()};
+  const pr=document.getElementById("m-print");if(pr)pr.onclick=()=>printEl("mrep",`Intervention report`);
+  const f=document.getElementById("m-f");if(f)f.onsubmit=async e=>{e.preventDefault();const id=S.mtssId,v=x=>document.getElementById(x).value;busy(e.submitter,"Saving…");
+    try{await saveRoster(CUR.raw.map(s=>s.id===id?{...s,mtss:{tier:v("m-tier"),start:v("m-start"),goal:v("m-goal"),notes:v("m-notes")}}:s));flash("m-msg","Saved.");render()}catch(er){document.getElementById("m-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save"}};
+}
+function printEl(id,title){const el=document.getElementById(id),w=window.open("","_blank");if(!el||!w){alert("Allow pop-ups to print.");return}
+  const css=[...document.querySelectorAll("style")].map(s=>s.outerHTML).join("");
+  const clone=el.cloneNode(true);clone.querySelectorAll("form").forEach(f=>{const box=document.createElement("div");box.className="pfields";
+    const g=x=>el.querySelector("#"+x);box.innerHTML=`<p><b>Tier:</b> ${g("m-tier")?.value?("Tier "+g("m-tier").value):"Tier 1"} &nbsp; <b>Start:</b> ${esc(g("m-start")?.value||"—")}</p><p><b>Goal:</b> ${esc(g("m-goal")?.value||"—")}</p><p><b>Notes:</b> ${esc(g("m-notes")?.value||"—")}</p>`;f.replaceWith(box)});
+  w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(title)}</title>${css}<style>body{background:#fff;padding:16px}.card{box-shadow:none;border:1px solid #ccc}button{display:none}</style><div class="wrap teach" style="max-width:900px">${clone.outerHTML}</div><script>setTimeout(()=>print(),300)<\/script>`);w.document.close()}
+
+/* ================= class data download ================= */
+function csvCell(v){v=v==null?"":String(v);return /[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v}
+function classCSV(){
+  const head=["Name","Code","Missed on test","Assigned standards","Working on","Checkpoints done","Checkpoints total","Practice accuracy %","Questions answered","Minutes practiced","Readiness estimate %","Fluency level","Tier","Asked Scout"];
+  const rows=CUR.raw.filter(r=>!isSample(r)).map(r=>{const s=CUR.students.find(x=>x.id===r.id),TR=trailFor(s),p=s.prog,cur=curSkill(s);
+    const tries=Object.values(p.log).reduce((a,l)=>a+l.tries,0),right=Object.values(p.log).reduce((a,l)=>a+l.right,0);
+    return [r.name,r.code,s.missed==null?"not entered":s.missed.join(" "),(r.assigned||[]).join(" "),cur?cur.std:"finished",TR.filter(k=>p.skills[k.id].status!=="todo").length,TR.length,tries?Math.round(right/tries*100):"",tries,minsOf(p),readiness(s)??"",(r.prog?._flu?.level??0)+1,r.mtss?.tier?("Tier "+r.mtss.tier):"Tier 1",p.tutor?.total||0]});
+  return [head,...rows].map(r=>r.map(csvCell).join(",")).join("\n")+"\n";
+}
+function saveFile(name,text,type="text/csv"){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},800)}
+
+/* ================= backups (admin) ================= */
+function backupCard(){
+  if(!isAdmin())return"";const B=S.backups;
+  return `<div class="card"><h2>Backups</h2><p class="muted">The site makes an automatic backup every night and keeps the newest 21. You can also download a full copy any time and keep it somewhere safe.</p>
+   <div class="row"><button class="ghost" id="bk-dl">Download a full backup</button><button class="ghost" id="bk-now">Make a backup now</button><label class="ghost filebtn">Restore from a file<input type="file" id="bk-file" accept=".json,application/json" hidden></label></div>
+   ${B?B.length?`<div class="tablewrap"><table class="roster"><thead><tr><th>Backup</th><th></th></tr></thead><tbody>${B.map(k=>`<tr><td>${esc(k.replace("backup/",""))}</td><td><div class="row"><button class="ghost small" data-bkd="${esc(k)}">Download</button><button class="ghost small" data-bkr="${esc(k)}">Restore</button></div></td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No automatic backups yet. The first one runs tonight.</p>`:`<button class="link" id="bk-list">Show automatic backups</button>`}
+   <p class="muted" id="bk-msg" role="status"></p></div>`;
+}
+function wireBackups(){
+  if(!isAdmin())return;const msg=()=>document.getElementById("bk-msg"),stamp=()=>new Date().toISOString().slice(0,10);
+  const restore=async payload=>{const c=prompt("This replaces ALL classes, students, and progress with the backup. A backup of right now is saved first.\n\nType RESTORE to continue.");if(c!=="RESTORE")return;
+    msg().textContent="Restoring…";try{const d=await api("backupRestore",{...payload,confirm:"RESTORE"});alert(`Restored ${d.restored} records. The page will reload.`);location.reload()}catch(e){msg().textContent=e.message}};
+  document.getElementById("bk-dl").onclick=async e=>{busy(e.target,"Preparing…");try{const d=await api("schoolExport");saveFile(`path-to-proficiency-backup-${stamp()}.json`,JSON.stringify(d.backup),"application/json");e.target.disabled=false;e.target.textContent="Download a full backup"}catch(er){msg().textContent=er.message}};
+  document.getElementById("bk-now").onclick=async e=>{busy(e.target,"Saving…");try{await api("backupNow");S.backups=(await api("backupList")).backups;render();flash("bk-msg","Backup saved.")}catch(er){msg().textContent=er.message}};
+  const ls_=document.getElementById("bk-list");if(ls_)ls_.onclick=async()=>{try{S.backups=(await api("backupList")).backups;render()}catch(e){msg().textContent=e.message}};
+  app.querySelectorAll("[data-bkd]").forEach(b=>b.onclick=async()=>{try{const d=await api("backupGet",{key:b.dataset.bkd});saveFile(b.dataset.bkd.replace("backup/","p2p-backup-")+".json",JSON.stringify(d.backup),"application/json")}catch(e){msg().textContent=e.message}});
+  app.querySelectorAll("[data-bkr]").forEach(b=>b.onclick=()=>restore({key:b.dataset.bkr}));
+  document.getElementById("bk-file").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!j.data||!j.data.school)throw new Error("That file is not a Path to Proficiency backup.");restore({backup:j})}catch(er){msg().textContent=er.message}};
+}
+
+/* ================= report a problem ================= */
+const REASONS=[["answer","The answer is wrong"],["confusing","It’s confusing"],["picture","The picture is wrong or missing"],["typo","Spelling or words"],["other","Something else"]];
+function reportBox(){const R=S.rep;if(!R||!R.open)return"";
+  return `<div class="card pop rep-box"><h3>${t("Report a problem with this question")}</h3>${R.sent?`<p class="fb go"><b>${t("Thank you! Your teacher will check it.")}</b></p>`:`
+   <div class="asl" style="max-height:none">${REASONS.map(([v,l])=>`<label class="chk"><input type="radio" name="rr" value="${v}" ${R.reason===v?"checked":""}> ${t(l)}</label>`).join("")}</div>
+   <label class="f">${t("Tell us more (optional)")}<textarea id="rr-note" rows="2" maxlength="500"></textarea></label>
+   <div class="row"><button id="rr-send" ${R.reason?"":"disabled"}>${t("Send")}</button><button class="ghost" id="rr-x">${t("Cancel")}</button></div><p class="err" id="rr-err" role="alert"></p>`}</div>`}
+function wireReport(){
+  const b=document.getElementById("rep-btn");if(b)b.onclick=()=>{S.rep={open:!(S.rep&&S.rep.open)};render()};
+  if(!S.rep||!S.rep.open||S.rep.sent)return;
+  app.querySelectorAll('input[name="rr"]').forEach(r=>r.onchange=()=>{S.rep.reason=r.value;document.getElementById("rr-send").disabled=false});
+  document.getElementById("rr-x").onclick=()=>{S.rep=null;render()};
+  document.getElementById("rr-send").onclick=async e=>{busy(e.target,"…");const k=SKILLS.find(x=>x.id===S.k);
+    try{if(!S.demo)await api("reportAdd",{qid:S.qid,std:k&&k.std,testId:TESTID,reason:S.rep.reason,note:document.getElementById("rr-note").value,q:S.q,classId:CUR?.cls?.id});S.rep.sent=true;render()}
+    catch(er){document.getElementById("rr-err").textContent=er.message;e.target.disabled=false;e.target.textContent=t("Send")}};
+}
+function tReports(){
+  const R=S.reports;if(!R){api("reportList").then(d=>{S.reports=d.reports;if(S.tt==="reports")render()}).catch(e=>{S.err=e.message;render()});return `<div class="card"><p class="muted">Loading reports…</p></div>`}
+  const open=R.filter(r=>r.status==="open"),done=R.filter(r=>r.status!=="open");
+  const item=r=>{let q=null;try{q=r.q&&r.q.parts?{keys:[],steps:[],why:{},...r.q}:null}catch(e){}
+    return `<div class="card"><div class="top"><div><b>${esc((REASONS.find(x=>x[0]===r.reason)||[,r.reason])[1])}</b> · ${esc(r.std||"")}<br><span class="muted" style="font-size:.85rem">${esc(r.who)} · ${new Date(r.t).toLocaleString()} · ${esc(testName(r.testId))}${r.qid.startsWith("~")?" · practice question made by the app":""}</span></div><span class="pill ${r.status==="open"?"oops":"go"}">${esc(r.status)}</span></div>
+     ${r.note?`<p>“${esc(r.note)}”</p>`:""}${q?`<details><summary>See the question</summary>${reviewHTML(q,"Reported question")}</details>`:""}
+     ${r.status==="open"?`<div class="row"><button class="ghost small" data-rs="${r.id}|fixed">Mark fixed</button><button class="ghost small" data-rs="${r.id}|dismissed">Dismiss</button>${r.qid.startsWith("~")?"":`<button class="ghost small" data-rs="${r.id}|hidden">Hide this question from students</button>`}</div>`:""}</div>`};
+  return `<div class="card"><div class="top"><h2>Problem reports</h2><span class="pill ${open.length?"oops":"go"}">${open.length} open</span></div><p class="muted">Students and teachers can flag any question with the 🚩 button. Check each one, then mark it fixed, dismiss it, or hide the question so students don’t see it again. App-made practice questions change every time, so they can’t be hidden one by one; send those to the app developer to fix the question maker.</p></div>
+   ${open.map(item).join("")||`<div class="card"><p class="muted">No open reports. 🎉</p></div>`}${done.length?`<details class="card"><summary><b>Closed reports (${done.length})</b></summary>${done.slice(0,40).map(item).join("")}</details>`:""}`;
+}
+function wireReports(){app.querySelectorAll("[data-rs]").forEach(b=>b.onclick=async()=>{const [id,st]=b.dataset.rs.split("|");busy(b,"…");
+  try{await api("reportUpdate",{id,status:st});if(st==="hidden"){TB={...TB,...await api("boot")}}S.reports=null;render()}catch(e){S.err=e.message;render()}})}
+const isHidden=id=>{const h=(SB&&SB.hidden)||(TB&&TB.hidden)||[];return h.includes(TESTID+"|"+id)};
+
+/* ================= Spanish for students ================= */
+const ES={
+ "Today’s Math Mission":"La misión de matemáticas de hoy","Start my mission":"Empezar mi misión","Keep climbing":"Seguir subiendo","My trail":"Mi camino","My badges":"Mis insignias","Sign out":"Salir",
+ "Got it on the test":"Lo sabía en el examen","Mastered":"Dominado","You are here":"Estás aquí","Coming up":"Siguiente","From your teacher":"De tu maestro","Summit of Mastery":"Cumbre del dominio","Finish every checkpoint":"Termina cada parada","You made it!":"¡Lo lograste!",
+ "▶ Watch the lesson":"▶ Ver la lección","🔊 Read to me":"🔊 Léemelo",
+ "Step 1: Tap your key words. Highlight the numbers and the words that tell you what to do.":"Paso 1: Toca tus palabras clave. Marca los números y las palabras que te dicen qué hacer.",
+ "I found my key words":"Encontré mis palabras clave","Step 2: Solve it. Work it out with your pencil, then answer.":"Paso 2: Resuélvelo. Trabaja con tu lápiz y luego contesta.",
+ "Pick your answer, then tap Check.":"Elige tu respuesta y toca Revisar.","Pick TWO answers, then tap Check.":"Elige DOS respuestas y toca Revisar.","Check my answer":"Revisar mi respuesta","Check my answers":"Revisar mis respuestas","Your answer":"Tu respuesta",
+ "Yes! That’s right.":"¡Sí! Correcto.","Next question":"Siguiente pregunta","See the breakdown":"Ver los pasos","Try another one":"Probar otra","Watch the breakdown":"Mira los pasos","Back":"Atrás","Next step":"Siguiente paso","▶ Play and read":"▶ Reproducir y leer","▶ Play":"▶ Reproducir","Pause":"Pausa","🔊 Read this step":"🔊 Leer este paso","🔊 Read this to me":"🔊 Léemelo",
+ "Mistakes help us climb. Let’s learn from this one.":"Los errores nos ayudan a subir. Aprendamos de este.","Whoa, that was fast! Did you work it out, or guess? Let’s slow down and learn from this one.":"¡Qué rápido! ¿Lo resolviste o adivinaste? Vamos despacio y aprendamos de este.",
+ "💬 Ask Scout for help":"💬 Pedir ayuda a Scout","Ask Scout":"Pregúntale a Scout","Close":"Cerrar","Send":"Enviar","Type your question":"Escribe tu pregunta","Cancel":"Cancelar",
+ "Hi! I’m Scout. I can give you hints. Ask me anything about this question!":"¡Hola! Soy Scout. Te puedo dar pistas. ¡Pregúntame lo que quieras sobre esta pregunta!",
+ "What is this question asking?":"¿Qué pide esta pregunta?","Give me a hint.":"Dame una pista.","What should I do first?":"¿Qué hago primero?","Why was my answer wrong?":"¿Por qué mi respuesta estaba mal?","Can you show me another way?":"¿Me enseñas otra manera?","I still don’t get it.":"Todavía no entiendo.","Why does this work?":"¿Por qué funciona esto?","Give me a harder one to think about.":"Dame algo más difícil para pensar.",
+ "Start fluency":"Empezar fluidez","Ready, set, go!":"¡En sus marcas, listos, fuera!","Enter":"Entrar","Skip":"Saltar","Stop":"Parar","Try again":"Intentar otra vez","Back to my trail":"Volver a mi camino","Practice these":"Practica estas","Nice work!":"¡Buen trabajo!","You passed! 🎉":"¡Pasaste! 🎉","Level up! 🎉":"¡Subiste de nivel! 🎉","Try the next level":"Probar el siguiente nivel",
+ "Report a problem with this question":"Reportar un problema con esta pregunta","Thank you! Your teacher will check it.":"¡Gracias! Tu maestro lo revisará.","Tell us more (optional)":"Cuéntanos más (opcional)",
+ "The answer is wrong":"La respuesta está mal","It’s confusing":"Es confusa","The picture is wrong or missing":"El dibujo está mal o falta","Spelling or words":"Ortografía o palabras","Something else":"Otra cosa",
+ "Review":"Repaso","Review question":"Pregunta de repaso","Yes! You still remember this one.":"¡Sí! Todavía te acuerdas de esto.","Checkpoint":"Parada","Practice question":"Pregunta de práctica","Test question":"Pregunta del examen",
+ "Checkpoint reached!":"¡Llegaste a la parada!","You reached the summit!":"¡Llegaste a la cumbre!","Chirp says:":"Chirp dice:","The answer is":"La respuesta es","Here’s what happened:":"Esto pasó:",
+};
+const t=s=>S.lang==="es"&&ES[s]||s;
+const CHIRP_ES={streak:n=>`¡${n} seguidas! ¡Estás que ardes!`,near:n=>`¡Solo ${n} más seguidas para la parada!`,tough:"Los errores hacen crecer tu cerebro. Lee despacio y marca tus palabras clave.",today:n=>`¡Ya contestaste ${n} preguntas hoy! ¡Qué esfuerzo!`,
+ gen:["¡Sigue subiendo! Cada pregunta te hace más fuerte.","¡Me encanta cómo sigues intentando!","¡Lo estás haciendo muy bien!","¡Tú puedes!"],fluPass:"¡Wow! ¡Tu cerebro es cada vez más rápido!",fluTry:"Cada intento te hace más rápido. ¡Otra vez!",mastered:"¡Llegaste a la parada! ¡Estoy muy orgulloso de ti!"};
+function langToggle(){return S.demo||S.role==="student"?`<button class="ghost small" id="lang">${S.lang==="es"?"English":"Español"}</button>`:""}
+function wireLang(){const b=document.getElementById("lang");if(b)b.onclick=()=>{S.lang=S.lang==="es"?"en":"es";if(!S.demo&&S.student){const all=S.student.raw.prog||(S.student.raw.prog={});all._pref={...(all._pref||{}),lang:S.lang};api("progSave",{testId:"_pref",prog:all._pref}).catch(()=>{})}render()}}
 
 /* ---------- start ---------- */
 (async()=>{
