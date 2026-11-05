@@ -305,6 +305,25 @@ button.link.small{font-size:.9rem;text-decoration:none}
 .lcta h2{font-size:clamp(1.5rem,3.5vw,2.1rem)}
 .lcta button{background:#fff;color:var(--mtn1)}.lcta button.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.5)}
 @media (prefers-reduced-motion:reduce){.pop{animation:none}}
+/* ---- standards, assigning, mistakes ---- */
+.stdlist{display:flex;flex-direction:column;gap:8px}
+.stdi{border:2px solid var(--rule);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:12px;background:var(--paper)}
+.stdi.open{border-color:var(--blue);background:var(--card)}
+.kud{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.kud ul{margin:6px 0 0;padding-left:1.1em;display:flex;flex-direction:column;gap:4px;font-size:.9rem}
+.asg{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:16px}
+@media (max-width:640px){.asg{grid-template-columns:1fr}}
+.asl{display:flex;flex-direction:column;gap:6px;padding:8px 0;max-height:280px;overflow-y:auto}
+.asg details{border:1px solid var(--rule);border-radius:10px;padding:8px 10px;margin-bottom:6px}
+.asg summary{cursor:pointer}
+ol.miss{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:10px}
+ol.miss li{padding:10px 12px;border-radius:12px;background:var(--oops-soft)}
+.mhead{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.mex{margin:4px 0}
+.diffwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:18px;align-items:start}
+@media (max-width:760px){.diffwrap{grid-template-columns:1fr}}
+.difflist{display:flex;flex-direction:column;gap:14px}.difflist p{font-size:.95rem;margin-top:2px}
+.diffmock{background:var(--card)}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1428,16 +1447,16 @@ const L = "ABCDE", MASTERY_DEFAULT = 10;
 const MAST=()=>(db&&db.mastery)||MASTERY_DEFAULT; /* right in a row to master a standard (teacher can change) */
 const genId=k=>`~${k}~${Math.floor(Math.random()*1e9)}`;
 let QSA=QS; /* the active test's questions */
-function getQ(id){if(QSA[id])return QSA[id];if(TESTID==="a1"&&typeof id==="string"&&id[0]==="~"){const[,k,seed]=id.split("~");try{return QS[id]=GEN.make(k,+seed)}catch(e){console.error(e)}}return null}
+function getQ(id){if(QSA[id])return QSA[id];if(typeof id==="string"&&id[0]==="~"){const[,k,seed]=id.split("~");if(GG.has(k))try{return QSA[id]=GG.make(k,+seed)}catch(e){console.error(e)}}return null}
 /* shuffle choices for one showing; letters named in the explanations follow their choice */
 const AWORD=new Set(["is","has","and","or","does","only","also","shows","would","looks"]);
 function remapText(t,map){return String(t).replace(/(^|[^A-Za-z])([A-E])(?![A-Za-z])/g,(m,pre,l,off,str)=>{
   if(l==="A"){const w=str.slice(off+m.length).match(/^\s+([a-z]+)/);if(w&&!AWORD.has(w[1]))return m} return pre+(map[l]||l)})}
-function viewQ(q){if(!q||(q.type!=="mc"&&q.type!=="multi"))return q;
+function viewQ(q){if(!q||(q.type!=="mc"&&q.type!=="multi"))return q;if(q.fixed)return {...q,_from:Object.fromEntries(q.choices.map((_,i)=>[L[i],L[i]]))};
   const perm=q.choices.map((_,i)=>i);for(let i=perm.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[perm[i],perm[j]]=[perm[j],perm[i]]}
   const map={};perm.forEach((o,j)=>map[L[o]]=L[j]);
   return {...q,choices:perm.map(i=>q.choices[i]),ans:q.type==="mc"?map[q.ans]:q.ans.map(a=>map[a]).sort(),
-    why:Object.fromEntries(Object.entries(q.why||{}).map(([k,v])=>[map[k]||k,remapText(v,map)])),steps:q.steps.map(st=>({...st,say:remapText(st.say,map)}))};
+    why:Object.fromEntries(Object.entries(q.why||{}).map(([k,v])=>[map[k]||k,remapText(v,map)])),steps:q.steps.map(st=>({...st,say:remapText(st.say,map)})),_from:Object.fromEntries(Object.entries(map).map(([o,d])=>[d,o]))};
 }
 let TEST_NAME = "Assessment 1";
 
@@ -1501,12 +1520,12 @@ function groupsHTML([g,n]){return `<div class="grps">${Array.from({length:g},()=
 function skipHTML([by,times]){const a=Array.from({length:times},(_,i)=>(i+1)*by);return `<div class="chain">${a.map((v,i)=>`<span>${v}</span>${i<a.length-1?'<em>→</em>':''}`).join("")}</div>`}
 function chainHTML(a){return `<div class="chain">${a.map(t=>t.startsWith("−")?`<em>${esc(t)}</em>`:`<span>${esc(t)}</span>`).join("")}</div>`}
 function showHTML(s){if(!s)return"";if(s.img)return img(s.img);if(s.work)return workHTML(s.work);if(s.nl)return nlHTML(s.nl);if(s.groups)return groupsHTML(s.groups);
-  if(s.skip)return skipHTML(s.skip);if(s.chain)return chainHTML(s.chain);if(s.arr)return arrHTML(...s.arr);if(s.table)return tableHTML({table:s.table});if(s.shape)return shapeSVG(s.shape);if(s.poly)return shapeSVG(s.poly);if(s.svg)return partsSVG(s.svg);return""}
+  if(s.viz)return vizHTML(s.viz);if(s.skip)return skipHTML(s.skip);if(s.chain)return chainHTML(s.chain);if(s.arr)return arrHTML(...s.arr);if(s.table)return tableHTML({table:s.table});if(s.shape)return shapeSVG(s.shape);if(s.poly)return shapeSVG(s.poly);if(s.svg)return partsSVG(s.svg);return""}
 function choiceInner(c){
   if(typeof c==="string")return `<span>${fmt(c)}</span>`;
   if(c.img&&c.eq)return `${img(c.img)}<span class="eq" style="font-size:1.15rem">${esc(c.eq)}</span>`;
   if(c.groups)return `<div class="fig">${groupsHTML(c.groups)}</div>${c.eq?`<span class="eq" style="font-size:1.15rem">${esc(c.eq)}</span>`:""}`;
-  if(c.img)return img(c.img); if(c.shape)return shapeSVG(c.shape); if(c.poly)return shapeSVG(c.poly); if(c.svg)return partsSVG(c.svg);
+  if(c.viz)return vizHTML(c.viz);if(c.img)return img(c.img); if(c.shape)return shapeSVG(c.shape); if(c.poly)return shapeSVG(c.poly); if(c.svg)return partsSVG(c.svg);
   if(c.table)return tableHTML({table:c.table,head:c.head!==undefined?c.head:(TESTID==="a1"?"Steps to Find Sum":"")});return"";
 }
 /* question body with tappable tokens */
@@ -1522,7 +1541,7 @@ function bodyHTML(q,hl,mode){ // mode: 'tap' | 'check' | 'keys'
   return q.parts.map(p=>{
     if(typeof p==="string")return para(p,"qtext"); if(p.eq)return para(p.eq,"qtext eq");
     if(p.img)return img(p.img); if(p.table)return tableHTML(p); if(p.arr)return arrHTML(...p.arr); if(p.svg)return partsSVG(p.svg);
-    if(p.groups)return `<div class="fig">${groupsHTML(p.groups)}</div>`; if(p.fig)return `<div class="figd"><span aria-hidden="true">🖼</span> ${fmt(p.fig)}</div>`; return"";
+    if(p.groups)return `<div class="fig">${groupsHTML(p.groups)}</div>`; if(p.viz)return vizHTML(p.viz); if(p.fig)return `<div class="figd"><span aria-hidden="true">🖼</span> ${fmt(p.fig)}</div>`; return"";
   }).join("");
 }
 const ansText=q=>q.type==="mc"?q.ans:q.type==="multi"?q.ans.join(" and "):q.type==="input"?String(q.ans):q.rows.map(r=>`${r.n} → ${r.a}`).join(", ");
@@ -1570,12 +1589,437 @@ if(TTS){pickVoice();try{speechSynthesis.onvoiceschanged=pickVoice}catch(e){}}
 function speak(text,onend){if(!TTS){onend&&onend();return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(spoken(text));u.rate=.88;u.lang="en-US";if(voice)u.voice=voice;
   let done=false;const fin=()=>{if(!done){done=true;onend&&onend()}};u.onend=fin;u.onerror=fin;speechSynthesis.speak(u)}
 function choiceWords(c){if(typeof c==="string")return c;if(c.table)return c.table.map(r=>r.join(", ")).join(". ");if(c.groups)return `${c.groups[0]} groups with ${c.groups[1]} in each. ${c.eq||""}`;return "the picture"}
-function qSpeech(q){const t=q.parts.map(p=>typeof p==="string"?p:p.eq?p.eq:p.fig?"Picture: "+p.fig:p.table?p.table.map(r=>r.map(c=>typeof c==="string"?c:"picture").join(", ")).join(". "):"").filter(Boolean).join(". ");
+function qSpeech(q){const t=q.parts.map(p=>typeof p==="string"?p:p.eq?p.eq:p.fig?"Picture: "+p.fig:p.viz?vizText(p.viz):p.table?p.table.map(r=>r.map(c=>typeof c==="string"?c:"picture").join(", ")).join(". "):"").filter(Boolean).join(". ");
   const ch=q.choices?q.choices.map((c,i)=>`${L[i]}. ${choiceWords(c)}`).join(". "):"";return t+(ch?". "+ch:"")}
 const sayBtn=(id,label="🔊 Read to me")=>TTS?`<button class="ghost small sayb" id="${id}" type="button">${label}</button>`:"";
 
+/* ===== more question makers: every Mississippi grade 3 standard =====
+   Same rules as GEN: a question id "~key~seed" always rebuilds the same question.
+   Pictures are {viz:{...}} items drawn by vizHTML(). Breakdown text never names a letter. */
+const GEN2 = (()=>{
+function RNG(seed){let a=seed>>>0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+class Retry extends Error{}
+const ri=(r,a,b)=>a+Math.floor(r()*(b-a+1));
+const pick=(r,a)=>a[Math.floor(r()*a.length)];
+const shuf=(r,a)=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const need=c=>{if(!c)throw new Retry()};
+const LET="ABCDE";
+const NAMES=["Mia","Jayden","Aaliyah","Carlos","Kenji","Zoe","Malik","Sofia","Imani","Diego","Ava","Elijah","Priya","Marcus","Layla","Noah","Amara","Luis","Hana","Jamal"];
+const FW={2:["half","halves"],3:["third","thirds"],4:["fourth","fourths"],6:["sixth","sixths"],8:["eighth","eighths"]};
+const DEN=[2,3,4,6,8];
+const norm=w=>w.toLowerCase().replace(/^[^\w\[∎×÷]+|[^\w\]∎×÷]+$/g,"");
+const say=(t,show)=>show?{say:t,show}:{say:t};
+const F=(a,b)=>`[${a}/${b}]`;
+function mc(r,o){
+  const seen=new Set([JSON.stringify(o.correct)]),w=[],n=o.n||4;
+  for(const x of o.wrongs){const k=JSON.stringify(x.c);if(x.c==null||x.c===""||seen.has(k))continue;seen.add(k);w.push(x);if(w.length===n-1)break}
+  need(w.length===n-1);
+  const all=shuf(r,[{c:o.correct,ok:true},...w]),why={};let ans;
+  all.forEach((x,i)=>{if(x.ok)ans=LET[i];else why[LET[i]]=x.why});
+  return {type:"mc",parts:o.parts,keys:o.keys,choices:all.map(x=>x.c),ans,why,steps:o.steps};
+}
+/* fixed order (for <, =, >): no shuffle */
+function mcFixed(o){const why={};let ans;o.list.forEach((x,i)=>{if(x.ok)ans=LET[i];else why[LET[i]]=x.why});
+  return {type:"mc",parts:o.parts,keys:o.keys,choices:o.list.map(x=>x.c),ans,why,steps:o.steps,fixed:true}}
+function inp(o){return {type:"input",parts:o.parts,keys:o.keys,ans:o.ans,whyIn:o.whyIn||{},whyElse:o.whyElse,steps:o.steps}}
+const name=r=>pick(r,NAMES);
+const two=r=>{const a=name(r);let b;do{b=name(r)}while(b===a);return[a,b]};
+
+/* ---------- 3.OA.5 properties ---------- */
+const PROPS=[
+ r=>{const a=ri(r,3,9),b=ri(r,2,9);need(a!==b);const c=a*b;
+  return mc(r,{parts:[`${a} × ${b} = ${c}.`,"Which expression also has a product of "+c+"?"],keys:[String(a),String(b),String(c),"also","product"],
+   correct:`${b} × ${a}`,wrongs:[{c:`${a} + ${b}`,why:`${a} + ${b} = ${a+b}. That adds instead of multiplies.`},{c:`${a} × ${b+1}`,why:`${a} × ${b+1} = ${a*(b+1)}. One factor changed.`},
+    {c:`${c} × ${a}`,why:`${c} × ${a} is much bigger than ${c}.`},{c:`${b} + ${a}`,why:`${b} + ${a} = ${a+b}. That adds instead of multiplies.`}],
+   steps:[say("The order of the factors can change and the product stays the same. This is the commutative property."),say(`${a} groups of ${b} and ${b} groups of ${a} are the same array, turned.`,{arr:[Math.min(a,b),Math.max(a,b)]}),say(`So ${b} × ${a} = ${c} too.`)]})},
+ r=>{const a=ri(r,3,9),b1=ri(r,2,5),b2=ri(r,2,5),b=b1+b2;need(b<=10);
+  return mc(r,{parts:[`${name(r)} wants to find ${a} × ${b} by breaking ${b} into ${b1} and ${b2}.`,"Which expression shows a correct way?"],keys:[String(a),String(b),"breaking",String(b1),String(b2),"correct"],
+   correct:`(${a} × ${b1}) + (${a} × ${b2})`,wrongs:[{c:`(${a} × ${b1}) + ${b2}`,why:`The ${b2} also has to be multiplied by ${a}.`},
+    {c:`(${a} + ${b1}) × (${a} + ${b2})`,why:"That adds where it should multiply."},{c:`(${a} × ${b1}) × (${a} × ${b2})`,why:"The two parts are added together, not multiplied."},
+    {c:`(${a} + ${b1}) + ${b2}`,why:"That only adds the numbers."}],
+   steps:[say(`${a} × ${b} means ${a} groups of ${b}. Split each ${b} into ${b1} and ${b2}.`),say(`${a} × ${b1} = ${a*b1} and ${a} × ${b2} = ${a*b2}.`),say(`Add the parts: ${a*b1} + ${a*b2} = ${a*b}. This is the distributive property.`)]})},
+ r=>{const a=ri(r,2,5),b=ri(r,2,5),c=pick(r,[2,5,10]),p=a*b*c;need(p<=100);
+  return mc(r,{parts:[`Which expression is equal to (${a} × ${b}) × ${c}?`],keys:["equal",String(a),String(b),String(c)],
+   correct:`${a} × (${b} × ${c})`,wrongs:[{c:`${a} + (${b} × ${c})`,why:`${a} + ${b*c} = ${a+b*c}. The ${a} should be multiplied.`},{c:`(${a} + ${b}) × ${c}`,why:`(${a} + ${b}) × ${c} = ${(a+b)*c}. That adds ${a} and ${b}.`},
+    {c:`(${a} × ${b}) + ${c}`,why:`${a*b} + ${c} = ${a*b+c}. The ${c} should be multiplied.`}],
+   steps:[say("When you multiply three numbers, you can group them any way. This is the associative property."),say(`(${a} × ${b}) × ${c} = ${a*b} × ${c} = ${p}.`),say(`${a} × (${b} × ${c}) = ${a} × ${b*c} = ${p}. Same product.`)]})},
+ r=>{const n=ri(r,12,99),z=r()<.5;
+  return inp({parts:[z?`What is ${n} × 0?`:`What is ${n} × 1?`],keys:[String(n),z?"0":"1"],ans:z?0:n,whyIn:z?{[n]:`Multiplying by 0 means 0 groups, so the product is 0.`,1:"Any number times 0 is 0, not 1."}:{1:`${n} groups of 1 is ${n}, not 1.`,0:"Times 1 keeps the number the same. Times 0 makes 0."},
+   whyElse:z?"Any number times 0 is 0.":"Any number times 1 is that same number.",
+   steps:z?[say(`${n} × 0 means ${n} groups of 0.`),say("Groups with nothing in them add up to nothing."),say(`${n} × 0 = 0.`)]:[say(`${n} × 1 means ${n} groups of 1.`),say("Times 1 keeps the number the same. This is the identity property."),say(`${n} × 1 = ${n}.`)]})},
+];
+/* ---------- 3.OA.6 division as an unknown factor ---------- */
+const DIVFACT=[
+ r=>{const a=ri(r,2,9),b=ri(r,2,9),p=a*b;
+  return mc(r,{parts:[`Which multiplication fact helps solve ${p} ÷ ${a} = ∎?`],keys:["multiplication","fact","helps","solve",String(p),String(a),"∎"],
+   correct:`${a} × ${b} = ${p}`,wrongs:[{c:`${a} × ${p} = ${a*p}`,why:`That multiplies by ${p}. We need what times ${a} makes ${p}.`},{c:`${a} + ${b} = ${a+b}`,why:"That is addition. Division goes with multiplication."},
+    {c:`${a} × ${b+1} = ${a*(b+1)}`,why:`${a} × ${b+1} is ${a*(b+1)}, not ${p}.`},{c:`${p} − ${a} = ${p-a}`,why:"That subtracts once. Think: what times the divisor makes the total?"}],
+   steps:[say(`${p} ÷ ${a} asks: ${a} times what makes ${p}?`),say(`Skip count by ${a}s to ${p}.`,{skip:[a,b]}),say(`${a} × ${b} = ${p}, so ${p} ÷ ${a} = ${b}.`)]})},
+ r=>{const a=ri(r,2,10),b=ri(r,2,10),p=a*b;
+  return inp({parts:[`${p} ÷ ${a} = ∎`,`Think: ${a} × ∎ = ${p}. What number goes in the box?`],keys:[String(p),String(a),"∎","think"],ans:b,
+   whyIn:{[p]:`${p} is the total. Find how many times ${a} fits into it.`,[a]:`${a} is the number you divide by.`,[p-a]:"That subtracts. Use a multiplication fact instead.",[p+a]:"That adds. Use a multiplication fact instead."},whyElse:`Check: ${a} times your answer should make ${p}.`,
+   steps:[say(`Turn it around: ${a} × ∎ = ${p}.`),say(`Count by ${a}s until you reach ${p}.`,{skip:[a,b]}),say(`That took ${b} jumps, so ∎ = ${b}.`)]})},
+];
+/* ---------- 3.OA.7 fluency ---------- */
+const FLUENCY=[
+ r=>{const a=ri(r,2,10),b=ri(r,2,10),p=a*b;
+  return inp({parts:[`${a} × ${b} = ∎`],keys:[String(a),String(b),"×"],ans:p,whyIn:{[a+b]:"That adds. Times means groups of.",[p+a]:`That is one group of ${a} too many.`,[p-a]:`That is one group of ${a} too few.`,[p+b]:`That is one group of ${b} too many.`},
+   whyElse:`Skip count by ${b}s, ${a} times.`,steps:[say(`${a} × ${b} means ${a} groups of ${b}.`,{arr:[a,b]}),say(`Skip count by ${b}s: ${Array.from({length:a},(_,i)=>(i+1)*b).join(", ")}.`),say(`${a} × ${b} = ${p}.`)]})},
+ r=>{const a=ri(r,2,10),b=ri(r,2,10),p=a*b;
+  return inp({parts:[`${p} ÷ ${a} = ∎`],keys:[String(p),String(a),"÷"],ans:b,whyIn:{[p-a]:"That subtracts once. Division asks how many groups.",[a]:"That is the number you divide by."},
+   whyElse:`Think: ${a} × ? = ${p}.`,steps:[say(`Think of the fact family: ${a} × ? = ${p}.`),say(`Count by ${a}s to ${p}.`,{skip:[a,b]}),say(`${p} ÷ ${a} = ${b}.`)]})},
+ r=>{const a=ri(r,3,9),b=ri(r,3,9),p=a*b;
+  return mc(r,{parts:[`Which fact has a product of ${p}?`],keys:["fact","product",String(p)],correct:`${a} × ${b}`,
+   wrongs:[{c:`${a} × ${b+1}`,why:`${a} × ${b+1} = ${a*(b+1)}.`},{c:`${a+1} × ${b}`,why:`${a+1} × ${b} = ${(a+1)*b}.`},{c:`${a} + ${b}`,why:`${a} + ${b} = ${a+b}. That adds.`},{c:`${a} × ${b-1}`,why:`${a} × ${b-1} = ${a*(b-1)}.`}],
+   steps:[say(`Find each product and look for ${p}.`),say(`${a} × ${b}: skip count by ${b}s, ${a} times.`,{skip:[b,a]}),say(`${a} × ${b} = ${p}.`)]})},
+];
+/* ---------- 3.OA.8 two-step problems ---------- */
+const TWOSTEP=[
+ r=>{const n=name(r),s=ri(r,10,40),g=ri(r,2,6),k=ri(r,3,9),t=s+g*k;
+  return inp({parts:[`${n} has ${s} stickers. ${n} buys ${g} packs of stickers with ${k} stickers in each pack.`,`How many stickers does ${n} have now?`],
+   keys:[String(s),String(g),"packs",String(k),"each","how","many","now"],ans:t,whyIn:{[s+g+k]:`That adds all the numbers. ${g} packs of ${k} is ${g} × ${k}.`,[g*k]:`That is only the new stickers. Add the ${s} ${n} already had.`,[s*g]:"Multiply the packs by the stickers in each pack."},
+   whyElse:"Step 1: find the new stickers. Step 2: add them to what was there.",steps:[say(`Step 1: ${g} packs of ${k} is ${g} × ${k} = ${g*k} new stickers.`,{groups:[g,k]}),say(`Step 2: add the ${s} stickers from before: ${s} + ${g*k} = ${t}.`),say(`Check: ${t} is more than ${s}, which makes sense because ${n} got more.`)]})},
+ r=>{const n=name(r),g=ri(r,3,8),k=ri(r,3,9),tot=g*k,give=ri(r,2,tot-3);
+  return inp({parts:[`${n} has ${g} boxes with ${k} crayons in each box. ${n} gives away ${give} crayons.`,"How many crayons are left?"],keys:[String(g),"boxes",String(k),"each",String(give),"gives","away","left"],ans:tot-give,
+   whyIn:{[tot]:`That is how many crayons before giving any away. Subtract ${give}.`,[g+k-give]:"That adds the boxes and crayons. Multiply to find the total first.",[tot+give]:"Giving away means subtract, not add."},whyElse:"Step 1: multiply to find the total. Step 2: subtract what was given away.",
+   steps:[say(`Step 1: ${g} boxes of ${k} is ${g} × ${k} = ${tot} crayons.`),say(`Step 2: ${tot} − ${give} = ${tot-give}.`),say(`Check: ${tot-give} is less than ${tot}, which makes sense.`)]})},
+ r=>{const n=name(r),p=ri(r,3,9),c=ri(r,3,6),m=ri(r,5,30);
+  return mc(r,{parts:[`${n} buys ${c} books for $${p} each and has $${m} left.`,"Which equation can be used to find the amount of money, m, that "+n+" had at first?"],keys:[String(c),"books",String(p),"each",String(m),"left","equation","first"],
+   correct:`m = ${c} × ${p} + ${m}`,wrongs:[{c:`m = ${c} + ${p} + ${m}`,why:`${c} books for $${p} each is ${c} × ${p}, not ${c} + ${p}.`},{c:`m = ${c} × ${p} − ${m}`,why:`${n} had the money spent PLUS the money left, so add ${m}.`},{c:`m = ${c} × ${m} + ${p}`,why:`The books cost $${p} each, so multiply ${c} × ${p}.`}],
+   steps:[say(`Money spent: ${c} books × $${p} = $${c*p}.`),say(`Money at first = money spent + money left = ${c*p} + ${m}.`),say(`So m = ${c} × ${p} + ${m} = ${c*p+m}.`)]})},
+];
+/* ---------- 3.OA.9 patterns ---------- */
+const PATTERNS=[
+ r=>{const st=ri(r,2,9),k=pick(r,[2,3,4,5,10]),a=Array.from({length:5},(_,i)=>st+i*k),nx=st+5*k;
+  return inp({parts:[`Look at the pattern: ${a.join(", ")}, ∎`,"What number comes next?"],keys:["pattern","next",...a.map(String)],ans:nx,whyIn:{[a[4]+1]:`The rule is add ${k}, not add 1.`,[a[4]+k+1]:`Add exactly ${k}.`,[a[4]*2]:`The rule is add ${k}, not double.`},whyElse:`Find how much each number goes up.`,
+   steps:[say(`Find the rule: ${a[1]} − ${a[0]} = ${k}. Each number is ${k} more.`,{chain:a.map(String)}),say(`${a[4]} + ${k} = ${nx}.`)]})},
+ r=>{const k=pick(r,[2,4,6,8]);
+  return mc(r,{parts:[`Look at the products of ${k}: ${Array.from({length:5},(_,i)=>k*(i+1)).join(", ")}.`,"Which statement explains the pattern?"],keys:["products",String(k),"statement","explains","pattern"],
+   correct:`${k} times any number is always even, because ${k} can be split into two equal groups.`,
+   wrongs:[{c:`${k} times any number is always odd.`,why:`Every product listed is even.`},{c:`${k} times a number is even only if the number is even.`,why:`${k} × 3 = ${k*3}, which is even too.`},{c:`The products go up by 1 each time.`,why:`They go up by ${k} each time.`}],
+   steps:[say(`Look at the ones digits: they are all even.`),say(`${k} is an even number: it is 2 groups of ${k/2}.`),say(`So ${k} times any number is 2 equal groups, which is always even.`)]})},
+ r=>{const o=pick(r,[["even","even","even"],["odd","odd","even"],["even","odd","odd"]]),a=o[0]==="even"?2*ri(r,2,20):2*ri(r,2,20)+1,b=o[1]==="even"?2*ri(r,2,20):2*ri(r,2,20)+1;
+  return mc(r,{parts:[`${a} + ${b} = ${a+b}.`,`When you add an ${o[0]} number and an ${o[1]} number, what is the sum?`],keys:[String(a),String(b),"add",o[0],o[1],"sum"],
+   correct:`always ${o[2]}`,wrongs:[{c:`always ${o[2]==="even"?"odd":"even"}`,why:`Look at ${a+b}: it is ${o[2]}.`},{c:"sometimes even and sometimes odd",why:`It works the same way every time. Try a few more.`},{c:"always 10 or more",why:"The question is about even and odd, not size."}],
+   steps:[say(`${a} + ${b} = ${a+b}, which is ${o[2]}.`),say(`Try more: ${o[0]==="even"?2:3} + ${o[1]==="even"?4:5} = ${(o[0]==="even"?2:3)+(o[1]==="even"?4:5)}.`),say(`An ${o[0]} plus an ${o[1]} is always ${o[2]}.`)]})},
+];
+/* ---------- 3.NBT.3 multiply by multiples of 10 ---------- */
+const TENS=[
+ r=>{const a=ri(r,2,9),t=ri(r,2,9),p=a*t*10;
+  return inp({parts:[`${a} × ${t*10} = ∎`],keys:[String(a),String(t*10)],ans:p,whyIn:{[a*t]:`${a} × ${t} tens is ${a*t} TENS, which is ${p}.`,[a*t*100]:"Too many zeros. It is tens, not hundreds.",[a+t*10]:"That adds instead of multiplies."},
+   whyElse:`Think: ${a} × ${t} tens.`,steps:[say(`${t*10} is ${t} tens.`),say(`${a} × ${t} tens = ${a*t} tens.`),say(`${a*t} tens = ${p}.`)]})},
+ r=>{const a=ri(r,3,9),t=ri(r,3,9),p=a*t*10;
+  return mc(r,{parts:[`Which is equal to ${a} × ${t*10}?`],keys:["equal",String(a),String(t*10)],correct:String(p),
+   wrongs:[{c:String(a*t),why:`${a} × ${t} tens is ${a*t} tens, which is ${p}. Don’t forget the tens.`},{c:String(p*10),why:"That is ten times too big."},{c:String(a+t*10),why:"That adds instead of multiplies."},{c:String(a*(t+1)*10),why:`That is ${a} × ${(t+1)*10}.`}],
+   steps:[say(`${t*10} = ${t} tens.`),say(`${a} × ${t} = ${a*t}, so ${a} × ${t} tens = ${a*t} tens.`),say(`${a*t} tens = ${p}.`)]})},
+ r=>{const n=name(r),g=ri(r,2,9),t=pick(r,[20,30,40,50,60,70,80,90]);
+  return inp({parts:[`${n} has ${g} boxes. Each box has ${t} pencils.`,"How many pencils are there in all?"],keys:[String(g),"boxes","each",String(t),"how","many","all"],ans:g*t,
+   whyIn:{[g*t/10]:`${g} × ${t/10} tens is ${g*t/10} tens = ${g*t}.`,[g+t]:"Equal groups means multiply."},whyElse:`${g} × ${t/10} tens.`,steps:[say(`${g} boxes of ${t} is ${g} × ${t}.`),say(`${g} × ${t/10} tens = ${g*t/10} tens.`),say(`${g*t/10} tens = ${g*t} pencils.`)]})},
+];
+/* ---------- 3.NF fractions ---------- */
+const fw=(a,b)=>FW[b]?(a===1?FW[b][0]:FW[b][1]):`${b}ths`;
+const NF1=[
+ r=>{const d=pick(r,DEN),a=ri(r,1,d-1),sh=r()<.6?"fbar":"fcirc",v={[sh]:{d,shade:a}};need(d>2||a===1);
+  return mc(r,{parts:["What fraction of the shape is shaded?",{viz:{...v,alt:`a shape cut into ${d} equal parts with ${a} shaded`}}],keys:["fraction","shape","shaded"],correct:F(a,d),
+   wrongs:[{c:F(d,a),why:"The top number is the shaded parts. The bottom number is all the equal parts."},{c:F(a,d-a),why:`The bottom number counts ALL ${d} parts, not just the unshaded ones.`},{c:F(d-a,d),why:`${F(d-a,d)} is the part that is NOT shaded.`},{c:F(a,d+1),why:`Count again: there are ${d} equal parts.`}].filter(x=>!/\/0\]|\[0\//.test(x.c)),
+   steps:[say(`Count all the equal parts: ${d}. That is the bottom number (denominator).`,{viz:v}),say(`Count the shaded parts: ${a}. That is the top number (numerator).`),say(`${F(a,d)} of the shape is shaded.`)]})},
+ r=>{const d=pick(r,DEN),a=ri(r,1,d-1);
+  return mc(r,{parts:[`What does the fraction ${F(a,d)} mean?`],keys:["fraction",F(a,d),"mean"],correct:`A whole cut into ${d} equal parts, and ${a} of those parts`,
+   wrongs:[{c:`A whole cut into ${a} equal parts, and ${d} of those parts`,why:"The bottom number tells how many equal parts make the whole."},{c:`${a} wholes and ${d} wholes`,why:"A fraction is part of ONE whole."},{c:`A whole cut into ${d} parts of any size, and ${a} of them`,why:"The parts must be EQUAL."}],
+   steps:[say(`The bottom number, ${d}, tells how many equal parts the whole is cut into.`,{viz:{fbar:{d,shade:a}}}),say(`The top number, ${a}, tells how many of those parts we mean.`),say(`${F(a,d)} is ${a} ${fw(a,d)}.`)]})},
+];
+const NF2A=[
+ r=>{const d=pick(r,[2,3,4,6,8]);
+  return mc(r,{parts:["The number line from 0 to 1 is divided into equal parts.",{viz:{fnl:{d,max:1,dot:1,lab:"P"},alt:`a number line from 0 to 1 cut into ${d} equal parts, with point P at the first mark`}},"What fraction is at point P?"],keys:["number","line","0","1","equal","parts","fraction","point","P"],
+   correct:F(1,d),wrongs:[{c:F(1,d+1),why:`Count the spaces, not the tick marks. There are ${d} spaces from 0 to 1.`},{c:F(d,1),why:"The number of equal parts goes on the bottom."},{c:F(2,d),why:"P is at the end of the FIRST part."},{c:F(1,d-1),why:`There are ${d} equal spaces from 0 to 1.`}].filter(x=>!/\/1\]$/.test(x.c)||d!==2||x.c!==F(1,1)),
+   steps:[say(`Count the equal spaces between 0 and 1: ${d}. Each space is ${F(1,d)}.`,{viz:{fnl:{d,max:1,dot:1,lab:"P",all:true}}}),say(`P is at the end of the first space.`),say(`So P is at ${F(1,d)}.`)]})},
+ r=>{const d=pick(r,[3,4,6,8]);
+  return mc(r,{parts:[`The number line from 0 to 1 is divided into ${d} equal parts.`,"How long is each part?"],keys:["number","line","0","1",String(d),"equal","parts","each","part"],correct:F(1,d),
+   wrongs:[{c:F(d,1),why:"Each part is a piece of the whole, so it is less than 1."},{c:F(d,d),why:`${F(d,d)} is the whole length from 0 to 1.`},{c:F(1,d+1),why:`There are ${d} parts, not ${d+1}.`}],
+   steps:[say(`The whole is the length from 0 to 1.`,{viz:{fnl:{d,max:1,all:true}}}),say(`It is cut into ${d} equal parts.`),say(`Each part is ${F(1,d)} of the whole.`)]})},
+];
+const NF2B=[
+ r=>{const d=pick(r,[3,4,6,8]),a=ri(r,2,d-1);
+  return mc(r,{parts:[{viz:{fnl:{d,max:1,dot:a,lab:"A"},alt:`a number line from 0 to 1 cut into ${d} equal parts with point A at mark ${a}`}},"What fraction does point A show?"],keys:["fraction","point","A"],correct:F(a,d),
+   wrongs:[{c:F(a,d+1),why:`Count the spaces between 0 and 1, not the tick marks. There are ${d} spaces.`},{c:F(a+1,d),why:"Start counting after 0. The 0 mark is not a jump."},{c:F(d,a),why:"The bottom number is the number of equal parts in the whole."},{c:F(a-1,d),why:`Count the jumps from 0 to A again: ${a}.`}].filter(x=>!/\[0\//.test(x.c)),
+   steps:[say(`Count the equal spaces from 0 to 1: ${d}. That is the denominator.`,{viz:{fnl:{d,max:1,dot:a,lab:"A",all:true}}}),say(`Count the jumps from 0 to A: ${a}.`),say(`A is at ${F(a,d)}.`)]})},
+ r=>{const d=pick(r,[2,3,4]),a=ri(r,d+1,2*d-1);
+  return mc(r,{parts:["This number line goes from 0 to 2.",{viz:{fnl:{d,max:2,dot:a,lab:"B"},alt:`a number line from 0 to 2, each whole cut into ${d} parts, with point B at mark ${a}`}},"What fraction does point B show?"],keys:["number","line","0","2","fraction","point","B"],correct:F(a,d),
+   wrongs:[{c:F(a,2*d),why:`Each WHOLE is cut into ${d} parts, so the denominator is ${d}.`},{c:F(a-d,d),why:`That counts from 1. Count every jump from 0.`},{c:F(d,a),why:"Count the jumps for the top number."},{c:F(a+1,d),why:"Don’t count the 0 mark as a jump."}].filter(x=>!/\[0\//.test(x.c)),
+   steps:[say(`Each whole (0 to 1, and 1 to 2) has ${d} equal parts. The denominator is ${d}.`,{viz:{fnl:{d,max:2,dot:a,lab:"B",all:true}}}),say(`Count the jumps from 0 to B: ${a}.`),say(`B is at ${F(a,d)}.`)]})},
+];
+const NF3A=[
+ r=>{const [a,b]=pick(r,[[1,2],[1,3],[1,4],[2,3],[3,4]]),k=2;need(b*k<=8);
+  return mc(r,{parts:["The two bars are the same size.",{viz:{fbar:{d:b,shade:a},alt:`a bar with ${a} of ${b} parts shaded`}},{viz:{fbar:{d:b*k,shade:a*k},alt:`a bar with ${a*k} of ${b*k} parts shaded`}},"Which statement is true?"],keys:["two","bars","same","size","statement","true"],
+   correct:`${F(a,b)} = ${F(a*k,b*k)}`,wrongs:[{c:`${F(a,b)} > ${F(a*k,b*k)}`,why:"The shaded parts are the same length, so the fractions are equal."},{c:`${F(a,b)} < ${F(a*k,b*k)}`,why:`${a*k} is more parts, but they are smaller parts. The shaded lengths match.`},{c:"They can’t be compared",why:"They can, because the bars are the same size."}],
+   steps:[say("Compare the shaded parts. Both bars are the same size (the same whole).",{viz:{fbar:{d:b,shade:a}}}),say(`The shaded length of ${F(a*k,b*k)} is exactly the same as ${F(a,b)}.`,{viz:{fbar:{d:b*k,shade:a*k}}}),say(`Same size means equivalent: ${F(a,b)} = ${F(a*k,b*k)}.`)]})},
+ r=>{return mc(r,{parts:[`${name(r)} ate ${F(1,2)} of a small pizza. A friend ate ${F(1,2)} of a large pizza.`,"Which statement is true?"],keys:[F(1,2),"small","pizza","large","statement","true"],
+   correct:"They did not eat the same amount, because the pizzas are different sizes.",wrongs:[{c:"They ate the same amount, because both ate one half.",why:"Fractions can only be compared when the wholes are the same size."},{c:"The friend ate less.",why:"Half of a LARGE pizza is more than half of a small pizza."},{c:`They ate ${F(2,2)} together, which is one whole pizza.`,why:"The two halves come from different pizzas, so they don’t make one whole."}],
+   steps:[say("Both ate one half, but of different wholes."),say("Half of a large pizza is bigger than half of a small pizza."),say("Fractions can only be compared when they are parts of the same whole.")]})},
+];
+const NF3B=[
+ r=>{const [a,b]=pick(r,[[1,2],[1,3],[2,3],[1,4],[3,4]]),k=pick(r,[2,2,3,4].filter(x=>b*x<=8));need(k);const c=a*k,d=b*k;
+  return mc(r,{parts:[`Which fraction is equivalent to ${F(a,b)}?`],keys:["fraction","equivalent",F(a,b)],correct:F(c,d),
+   wrongs:[{c:F(a,d),why:`${F(a,d)} has the same top number but smaller pieces, so it is less.`},{c:F(c,b),why:`${F(c,b)} is more than ${F(a,b)}.`},{c:F(a+1,b+1),why:"Adding 1 to the top and bottom does not keep a fraction equal."},{c:F(d-c,d),why:`${F(d-c,d)} is the other part of the whole.`}].filter(x=>x.c!==F(c,d)),
+   steps:[say(`Draw ${F(a,b)}.`,{viz:{fbar:{d:b,shade:a}}}),say(`Cut each part into ${k} equal pieces. Now there are ${d} parts and ${c} are shaded.`,{viz:{fbar:{d,shade:c}}}),say(`The shaded amount did not change, so ${F(a,b)} = ${F(c,d)}.`)]})},
+ r=>{const d=pick(r,[2,3,4]),k=2;
+  return mc(r,{parts:[{viz:{fnl:{d,max:1,all:true,two:d*k},alt:`two number lines from 0 to 1, one cut into ${d} parts and one into ${d*k} parts`}},`On the number lines, which fraction is at the same point as ${F(1,d)}?`],keys:["number","lines","fraction","same","point",F(1,d)],correct:F(k,d*k),
+   wrongs:[{c:F(1,d*k),why:`${F(1,d*k)} is only halfway to ${F(1,d)}.`},{c:F(d,d*k),why:`Look where ${F(1,d)} lines up on the bottom line: ${k} jumps.`},{c:F(k+1,d*k),why:`Count the jumps on the bottom line again: ${k}.`}],
+   steps:[say(`Find ${F(1,d)} on the top line.`,{viz:{fnl:{d,max:1,all:true,two:d*k}}}),say(`Look straight down. That point is ${k} jumps on the bottom line.`),say(`So ${F(1,d)} = ${F(k,d*k)}.`)]})},
+];
+const NF3C=[
+ r=>{const n=ri(r,2,8);
+  return mc(r,{parts:[`Which fraction is equal to the whole number ${n}?`],keys:["fraction","equal","whole","number",String(n)],correct:F(n,1),
+   wrongs:[{c:F(1,n),why:`${F(1,n)} is one piece of a whole cut into ${n} parts, less than 1.`},{c:F(n,n),why:`${F(n,n)} is 1 whole, not ${n}.`},{c:F(n,2*n),why:`${F(n,2*n)} is one half.`}],
+   steps:[say(`${n} wholes, with each whole as 1 part.`),say(`That is ${n} parts of size 1: ${F(n,1)}.`),say(`${F(n,1)} = ${n}.`)]})},
+ r=>{const d=pick(r,DEN);
+  return mc(r,{parts:[{viz:{fbar:{d,shade:d},alt:`a bar with all ${d} parts shaded`}},"Which fraction tells how much of the bar is shaded?"],keys:["fraction","bar","shaded"],correct:`${F(d,d)}, which is 1 whole`,
+   wrongs:[{c:`${F(1,d)}, which is 1 whole`,why:`${F(1,d)} is one part. All ${d} parts are shaded.`},{c:`${F(d,1)}, which is 1 whole`,why:`${F(d,1)} means ${d} wholes.`},{c:`${F(d,d)}, which is ${d} wholes`,why:`${F(d,d)} is all the parts of ONE whole.`}],
+   steps:[say(`All ${d} parts are shaded.`,{viz:{fbar:{d,shade:d}}}),say(`That is ${F(d,d)}.`),say(`When the top and bottom are the same, the fraction is 1 whole.`)]})},
+];
+const NF3D=[
+ r=>{const d=pick(r,[3,4,6,8]),a=ri(r,1,d-1);let b;do{b=ri(r,1,d-1)}while(b===a);const s=a<b?"<":">";
+  const list=["<","=",">"].map(o=>({c:`${F(a,d)} ${o} ${F(b,d)}`,ok:o===s,why:o==="="?`They have the same denominator but different numerators, so they are not equal.`:`With the same denominator, the fraction with more parts is bigger. ${Math.max(a,b)} parts is more than ${Math.min(a,b)}.`}));
+  return mcFixed({parts:[`Compare ${F(a,d)} and ${F(b,d)}.`,"Which is true?"],keys:["compare",F(a,d),F(b,d),"true"],list,
+   steps:[say(`Both are ${fw(2,d)}: the pieces are the same size.`,{viz:{fbar:{d,shade:a}}}),say(`${F(b,d)}:`,{viz:{fbar:{d,shade:b}}}),say(`${Math.max(a,b)} pieces is more, so ${F(a,d)} ${s} ${F(b,d)}.`)]})},
+ r=>{const n=ri(r,1,2),[x,y]=shuf(r,[2,3,4,6,8].filter(k=>k>n)).slice(0,2);need(x&&y);const s=x<y?">":"<";
+  const list=["<","=",">"].map(o=>({c:`${F(n,x)} ${o} ${F(n,y)}`,ok:o===s,why:o==="="?"Same numerator, but the pieces are different sizes.":`More pieces in the whole means each piece is SMALLER. ${fw(2,Math.min(x,y))} are bigger than ${fw(2,Math.max(x,y))}.`}));
+  return mcFixed({parts:[`Compare ${F(n,x)} and ${F(n,y)}.`,"Which is true?"],keys:["compare",F(n,x),F(n,y),"true"],list,
+   steps:[say(`Both have ${n} piece${n>1?"s":""}. Look at the size of the pieces.`,{viz:{fbar:{d:x,shade:n}}}),say(`${F(n,y)}:`,{viz:{fbar:{d:y,shade:n}}}),say(`${fw(2,Math.min(x,y))} are bigger pieces, so ${F(n,x)} ${s} ${F(n,y)}.`)]})},
+];
+/* ---------- 3.MD.1 time ---------- */
+const tstr=(h,m)=>`${h}:${String(m).padStart(2,"0")}`;
+const addMin=(h,m,k)=>{let t=h*60+m+k;let H=Math.floor(t/60)%12;if(H===0)H=12;return[H,t%60]};
+const TIME=[
+ r=>{const h=ri(r,1,12),m=ri(r,1,59);need(m%5!==0||r()<.4);const h2=h%12+1,m5=Math.round(m/5);
+  return mc(r,{parts:["What time does the clock show?",{viz:{clock:{h,m},alt:`a clock showing ${tstr(h,m)}`}}],keys:["time","clock","show"],correct:tstr(h,m),
+   wrongs:[{c:tstr(h2,m),why:`The hour hand has not reached ${h2} yet. It is still past ${h}.`},{c:m5<=12&&m5>=1?tstr(h,m5):null,why:"The minute hand points at a number, but each number means 5 minutes."},{c:m<=59&&h<=12&&m>0?tstr(Math.min(12,Math.max(1,Math.round(m/5)||12)),h*5%60):null,why:"The short hand is the hour. The long hand is the minutes."},{c:tstr(h,(m+5)%60),why:"Count the minute marks carefully, one by one after the last 5."},{c:tstr(h===1?12:h-1,m),why:`The hour hand is past ${h}, so the hour is ${h}.`}],
+   steps:[say(`The short hand is the hour. It is past ${h}, so the hour is ${h}.`,{viz:{clock:{h,m}}}),say(`The long hand is the minutes. Count by 5s, then by 1s: ${m} minutes.`),say(`The time is ${tstr(h,m)}.`)]})},
+ r=>{const n=name(r),h=ri(r,1,10),m=pick(r,[10,15,20,25,30,35,40,45,50]),k=ri(r,15,55);const [H,M]=addMin(h,m,k);need(m+k>=60);
+  return mc(r,{parts:[`${n} starts reading at ${tstr(h,m)}. ${n} reads for ${k} minutes.`,"What time does "+n+" stop reading?"],keys:["starts",tstr(h,m),"reads",String(k),"minutes","time","stop"],correct:tstr(H,M),
+   wrongs:[{c:`${h}:${m+k}`,why:`There are only 60 minutes in an hour. ${m+k} minutes is 1 hour and ${m+k-60} minutes.`},{c:tstr(H,(M+10)%60),why:"Count on carefully to the next hour, then the rest."},{c:tstr(h,m-k>0?m-k:m),why:"Reading for a while means count forward, not back."},{c:tstr(h+1>12?1:h+1,m),why:`That adds 60 minutes, not ${k}.`}],
+   steps:[say(`Count on from ${tstr(h,m)} to ${tstr(h%12+1,0)}: ${60-m} minutes.`,{chain:[tstr(h,m),"+"+(60-m),tstr(h%12+1,0),"+"+(k-60+m),tstr(H,M)]}),say(`${k} − ${60-m} = ${k-60+m} more minutes.`),say(`${tstr(h%12+1,0)} plus ${k-60+m} minutes is ${tstr(H,M)}.`)]})},
+ r=>{const h=ri(r,1,10),m=pick(r,[0,5,10,15,20,30]),k=ri(r,12,50);const [H,M]=addMin(h,m,k);
+  return inp({parts:[`A movie starts at ${tstr(h,m)} and ends at ${tstr(H,M)}.`,"How many minutes long is the movie?"],keys:["starts",tstr(h,m),"ends",tstr(H,M),"how","many","minutes"],ans:k,
+   whyIn:{[Math.abs((H*100+M)-(h*100+m))]:"Times are not regular numbers. Count the minutes from start to end."},whyElse:`Count on from ${tstr(h,m)} to ${tstr(H,M)}.`,
+   steps:[say(`Start at ${tstr(h,m)} and count on.`),say(M>=m&&H===h?`${tstr(h,m)} to ${tstr(H,M)} is ${M-m} minutes.`:`${tstr(h,m)} to ${tstr(h%12+1,0)} is ${60-m} minutes, then ${M} more minutes.`),say(`The movie is ${k} minutes long.`)]})},
+];
+/* ---------- 3.MD.2 liquid volume and mass ---------- */
+const VOLMASS=[
+ r=>{const max=pick(r,[5,10]),v=ri(r,1,max-1);
+  return mc(r,{parts:["How many liters of water are in the container?",{viz:{beaker:{max,val:v},alt:`a container marked in liters filled to ${v}`}}],keys:["how","many","liters","water","container"],correct:`${v} liters`,
+   wrongs:[{c:`${v+1} liters`,why:"Read the line where the top of the water is."},{c:`${v-1} liters`,why:"Read the line where the top of the water is."},{c:`${max} liters`,why:`${max} liters is how much the container can hold, not how much is in it.`},{c:`${v} grams`,why:"Liquid volume is measured in liters. Grams measure mass."}].filter(x=>!x.c.startsWith("0 ")),
+   steps:[say("Find the top of the water.",{viz:{beaker:{max,val:v}}}),say(`It lines up with the ${v} mark.`),say(`There are ${v} liters.`)]})},
+ r=>{const it=pick(r,[["an apple","150 grams",["150 kilograms","15 kilograms","1 gram"]],["a bicycle","12 kilograms",["12 grams","120 kilograms","1 gram"]],["a paper clip","1 gram",["1 kilogram","10 kilograms","100 grams"]],["a bag of rice","5 kilograms",["5 grams","50 grams","500 kilograms"]],["a dog","20 kilograms",["20 grams","2 grams","200 kilograms"]]]);
+  return mc(r,{parts:[`What is the best estimate for the mass of ${it[0]}?`],keys:["best","estimate","mass"],correct:it[1],wrongs:it[2].map(c=>({c,why:`A gram is about the mass of a paper clip. A kilogram is 1,000 grams, about a big book. ${c} doesn’t fit ${it[0]}.`})),
+   steps:[say("A gram is very light, like a paper clip."),say("A kilogram is 1,000 grams, like a big dictionary."),say(`${it[0][0].toUpperCase()+it[0].slice(1)} is about ${it[1]}.`)]})},
+ r=>{const a=ri(r,2,9),b=ri(r,2,9),k=pick(r,["kilograms","grams","liters"]),u=k==="liters"?"of juice":"";const what=k==="liters"?["A pitcher has","liters of juice. Another pitcher has","more liters"]:["A box has a mass of",k+". A bag has a mass of","more "+k];
+  const add=r()<.5;
+  return inp({parts:add?[`${what[0]} ${a} ${k==="liters"?"liters of juice":k}. A second one has ${b} ${what[2]} than the first.`,`How many ${k} does the second one have?`]:[`A bucket holds ${a+b} liters of water. ${name(r)} pours out ${b} liters.`,"How many liters are left?"],
+   keys:add?[String(a),k,String(b),"more","how","many"]:[String(a+b),"liters",String(b),"pours","out","left"],ans:add?a+b:a,whyIn:add?{[Math.abs(a-b)]:"“More than” means add.",[a*b]:"Add the two amounts."}:{[a+2*b]:"Pouring out means subtract."},whyElse:add?"Add the two amounts.":"Subtract the amount poured out.",
+   steps:add?[say(`The second one has ${b} more than ${a}.`),say(`${a} + ${b} = ${a+b} ${k}.`)]:[say(`Start with ${a+b} liters and take away ${b}.`),say(`${a+b} − ${b} = ${a} liters.`)]})},
+];
+/* ---------- 3.MD.3 graphs ---------- */
+const CATS=[["Fruit",["Apples","Bananas","Grapes","Oranges"]],["Pets",["Dogs","Cats","Fish","Birds"]],["Colors",["Red","Blue","Green","Yellow"]],["Sports",["Soccer","Football","Basketball","Baseball"]]];
+const GRAPHS=[
+ r=>{const [t,cs]=pick(r,CATS),st=pick(r,[2,5]),vals=cs.map(()=>st*ri(r,1,st===2?9:6));const i=ri(r,0,3);const js=[0,1,2,3].filter(x=>x!==i&&vals[x]!==vals[i]);need(js.length);const j=pick(r,js);const [hi,lo]=vals[i]>vals[j]?[i,j]:[j,i];
+  const v={bar:{title:`Favorite ${t}`,cats:cs,vals,step:st,y:"Number of Students"},alt:`a bar graph of favorite ${t.toLowerCase()}: ${cs.map((c,k)=>c+" "+vals[k]).join(", ")}`};
+  return inp({parts:["The bar graph shows the favorite "+t.toLowerCase()+" of some students.",{viz:v},`How many more students chose ${cs[hi]} than ${cs[lo]}?`],keys:["how","many","more",cs[hi],cs[lo]],ans:vals[hi]-vals[lo],
+   whyIn:{[vals[hi]]:`That is how many chose ${cs[hi]}. Subtract ${cs[lo]}.`,[vals[hi]+vals[lo]]:"“How many more” means find the difference: subtract."},whyElse:"Read both bars, then subtract.",
+   steps:[say(`Read the ${cs[hi]} bar: ${vals[hi]}. Each line is ${st}.`,{viz:v}),say(`Read the ${cs[lo]} bar: ${vals[lo]}.`),say(`${vals[hi]} − ${vals[lo]} = ${vals[hi]-vals[lo]}.`)]})},
+ r=>{const [t,cs]=pick(r,CATS),key=pick(r,[2,5,10]),icons=cs.map(()=>ri(r,1,6)),i=ri(r,0,3),ans=icons[i]*key;
+  const v={pict:{title:`Favorite ${t}`,cats:cs,vals:icons,key},alt:`a picture graph where each star means ${key}: ${cs.map((c,k)=>c+" "+icons[k]+" stars").join(", ")}`};
+  return mc(r,{parts:[`In the picture graph, each ★ stands for ${key} votes.`,{viz:v},`How many votes did ${cs[i]} get?`],keys:["picture","graph","each","★",String(key),"votes",cs[i]],correct:String(ans),
+   wrongs:[{c:String(icons[i]),why:`That counts the stars. Each star is ${key} votes.`},{c:String(icons[i]+key),why:`Multiply the stars by ${key}, don’t add.`},{c:String((icons[i]+1)*key),why:"Count the stars again."},{c:String(ans*2),why:"Count the stars again."}],
+   steps:[say(`Count the stars for ${cs[i]}: ${icons[i]}.`,{viz:v}),say(`Each star is ${key} votes.`),say(`${icons[i]} × ${key} = ${ans} votes.`)]})},
+ r=>{const [t,cs]=pick(r,CATS),st=pick(r,[2,5]),vals=cs.map(()=>st*ri(r,1,st===2?8:6)),tot=vals.reduce((a,b)=>a+b,0);
+  const v={bar:{title:`Favorite ${t}`,cats:cs,vals,step:st,y:"Number of Students"},alt:`a bar graph: ${cs.map((c,k)=>c+" "+vals[k]).join(", ")}`};
+  return inp({parts:[{viz:v},"How many students answered in all?"],keys:["how","many","students","answered","all"],ans:tot,whyIn:{[Math.max(...vals)]:"That is just the tallest bar. Add all the bars."},whyElse:"Read every bar and add them.",
+   steps:[say(`Read each bar: ${vals.join(", ")}.`,{viz:v}),say(`Add: ${vals.join(" + ")} = ${tot}.`)]})},
+];
+/* ---------- 3.MD.4 measuring and line plots ---------- */
+const mixed=q=>{const w=Math.floor(q/4),f=q%4;const fr=f===0?"":f===2?F(1,2):F(f,4);return w&&fr?`${w} ${fr}`:w?String(w):fr};
+const LINEPLOT=[
+ r=>{const q=ri(r,5,22);need(q%4!==0);const obj=pick(r,["crayon","pencil","eraser","ribbon","key"]);
+  return mc(r,{parts:[`How long is the ${obj}, to the nearest quarter inch?`,{viz:{ruler:{len:q,obj},alt:`a ${obj} next to a ruler, ${mixed(q).replace(/\[(\d)\/(\d)\]/,"$1/$2")} inches long`}}],keys:["how","long",obj,"nearest","quarter","inch"],correct:`${mixed(q)} inches`,
+   wrongs:[{c:`${mixed(q+1)} inches`,why:"Look closely at the small marks. Each one is a quarter inch."},{c:`${mixed(q-1)} inches`,why:"Look closely at the small marks. Each one is a quarter inch."},{c:`${Math.floor(q/4)} inches`,why:"The end is past the whole inch. Count the quarter marks too."},{c:`${mixed(q+4)} inches`,why:"Start measuring at 0, not at 1."}].filter(x=>!x.c.startsWith("0 ")&&!x.c.startsWith(" ")),
+   steps:[say("Line up the end of the object with 0.",{viz:{ruler:{len:q,obj}}}),say(`The other end is past ${Math.floor(q/4)}. Count the quarter marks after it: ${q%4}.`),say(`The ${obj} is ${mixed(q)} inches long.`)]})},
+ r=>{const base=ri(r,2,5),xs=[0,1,2,3,4,5,6].map(i=>base*4+i*2).slice(0,ri(r,4,6)),data={};xs.forEach(x=>data[x]=ri(r,0,5));need(Object.values(data).filter(Boolean).length>=3);
+  const ks=xs.filter(x=>data[x]>0),k=pick(r,ks),tot=Object.values(data).reduce((a,b)=>a+b,0);
+  const v={lplot:{xs,data,title:"Lengths of Pencils (inches)"},alt:`a line plot of pencil lengths: ${xs.map(x=>mixed(x).replace(/\[(\d)\/(\d)\]/,"$1/$2")+" inches: "+data[x]).join(", ")}`};
+  const ask=r()<.5;
+  return inp({parts:["The line plot shows the lengths of some pencils. Each X is one pencil.",{viz:v},ask?`How many pencils are ${mixed(k)} inches long?`:"How many pencils were measured in all?"],keys:["line","plot","lengths","pencils","each","x","how","many",ask?"long":"all"],ans:ask?data[k]:tot,
+   whyIn:ask?{[tot]:"That counts all the pencils. Count only the X’s above that length."}:{[xs.length]:"That counts the lengths. Count every X."},whyElse:ask?"Find the length on the line, then count the X’s above it.":"Count every X on the line plot.",
+   steps:ask?[say(`Find ${mixed(k)} on the number line.`,{viz:v}),say(`Count the X’s above it: ${data[k]}.`)]:[say("Count the X’s above every length.",{viz:v}),say(`${xs.map(x=>data[x]).join(" + ")} = ${tot} pencils.`)]})},
+];
+/* ---------- 3.MD.5 to 3.MD.8 area and perimeter ---------- */
+function blob(r,n){const cells=[[0,0]];const has=(a,b)=>cells.some(c=>c[0]===a&&c[1]===b);let g=0;
+  while(cells.length<n&&g++<500){const [a,b]=pick(r,cells),[da,db]=pick(r,[[0,1],[1,0],[0,-1],[-1,0]]),na=a+da,nb=b+db;if(na<0||nb<0||na>3||nb>5||has(na,nb))continue;cells.push([na,nb])}
+  need(cells.length===n);return cells}
+const MD5A=[
+ r=>mc(r,{parts:["A square has sides that are each 1 unit long.",{viz:{sqgrid:{cells:[[0,0]],lab:"1 unit"},alt:"one small square with sides of 1 unit"}},"What is its area?"],keys:["square","sides","1","unit","long","area"],correct:"1 square unit",
+  wrongs:[{c:"4 square units",why:"4 is how many sides it has. It covers just 1 square unit."},{c:"1 unit",why:"Area is measured in SQUARE units."},{c:"4 units",why:"4 units is the distance around it (perimeter), not the area."}],
+  steps:[say("A square with sides of 1 unit is called a unit square."),say("A unit square covers 1 square unit of space."),say("Its area is 1 square unit.")]}),
+ r=>mc(r,{parts:["What is a unit square?"],keys:["unit","square"],correct:"A square with sides 1 unit long, used to measure area",
+  wrongs:[{c:"Any shape with 4 sides",why:"A unit square must be a square with sides of 1 unit."},{c:"A line that is 1 unit long",why:"A line has length, not area."},{c:"A square with sides of any length",why:"Each side must be exactly 1 unit."}],
+  steps:[say("A unit square is a square with sides 1 unit long."),say("We cover shapes with unit squares to measure area.")]}),
+];
+const MD5B=[
+ r=>{const n=ri(r,5,12),cells=blob(r,n);
+  return mc(r,{parts:["The shape is covered by unit squares with no gaps or overlaps.",{viz:{sqgrid:{cells},alt:`a shape made of ${n} unit squares`}},"What is the area of the shape?"],keys:["shape","covered","unit","squares","gaps","overlaps","area"],correct:`${n} square units`,
+   wrongs:[{c:`${n} units`,why:"Area is counted in SQUARE units."},{c:`${n+1} square units`,why:"Count again. Touch each square once."},{c:`${n-1} square units`,why:"Count again. Touch each square once."},{c:`${n*4} square units`,why:"Count the squares, not the sides."}],
+   steps:[say("Count each unit square one time.",{viz:{sqgrid:{cells,num:true}}}),say(`There are ${n} unit squares.`),say(`The area is ${n} square units.`)]})},
+];
+const MD6=[
+ r=>{const n=ri(r,6,14),cells=blob(r,n),u=pick(r,["centimeter","inch","meter","foot"]),U={centimeter:"square centimeters",inch:"square inches",meter:"square meters",foot:"square feet"}[u];
+  return inp({parts:[`Each square is 1 square ${u}.`,{viz:{sqgrid:{cells},alt:`a shape made of ${n} squares`}},`What is the area of the shape in ${U}?`],keys:["each","square","1",u,"area","shape"],ans:n,
+   whyIn:{[n+1]:"Count again. Touch each square once.",[n-1]:"Count again. Touch each square once."},whyElse:"Count every square one time.",steps:[say("Count the squares one by one.",{viz:{sqgrid:{cells,num:true}}}),say(`The area is ${n} ${U}.`)]})},
+];
+const MD7A=[
+ r=>{const w=ri(r,3,9),h=ri(r,2,6),a=w*h;
+  return mc(r,{parts:["The rectangle is covered with square tiles.",{viz:{rect:{w,h,tiles:true},alt:`a rectangle ${w} tiles long and ${h} tiles wide`}},"Which equation shows the area of the rectangle?"],keys:["rectangle","covered","square","tiles","equation","area"],correct:`${w} × ${h} = ${a}`,
+   wrongs:[{c:`${w} + ${h} = ${w+h}`,why:"Adding the sides doesn’t count all the tiles."},{c:`${w} × ${h} = ${a+w}`,why:`Count the rows again: ${h} rows of ${w}.`},{c:`${w} + ${w} + ${h} + ${h} = ${2*(w+h)}`,why:"That is the distance around (perimeter), not the area."}],
+   steps:[say(`There are ${h} rows with ${w} tiles in each row.`,{viz:{rect:{w,h,tiles:true}}}),say(`${h} rows of ${w} is ${w} × ${h}.`),say(`${w} × ${h} = ${a} tiles, the same as counting every tile.`)]})},
+];
+const MD7B=[
+ r=>{const w=ri(r,3,10),h=ri(r,2,9),u=pick(r,["feet","meters","inches","centimeters"]);
+  return inp({parts:[`The rectangle is ${w} ${u} long and ${h} ${u} wide.`,{viz:{rect:{w,h,unit:u.slice(0,2)==="fe"?"ft":u==="meters"?"m":u==="inches"?"in":"cm"},alt:`a rectangle ${w} by ${h}`}},`What is the area in square ${u}?`],keys:["rectangle",String(w),u,"long",String(h),"wide","area"],ans:w*h,
+   whyIn:{[w+h]:"That adds the two sides. Area means multiply.",[2*(w+h)]:"That is the perimeter (distance around)."},whyElse:"Multiply the length by the width.",
+   steps:[say(`Area of a rectangle = length × width.`,{viz:{rect:{w,h,tiles:true}}}),say(`${w} × ${h} = ${w*h}.`),say(`The area is ${w*h} square ${u}.`)]})},
+ r=>{const n=name(r),w=ri(r,4,10),h=ri(r,3,8);
+  return inp({parts:[`${n} is covering a floor with square tiles. The floor is ${w} feet long and ${h} feet wide. Each tile is 1 square foot.`,"How many tiles does "+n+" need?"],keys:["covering","floor","square","tiles",String(w),"feet","long",String(h),"wide","how","many"],ans:w*h,
+   whyIn:{[w+h]:"That adds. Each row has "+w+" tiles, and there are "+h+" rows.",[2*(w+h)]:"That is the edge of the floor, not the whole floor."},whyElse:"Multiply length × width.",steps:[say(`Each row has ${w} tiles, and there are ${h} rows.`,{viz:{rect:{w,h,tiles:true}}}),say(`${w} × ${h} = ${w*h} tiles.`)]})},
+];
+const MD7C=[
+ r=>{const h=ri(r,3,8),b=ri(r,2,6),c=ri(r,2,5);need(b+c<=10);
+  return mc(r,{parts:["The rectangle is split into two smaller rectangles.",{viz:{rect:{w:b+c,h,split:b,tiles:true},alt:`a rectangle ${b+c} by ${h} split into ${b} by ${h} and ${c} by ${h}`}},`Which expression shows the area of the whole rectangle?`],keys:["rectangle","split","two","smaller","expression","area","whole"],correct:`(${h} × ${b}) + (${h} × ${c})`,
+   wrongs:[{c:`(${h} × ${b}) + ${c}`,why:`The ${c} part is ${h} tall too, so it is ${h} × ${c}.`},{c:`(${h} + ${b}) × (${h} + ${c})`,why:"Find each smaller area by multiplying, then add them."},{c:`(${h} × ${b}) × (${h} × ${c})`,why:"Add the two areas together, don’t multiply them."}],
+   steps:[say(`Left part: ${h} × ${b} = ${h*b}.`,{viz:{rect:{w:b+c,h,split:b,tiles:true}}}),say(`Right part: ${h} × ${c} = ${h*c}.`),say(`Add: ${h*b} + ${h*c} = ${h*(b+c)}, which is ${h} × ${b+c}.`)]})},
+];
+const MD7D=[
+ r=>{const W=ri(r,5,9),H=ri(r,4,8),cw=ri(r,2,W-2),ch=ri(r,1,H-2),a=W*H-cw*ch;
+  const v={lshape:{W,H,cw,ch},alt:`an L-shaped figure: ${W} by ${H} with a ${cw} by ${ch} corner missing`};
+  return inp({parts:["Find the area of the figure. All measurements are in feet.",{viz:v},"What is the area in square feet?"],keys:["area","figure","measurements","feet"],ans:a,
+   whyIn:{[W*H]:"That is the big rectangle. Part of the corner is missing.",[2*(W+H)]:"That is the perimeter.",[W+H]:"Area means multiply."},whyElse:"Split the figure into two rectangles and add their areas.",
+   steps:[say("Split the figure into two rectangles.",{viz:{lshape:{W,H,cw,ch,cut:true}}}),say(`Top rectangle: ${W-cw} × ${ch} = ${(W-cw)*ch}. Bottom rectangle: ${W} × ${H-ch} = ${W*(H-ch)}.`),say(`Add: ${(W-cw)*ch} + ${W*(H-ch)} = ${a} square feet.`)]})},
+];
+const PERIM=[
+ r=>{const w=ri(r,3,12),h=ri(r,2,9);need(w!==h);const p=2*(w+h);
+  return inp({parts:[{viz:{rect:{w,h,unit:"cm"},alt:`a rectangle ${w} cm by ${h} cm`}},"What is the perimeter of the rectangle in centimeters?"],keys:["perimeter","rectangle","centimeters"],ans:p,
+   whyIn:{[w*h]:"That is the area. Perimeter is the distance around.",[w+h]:"That is only two sides. A rectangle has four sides."},whyElse:"Add all four sides.",
+   steps:[say("Perimeter is the distance all the way around.",{viz:{rect:{w,h,unit:"cm"}}}),say(`The sides are ${w}, ${h}, ${w}, and ${h}.`),say(`${w} + ${h} + ${w} + ${h} = ${p} centimeters.`)]})},
+ r=>{const w=ri(r,3,12),h=ri(r,2,9),p=2*(w+h);
+  return inp({parts:[`A rectangle has a perimeter of ${p} inches. One side is ${w} inches long.`,"How long is the side next to it, in inches?"],keys:["rectangle","perimeter",String(p),"inches","side",String(w),"long","next"],ans:h,
+   whyIn:{[p-w]:`Opposite sides are equal, so take away ${w} twice.`,[p-2*w]:`That is two sides together. Split it in half.`},whyElse:"Opposite sides of a rectangle are equal.",
+   steps:[say(`Two sides are ${w} inches: ${w} + ${w} = ${2*w}.`),say(`${p} − ${2*w} = ${p-2*w} for the other two sides.`),say(`Each of those is ${p-2*w} ÷ 2 = ${h} inches.`)]})},
+ r=>{const [w,h]=pick(r,[[4,6],[3,7],[2,8],[5,5],[6,2],[3,5]]),P=2*(w+h),opts=[];for(let a=1;a<P/2;a++){const b=P/2-a;if(a<=b&&!(a===Math.min(w,h)))opts.push([a,b])}need(opts.length);const [x,y]=pick(r,opts);need(x*y!==w*h);
+  return mc(r,{parts:[`A garden is a rectangle ${w} feet by ${h} feet.`,"Which rectangle has the SAME perimeter but a DIFFERENT area?"],keys:["garden","rectangle",String(w),"feet",String(h),"same","perimeter","different","area"],correct:`${x} feet by ${y} feet`,
+   wrongs:[{c:`${h} feet by ${w} feet`,why:"That is the same rectangle turned. Its area is the same."},{c:`${w+1} feet by ${h+1} feet`,why:`Its perimeter is ${2*(w+h+2)}, not ${P}.`},{c:`${w*2} feet by ${h} feet`,why:`Its perimeter is ${2*(2*w+h)}, not ${P}.`},{c:`${Math.max(1,w-1)} feet by ${h} feet`,why:"Its perimeter is smaller."}].filter(c=>c.c!==`${x} feet by ${y} feet`),
+   steps:[say(`The garden’s perimeter: ${w} + ${h} + ${w} + ${h} = ${P}. Area: ${w} × ${h} = ${w*h}.`),say(`${x} by ${y}: perimeter ${x} + ${y} + ${x} + ${y} = ${P}. Area ${x} × ${y} = ${x*y}.`),say("Same perimeter, different area.")]})},
+];
+
+const T={props:PROPS,divfact:DIVFACT,fluency:FLUENCY,twostep:TWOSTEP,patterns:PATTERNS,tens:TENS,nf1:NF1,nf2a:NF2A,nf2b:NF2B,nf3a:NF3A,nf3b:NF3B,nf3c:NF3C,nf3d:NF3D,
+ time:TIME,volmass:VOLMASS,graphs:GRAPHS,lineplot:LINEPLOT,md5a:MD5A,md5b:MD5B,md6:MD6,md7a:MD7A,md7b:MD7B,md7c:MD7C,md7d:MD7D,perim:PERIM};
+function finalize(q,skill){
+  q.skill=skill;
+  const words=new Set();q.parts.forEach(p=>{const t=typeof p==="string"?p:p.eq;if(t!=null)t.split(/\s+/).filter(Boolean).forEach(w=>words.add(norm(w)))});
+  q.keys=[...new Set(q.keys.map(k=>norm(String(k))))].filter(k=>words.has(k));need(q.keys.length>=2);
+  if(q.whyIn)Object.keys(q.whyIn).forEach(k=>{if(+k===q.ans||+k<=0||isNaN(+k))delete q.whyIn[k]});
+  if(q.type==="input")need(Number.isFinite(q.ans)&&q.ans>=0);
+  return q;
+}
+function make(skill,seed){const r=RNG(seed);let last;for(let t=0;t<80;t++){try{return finalize(pick(r,T[skill])(r),skill)}catch(e){if(!(e instanceof Retry))throw e;last=e}}throw last||new Error("gen failed")}
+return {make,skills:Object.keys(T),count:k=>T[k].length};
+})();
+
+/* Mississippi CCRS grade 3 math standards. Know / understand / do lists from the MDE Grade 3 Math Scaffolding Document. */
+const LIB=[{"code": "3.OA.1", "dom": "OA", "name": "What multiplication means", "gen": "multmean", "desc": "Interpret products of whole numbers as the total in equal groups (5 × 7 is 5 groups of 7).", "know": ["Repeated addition is connected to multiplication.", "Equal groups can be modeled by partitioning rectangles.", "How to skip count by 2s, 5s and 10s.", "How to use a rectangular array to find the total number of objects.", "Interpretation means to communicate symbolically, numerically, abstractly, and/or with a model.", "How to add using the commutative and identity properties.", "Patterns connecting addition and subtraction."], "und": ["Multiplication means “groups of.”.", "Multiply by using a set of equal groups.", "Arrays can be used to represent multiplication.", "How to define the terms factor and product.", "Properties (rules about how numbers work) of multiplication can be used to solve problems.", "Patterns are found in the multiplication table."], "do": ["Find products of whole numbers as the total number of objects in n groups of n objects each.", "Solve multiplication problems by using equal groups, arrays, area, and/or measurement quantities.", "Represent a multiplication situation as an equation."]}, {"code": "3.OA.2", "dom": "OA", "name": "What division means", "gen": "divmean", "desc": "Interpret quotients as equal shares or as the number of equal groups (56 ÷ 8).", "know": ["Repeated subtraction is related to division.", "How to skip count by 2s, 5s, 10s, and 100s.", "Patterns are found in the multiplication table.", "How to partition shapes and groups of objects into equal shares.", "Interpretation means to communicate symbolically, numerically, abstractly, and/or with a model.", "Patterns connecting addition and subtraction."], "und": ["Division means to separate into parts.", "A quotient describes how many groups there are or how many objects are in each group.", "The numbers in a division equation represent a number of equal shares and the number of items in each share.", "The relationship between multiplication and division is an inverse relationship.", "Models and arrays can be used to solve division problems."], "do": ["Explain what division means and how it relates to equal shares.", "Interpret quotients as the number of objects (shares) or the number of groups when a set of objects is divided equally.", "Solve division problems by using equal groups, arrays, area, and/or measurement quantities.", "Represent a division situation as an equation."]}, {"code": "3.OA.3", "dom": "OA", "name": "Multiplication and division word problems", "gen": "multword", "desc": "Use × and ÷ within 100 to solve word problems with equal groups, arrays, and measurement.", "know": ["How to solve one- and two- step addition and subtraction word problems.", "Addition can be used to find the total number of objects arranged in rectangular arrays.", "How to skip count by 2s, 5s, and 10s.", "A variable represents the unknown number.", "How to solve equations for the unknown.", "Multiplication and division are related.", "Multiplication is repeated addition and division is repeated subtraction.", "How to find products and quotients within 100."], "und": ["Multiplication is used to find the sum of equal groups.", "Division is used to find the number of objects in a share or the number of equal shares.", "Arrays can be used to model multiplication and division problems.", "The rows and columns of an array differ based on orientation of the array.", "The relationship between multiplication and division (inverse operations) can be used to find the unknown."], "do": ["Solve a variety of problem solving situations including the product, the group size, or the number of groups.", "Represent a word problem using a picture, an equation with a symbol for the unknown number, or in other ways.", "Solve real-life multiplication and division problems where the product/quotient is greater than 5."]}, {"code": "3.OA.4", "dom": "OA", "name": "Finding the missing number", "gen": "unknown", "desc": "Find the unknown number in a × or ÷ equation (factors 0 to 10).", "know": ["How to find an unknown whole number in an addition and subtraction equation.", "Addition can be used to find the total number of objects arranged in rectangular arrays.", "How to skip count by 2s, 5s, and 10s.", "A variable represents the unknown number.", "How to multiply and divide within 100 using basic multiplication facts.", "How to express the relationship between multiplication and division as fact families."], "und": ["How to use related facts and properties of operations to find the unknown number.", "The relationship between multiplication and division (inverse operations) can be used to find the unknown.", "Factors and products and divisors and dividends express part-whole relationships in multiplication and division.", "The meaning of the equal sign as “the same as” to interpret an equation with an unknown.", "Products from single digit factors 0-9 and 10."], "do": ["Select the operation (multiplication or division) needed to determine the unknown whole number.", "Solve to find the unknown whole number (factor, product, quotient) in a multiplication or division equation where products and quotients are greater than 5."]}, {"code": "3.OA.5", "dom": "OA", "name": "Properties of multiplication", "gen": "props", "desc": "Use the commutative, associative, and distributive properties (and × 0, × 1) as strategies.", "know": ["Understand and apply the properties of operations (commutative, associative, and identity) to add and subtract.", "Addition can be used to find the total number of objects arranged in rectangular arrays.", "How to multiply and divide within 100.", "How to use arrays, bar diagrams, and drawings as strategies to multiply and divide.", "Fact families are expressions of the relationship between multiplication and division."], "und": ["The commutative property states that the order in which the factors are multiplied does not change the product.", "The associative property states the way in which numbers are grouped does not change their product.", "The distributive property states that a sum may be found by multiplying each addend separately and then adding the products.", "The identity property of multiplication states that the product of 1 and a number is the number itself.", "Factors can be decomposed as a strategy for finding a product."], "do": ["Explain how the properties of operations work.", "Apply properties of operations as strategies to multiply and divide.", "Find products and quotients by using known facts."]}, {"code": "3.OA.6", "dom": "OA", "name": "Division as a missing factor", "gen": "divfact", "desc": "Understand division as an unknown-factor problem (32 ÷ 8 is 8 × ? = 32).", "know": ["How to find an unknown whole number in an addition and subtraction equation.", "Addition can be used to find the total number of objects arranged in rectangular arrays.", "How to skip count by 2s, 5s, and 10s.", "The equal sign is an expression of equality.", "How to use models and arrays to find quotients to division problems.", "A variable represents the unknown number.", "How to multiply and divide within 100."], "und": ["How to use multiplication to find the unknown number in a division problem.", "The relationship between multiplication and division (inverse operations) can be used to find the unknown.", "Factors and products and divisors and dividends express part-whole relationships in multiplication and division.", "The difference between division with and without a remainder and the impact to factors in multiplication."], "do": ["Find quotients to division problems by using multiplication facts.", "Recognize multiplication and division as related operations and explain how they are related."]}, {"code": "3.OA.7", "dom": "OA", "name": "Multiplication and division facts", "gen": "fluency", "desc": "Fluently multiply and divide within 100; know all products of two one-digit numbers.", "know": ["How to add and subtract fluently within 20 and recall single-digit sums from memory.", "Patterns and relationships are found in the multiplication table.", "The relationship between multiplication and division is an inverse relationship.", "Multiplication is used to find the sum of equal groups.", "Division is used to find the number of objects in a share or the number of equal shares."], "und": ["Visual images and numerical patterns of multiplication and division can be used to solve problems.", "Various strategies are used to attain fluency with basic multiplication and division facts.", "Numbers can be used flexibly to solve multiplication and division problems.", "Fluently means quickly and accurately.", "Multiplication and division within 100."], "do": ["Analyze a multiplication or division problem in order to choose an appropriate strategy to fluently multiply or divide within 100.", "Recall from memory all products of two one-digit numbers."]}, {"code": "3.OA.8", "dom": "OA", "name": "Two-step word problems", "gen": "twostep", "desc": "Solve two-step word problems with all four operations; write equations with a letter; check reasonableness.", "know": ["How to solve two-step word problems involving addition and subtraction.", "How to recall multiplication and division facts from memory.", "How to use problem-solving structures for area/arrays and for equal groups.", "How to define the meaning of addition, subtraction, multiplication, and division.", "A variable represents the unknown number.", "Rounding is an estimation strategy.", "How to describe the order of operations (without parentheses)."], "und": ["How to construct an equation with a letter standing for the unknown quantity.", "How to describe strategies for solving problems involving addition, subtraction, multiplication, and division.", "Using strategies for estimating.", "How to represent whole dollar amounts.", "How to subtract across zeros when working with whole dollar amounts."], "do": ["Solve two-step problems involving addition, subtraction, multiplication, and division.", "Solve for an unknown in various positions.", "Justify answers using various estimation strategies."]}, {"code": "3.OA.9", "dom": "OA", "name": "Number patterns", "gen": "patterns", "desc": "Find and explain arithmetic patterns, including in addition and multiplication tables.", "know": ["How to use an addition table, a multiplication table, and a hundreds chart.", "Arithmetic patterns are patterns that change by the same rate, such as adding the same number.", "The properties of operations can be used to identify arithmetic patterns.", "How to determine whether a number is even or odd."], "und": ["Patterns can be found in the addition and multiplication tables.", "Visual images and numerical patterns of multiplication and division will help in solving problems.", "Identifying arithmetic patterns related to the properties of operations.", "Identifying patterns (such as even and odd numbers, patterns in an addition table, patterns in a multiplication table, patterns regarding multiples and sums)."], "do": ["Identify arithmetic patterns (including patterns in the addition or multiplication tables).", "Explain rules for a pattern using properties of operations.", "Explain relationships between the numbers in a pattern."]}, {"code": "3.NBT.1", "dom": "NBT", "name": "Rounding to the nearest 10 and 100", "gen": "round", "desc": "Round whole numbers to the nearest 10 or 100 using place value.", "know": ["Each digit in a three-digit number represents an amount of hundreds, tens, and ones.", "Three-digit numbers can be compared based on the hundreds, tens, and ones digits, and >, =, and < symbols are used to record the results of comparisons.", "A hundreds chart and a number line illustrate place- value relationships."], "und": ["Rounding is a method of approximating an answer.", "There are rules for rounding.", "The digits in the ones, tens, and hundreds places are used to round whole numbers.", "A number line and a hundreds chart are tools to support rounding.", "Rounding applies to real life.", "When rounding to the nearest 10, the ones digit is used to determine if the number is rounded up or down.", "When rounding to the nearest 100, the tens digit is used to determine if the number is rounded up or down."], "do": ["Use a number line, hundreds chart, and/or rounding rules to round whole numbers to the nearest 10 or 100.", "Model the rounding process and reasoning for rounding to represent the structure of the base-ten number system.", "Use patterns in the number system in the rounding process."]}, {"code": "3.NBT.2", "dom": "NBT", "name": "Adding and subtracting within 1,000", "gen": "addsub", "desc": "Fluently add and subtract within 1,000 using place value and properties.", "know": ["How to add and subtract fluently within 100.", "How to apply various strategies (i.e., the standard algorithm, concrete models, make 10, and make 100) to add and subtract.", "The properties of operations (associative, commutative, and distributive properties) can be used to solve addition and subtraction problems.", "The relationship between addition and subtraction is an inverse relationship."], "und": ["A variety of strategies can be used to attain fluency with addition and subtraction.", "These strategies can include the standard algorithm (borrowing or regrouping) and thinking about multi-digit numbers as groups of hundreds, tens, and ones.", "Numbers can be used flexibly to solve addition and subtraction problems such as using the properties of operations.", "Fluently means quickly and accurately.", "Strategies for subtracting across zeros using place value understanding."], "do": ["Add and subtract within 1,000 without context.", "Model algorithms based on place value, properties of operations, and/or the inverse relationship between addition and subtraction.", "Demonstrate fluency (speed, accuracy, and understanding) with addition and subtraction problems within 1,000.", "Subtract across zeros using understanding of place value."]}, {"code": "3.NBT.3", "dom": "NBT", "name": "Multiplying by multiples of 10", "gen": "tens", "desc": "Multiply one-digit numbers by multiples of 10 from 10 to 90 (9 × 80).", "know": ["How to count by multiples of 10.", "How to compose and decompose multiples of 10 as groups of 10.", "How to find the product of two one-digit numbers; develop fluency with basic multiplication facts.", "Rectangular arrays can be constructed to find the sum of a repeated addition problem."], "und": ["Base-ten blocks, diagrams, and a hundreds chart can be used to multiply a one-digit number by multiples of 10.", "The patterns in place value connect the products of one- digit numbers to the products of one-digit numbers multiplied by multiples of 10."], "do": ["Multiply one-digit numbers by a multiple of 10 using various strategies.", "Recognize patterns in multiplying by multiples of 10."]}, {"code": "3.NF.1", "dom": "NF", "name": "What fractions mean", "gen": "nf1", "desc": "Understand 1/b as one of b equal parts, and a/b as a of those parts.", "know": ["How to divide shapes (circles and rectangles) into no more than four equal parts.", "Fraction models include area (parts of a whole) models (circles, rectangles, and squares) and number lines.", "A fraction is written with a numerator/denominator.", "A fraction represents quantities where a whole is divided into equal parts.", "The numerator of a fraction is the number of parts.", "The denominator of a fraction represents the total number of parts that make up the whole.", "Equal shares of the same whole need not have the same shape."], "und": ["The size of the fractional part is relative to the size of the whole.", "Fractions are composed of unit fractions, which have a numerator of 1.", "Fractions represent quantities where a whole is divided into equal-sized parts using models, manipulatives, words, and/or number lines.", "Fractions can be used as a tool to model and understand quantities and relationships."], "do": ["Represent a whole using unit fractions.", "Use the terms numerator for the number of relevant parts and denominator for the total number of parts in the whole.", "Use accumulated unit fractions to represent numbers equal to, less than, and greater than one ( 13 and 13 is 23; 13, 13, 13, and 13 is 43 )."]}, {"code": "3.NF.2a", "dom": "NF", "name": "Unit fractions on a number line", "gen": "nf2a", "desc": "Show 1/b on a number line by cutting 0 to 1 into b equal parts.", "know": ["How to divide shapes (circles and rectangles) into no more than four equal parts.", "How to share a whole that was partitioned or split.", "Fraction models include area models (parts of a whole using circles, rectangles, and squares) and number lines.", "The numerator of a fraction is the number of relevant parts.", "The denominator of a fraction represents the total number of parts that make up a whole.", "Fractions are composed of unit fractions."], "und": ["Fractions can be used as a tool to model and understand quantities and relationships.", "Fractions can be represented on a number line.", "The whole is divided into equal-sized parts between whole numbers.", "How to define the interval from 0 to 1 on a number line as the whole.", "The equal parts between 0 and 1 have a fractional representation.", "The size of the fractional part is relative to the size of the whole."], "do": ["Divide a number line diagram into equal segments and label the appropriate fractional parts.", "Explain that the end of each equal part is represented by a fraction (1/the number of equal parts)."]}, {"code": "3.NF.2b", "dom": "NF", "name": "Fractions on a number line", "gen": "nf2b", "desc": "Show a/b on a number line by marking off a lengths of 1/b from 0.", "know": ["How to divide shapes (circles and rectangles) into no more than four equal parts.", "Sharing of a whole being partitioned or split.", "Fraction models include area models (parts of a whole using circles, rectangles, and squares) and number lines.", "The numerator of a fraction is the number of relevant parts.", "The denominator of a fraction represents the total number of parts that make up the whole."], "und": ["Fractions can be used as a tool to model and understand quantities and relationships.", "The size of the fractional part is relative to the size of the whole.", "Fractions represent quantities where a whole is divided into equal-sized parts using number lines.", "How to define the interval from 0 to 1 on a number line as the whole.", "How to divide on a number line into equal parts."], "do": ["Represent each equal part on a number line with a fraction.", "Explain that the endpoint of each equal part represents the total number of parts."]}, {"code": "3.NF.3a", "dom": "NF", "name": "Equal fractions are the same size", "gen": "nf3a", "desc": "Fractions are equivalent if they are the same size or at the same point; compare only with the same whole.", "know": ["How to divide shapes (circles and rectangles) into no more than four equal parts.", "Measure length and represent that data in a line plot.", "Fraction models include area models (parts of a whole using circles, rectangles, and squares) and number lines.", "The numerator of a fraction is the number of relevant parts.", "The denominator of a fraction represents the total number of parts that make up a whole."], "und": ["Fractions that represent equal-sized quantities or parts of a whole are equivalent.", "Two fractions are equivalent if they are the same size, or represent the same portion on a number line.", "Visual fraction models (area models) and number lines are helpful in exploring equivalence.", "What makes fractions equivalent."], "do": ["Represent different fractions as parts of a whole and compare the shaded or relevant parts.", "Compare fractions by reasoning about their size to determine equivalence.", "Model equivalent fractions using manipulatives, pictures, or number line diagrams and explain in words why the fractions are equivalent."]}, {"code": "3.NF.3b", "dom": "NF", "name": "Finding equivalent fractions", "gen": "nf3b", "desc": "Recognize and make simple equivalent fractions (1/2 = 2/4) and explain why with a model.", "know": ["How to divide shapes (circles and rectangles) into no more than 4 equal parts and use vocabulary terminology to describe.", "How to measure length and represent that data in a line plot.", "Fraction models include area models (parts of a whole using circles, rectangles, and squares) and number lines.", "The numerator of a fraction is the number of relevant parts.", "The denominator of a fraction represents the total number of parts that make up a whole."], "und": ["Fractions that represent equal-sized quantities or parts of a whole are equivalent.", "Visual fraction models (area models) and number lines are helpful in exploring equivalence.", "What makes fractions equivalent.", "Two fractions are equivalent (equal) if they are the same size, or represent the same portion on a number line."], "do": ["Compare fractions by reasoning about their size to determine equivalence.", "Recognize and construct equivalent fractions using manipulatives, pictures, or number line diagrams and explain in words why the fractions are equivalent."]}, {"code": "3.NF.3c", "dom": "NF", "name": "Whole numbers as fractions", "gen": "nf3c", "desc": "Write whole numbers as fractions (3 = 3/1) and know fractions equal to wholes (4/4 = 1).", "know": ["How to divide shapes (circles and rectangles) into no more than four equal parts and use correct terms to describe (halves, thirds, fourths).", "Fraction models include area models (parts of a whole using circles, rectangles, and squares) and number lines.", "The numerator of a fraction is the number of relevant parts.", "The denominator of a fraction represents the total number of parts that make up a whole.", "Fractions that represent equal-sized quantities are equivalent."], "und": ["Writing whole numbers as fractions relates to fractions as division problems.", "The difference between a whole number and a fraction.", "Two fractions are equivalent (equal) if they are the same size, or represent the same portion on a number line.", "Equivalence of fractions depends upon the same whole."], "do": ["Explain how a fraction relates to or is equivalent to a whole number.", "Represent whole numbers as fractions using area models, number line diagrams, and numbers."]}, {"code": "3.NF.3d", "dom": "NF", "name": "Comparing fractions", "gen": "nf3d", "desc": "Compare fractions with the same numerator or the same denominator using >, =, <.", "know": ["How to divide shapes (circles and rectangles) into no more than four equal parts and use correct vocabulary to describe (halves, thirds, fourths).", "Two fractions are equivalent (equal) if they are the same size, or represent the same portion on a number line.", "Fraction models include area models (parts of a whole using circles, rectangles, and squares) and number lines.", "The numerator of a fraction is the number of relevant parts.", "The denominator of a fraction represents the total number of parts that make up the whole.", "The size of the fractional part is relative to the size of the whole."], "und": ["Fractions can be compared with or without visual fraction models including number lines.", "When fractions have common denominators, the larger numerator has the larger number of equal parts, i.e., 26 < 56 .", "When fractions have common numerators, each fraction has the same number of relevant equal parts, but the total number of parts is different.", "The whole with more parts has smaller pieces than the whole with fewer parts, i.e., 38 < 3/4 ."], "do": ["Determine that comparisons are valid only when the two fractions refer to same-sized wholes.", "Compare two fractions with the same numerator and compare two fractions with the same denominator using visual fraction models, symbols, and words.", "Record the results of fraction comparisons using the symbols >, <, or =.", "Justify conclusions about the equivalence of fractions."]}, {"code": "3.MD.1", "dom": "MD", "name": "Telling time and elapsed time", "gen": "time", "desc": "Tell and write time to the nearest minute; solve elapsed-time word problems.", "know": ["How to tell and write time to the nearest hour, half-hour, and 5 minutes using digital and analog clocks.", "How to skip count by 5s.", "How to add and subtract within 100.", "An analog clock has an hour and minute hand.", "Sometimes an analog clock has a second hand.", "A.M. represents time from midnight to noon.", "P.M. represents time from noon to midnight.", "Sixty minutes is equivalent to 1 hour."], "und": ["The space between two consecutive tick marks on an analog clock represents 1 minute.", "Elapsed time is the interval of time, given a specific unit, from a starting time to an ending time.", "A number line is a tool that may be used to represent time on an analog clock and may be used as a tool for finding elapsed time."], "do": ["Compare an analog clock face to a number line.", "Tell and write time to the nearest minute.", "Use a number line to add and subtract time intervals in hours and minutes.", "Create and solve word problems involving addition and subtraction of time intervals in hours and minutes."]}, {"code": "3.MD.2", "dom": "MD", "name": "Liquid volume and mass", "gen": "volmass", "desc": "Measure and estimate liquid volume and mass in liters, grams, and kilograms; solve one-step problems.", "know": ["Objects have measurable attributes including length and mass.", "How to measure and estimate the length of an object using units of inches, feet, centimeters, and meters.", "How to solve one-step addition and subtraction word problems within 100 involving the same unit."], "und": ["Capacity is the amount of liquid that a container can hold and can be measured in liters.", "Mass is the amount of matter that an object has and can be measured in grams or kilograms.", "Mass is different than weight.", "Liters, grams, and kilograms are all units used to measure in the Metric System.", "How to solve one-step word problems involving mass and one-step word problems involving capacity. (Given in the same unit.)."], "do": ["Measure and estimate capacity using liters and mass using grams and kilograms.", "Solve one-step, addition, subtraction, multiplication, or division word problems involving capacity and mass. (Problems contain only one unit of measure.", "No conversions between units.)."]}, {"code": "3.MD.3", "dom": "MD", "name": "Picture graphs and bar graphs", "gen": "graphs", "desc": "Draw and read scaled picture and bar graphs; solve “how many more/less” problems.", "know": ["How to draw a single-unit scale picture graph and a bar graph to represent a data set with up to four categories.", "How to solve simple one-step problems using information from picture graphs and bar graphs (with single-unit scale).", "Scaled pictographs include symbols that represent units.", "Graphs should include a title, labeled categories, a key, and data.", "Scaled bar graphs can be horizontal or vertical and use bars of different lengths/ heights to show data.", "Graphs include a title, labeled scale, labeled categories, and data,.", "How to skip count by 5s, 10s, and 100s."], "und": ["Information (data) can be represented using scaled bar and picture graph forms.", "These graphs can be used to solve one- and two-step math problems.", "The scale of a graph can be greater than one.", "How to find “how many more,” “how many less,” and “how many fewer.”.", "How to find the difference between the greatest and the least values.", "Two-step word problems involving the four operations."], "do": ["Create a scaled picture graph or scaled bar graph to show data in multiple categories.", "Interpret a bar/picture graph to solve one- or two-step problems asking “how many more” and “how many less.”.", "Analyze a scaled graph with a scale greater than one and solve problems."]}, {"code": "3.MD.4", "dom": "MD", "name": "Measuring and line plots", "gen": "lineplot", "desc": "Measure lengths to the nearest half and quarter inch and show the data on a line plot.", "know": ["How to draw a picture graph and a bar graph to represent a data set.", "How to measure length in whole units using both metric and U.S. customary systems and represent that data in a line plot.", "X’s are drawn above the number line to represent data values.", "How to read and use a standard ruler, including halves and quarter inch marks on a ruler.", "Fractions are related to measuring one-half and one- quarter inch.", "Measuring is approximate."], "und": ["How to use a line plot to represent data.", "The horizontal scale is marked off in appropriate units.", "Some items will not measure exactly 1/4 , 1/2 , or 1 inch.", "How to determine an appropriate scale for the line plot.", "Fractions on a number line."], "do": ["Generate measurement data by measuring lengths using rulers marked with halves and fourths of an inch.", "Create a line plot where the horizontal scale is marked off in appropriate units—whole numbers, halves, or quarters.", "Analyze data from a line plot."]}, {"code": "3.MD.5a", "dom": "MD", "name": "What a unit square is", "gen": "md5a", "desc": "A square with sides of 1 unit has an area of 1 square unit.", "know": ["How to partition a rectangle into rows and columns of same-size squares and count to find the total number of them.", "Plane figures are two- dimensional shapes that include triangles, quadrilaterals, pentagons, and hexagons.", "What it means to find the length of an object.", "How to measure the length of an object using the customary and metric units of inches, feet, centimeters, and meters."], "und": ["Area as the amount of two- dimensional space in a bounded region.", "A square unit is used to measure the area of a given plane figure or surface.", "Area can be measured in square units.", "How to find area by decomposing figures using cutting and folding techniques."], "do": ["Cover the area of a plane figure with unit squares without gaps or overlaps.", "Relate the number (n) of unit squares to the area of a plane figure."]}, {"code": "3.MD.5b", "dom": "MD", "name": "Area as covering with squares", "gen": "md5b", "desc": "A shape covered by n unit squares with no gaps or overlaps has an area of n square units.", "know": ["Area can be found by partitioning a rectangle into rows and columns of same- size squares and counting the squares.", "How to measure length in whole units using both metric and U.S. customary systems.", "Plane figures are two- dimensional shapes that include triangles, quadrilaterals, pentagons, and hexagons.", "Everyday objects have a variety of attributes each of which can be measured in different ways."], "und": ["A two-dimensional geometric figure that is covered by a certain number of squares without gaps or overlaps has an area of that number of square units.", "Area can be measured in square units.", "How to use square units to measure area by filling in an area with the same sized square units and counting the number of square units.", "Plane figures have different attributes such as length and area."], "do": ["Relate the number of unit squares (n) to the area of a plane figure.", "Cover a plane figure with square tiles and count the number of units (tiles) to find the area.", "Find the area of plane figures."]}, {"code": "3.MD.6", "dom": "MD", "name": "Measuring area by counting squares", "gen": "md6", "desc": "Measure area by counting unit squares (square cm, m, in, ft).", "know": ["Area can be found by partitioning a rectangle into rows and columns of same- size squares and counting the squares.", "How to use a ruler to measure length including the length of a side on a plane figure.", "Area can be measured in units of centimeters (cm), meters (m), inches (in), and feet (ft).", "Addition problem-solving strategies."], "und": ["Area is the amount of two- dimensional space in a bound region, and it is measured by choosing a unit of area, often a square, and iterating it over the entire space.", "Squares units can be square centimeters, square meters, square inches, square feet, or other improvised square units.", "Everyday objects have a variety of attributes each of which can be measured in different ways.", "Area and addition are related."], "do": ["Place square tiles on a surface without gaps or overlays and count the number of units (tiles) to find the area of the surface."]}, {"code": "3.MD.7a", "dom": "MD", "name": "Area by tiling and multiplying", "gen": "md7a", "desc": "Find the area of a rectangle by tiling and show it matches multiplying the side lengths.", "know": ["How to partition rectangles into equal-sized groups of rows and columns using square units.", "Problem-solving structures for area/arrays and for equal- sized groups.", "How to skip count by 5s, 10s, and 100s.", "Multiplication facts for all single digits 1 through 9 and 10."], "und": ["Area is additive.", "There is a relationship between area and multiplication.", "The properties of operations will help in finding area.", "Find the area of a rectangle by tiling it in unit squares.", "Find the side lengths of a rectangle in units.", "Skip counting and multiplication to determine the number of squares in an array.", "Area models of multiplication."], "do": ["Tile areas of rectangles and determine the area in square units.", "Record the length and width of the rectangle, and investigate the patterns in the numbers (equal-sized groups in rows and columns).", "Compare the area found by counting the tiles in a rectangle to the area found by adding equal-sized groups of tiles.", "If there are three rows and four columns, find the area by adding 3 + 3 + 3 + 3 or 4 + 4 + 4.", "Compare the area found by tiling a rectangle to the area found by multiplying the side lengths and discover that the area is the length times the width."]}, {"code": "3.MD.7b", "dom": "MD", "name": "Area of rectangles", "gen": "md7b", "desc": "Multiply side lengths to find the area of rectangles in real-world problems.", "know": ["How to model with equal- sized groups by partitioning rectangles.", "Problem-solving structures for area/arrays and for equal groups.", "Addition problem-solving strategies.", "Multiplication facts for all single digits 1 through 9 and 10."], "und": ["Area is additive.", "There is a relationship between area and multiplication.", "The properties of operations will help in finding area.", "Multiply side lengths to find areas of rectangles.", "Area is a square measure."], "do": ["Solve real-world and mathematical area problems by multiplying whole-number side lengths of rectangles.", "Use rectangular arrays to represent whole-number products in multiplication problems."]}, {"code": "3.MD.7c", "dom": "MD", "name": "Area and the distributive property", "gen": "md7c", "desc": "Use area models to show a × (b + c) = a × b + a × c.", "know": ["How to model with equal- sized groups by partitioning rectangles.", "Problem-solving structures for area/arrays and for equal groups.", "Addition problem-solving strategies.", "Multiplication facts for all single digits 1 through 9 and 10."], "und": ["Area is additive.", "There is a relationship between area and multiplication.", "The properties of operations, specifically the distributive property, will help in finding area.", "How to multiply using an area model or array.", "How to use the distributive property to represent a real- world problem: a x (b + c) = a x b + a x c."], "do": ["Relate area of a rectangle to multiplication and addition by modeling the distributive property."]}, {"code": "3.MD.7d", "dom": "MD", "name": "Area of combined rectangles", "gen": "md7d", "desc": "Find the area of rectilinear figures by splitting them into rectangles and adding.", "know": ["How to decompose figures.", "A rectilinear figure is a polygon that has all right angles.", "How to find areas of rectangles.", "How to add areas of rectangles.", "Problem-solving structures for area/arrays and for equal groups.", "Multiplication facts for all single digits 1 through 9 and 10."], "und": ["Area is additive.", "There is a relationship between area and multiplication.", "The properties of operations will help in finding area.", "Areas of each rectangle in a rectilinear (straight line) figure can be added together to find the area of the figure."], "do": ["Decompose rectilinear figures into different rectangles and find the area of each rectangle that is part of a larger figure.", "Find the area of each larger figure by adding the areas of each of the rectangles.", "See the example below. 6 ft 9 ft 2 ft 10 ft The area for the above figure is (9 x 4) + (2 x 6) = 48 square feet."]}, {"code": "3.MD.8", "dom": "MD", "name": "Perimeter", "gen": "perim", "desc": "Solve perimeter problems, find a missing side, and compare shapes with the same perimeter or area.", "know": ["How to relate addition and subtraction to length.", "How to measure and estimate lengths in standard units.", "How to relate to an open array used in multiplication and area problems.", "Addition problem-solving strategies.", "A polygon is a closed, flat figure formed using line segments that meet only at their ends.", "For a polygon, the length of the perimeter is the sum of the lengths of the sides.", "Perimeter equals the distance around a closed figure."], "und": ["Perimeter and addition are related and connected to the commutative property of multiplication.", "Patterns exist when finding the sum of the lengths and widths of rectangles.", "The difference between perimeter and area.", "The length of all sides in a polygon must be known to find the perimeter of the polygon.", "Unknown side lengths may be found by measuring or reasoning using given sides."], "do": ["Solve real-world and mathematical problems involving perimeters of polygons.", "Find the perimeter of a polygon given the side lengths.", "Find the perimeter of a polygon when there is an unknown side length.", "Exhibit (design, create, draw, model, etc.) rectangles with the same perimeter and different areas.", "Exhibit rectangles with the same area and different perimeters.", "Solve real-world and mathematical problems involving perimeters of polygons."]}, {"code": "3.G.1", "dom": "G", "name": "Quadrilaterals", "gen": "quad", "desc": "Shapes share attributes; quadrilaterals include rhombuses, rectangles, and squares.", "know": ["How to recognize and draw shapes having specified attributes such as a given number of angles and sides.", "Identify triangles, quadrilaterals, pentagons, and hexagons.", "Triangles, quadrilaterals, pentagons, etc. are two- dimensional shapes.", "How to identify and count angles and sides within a shape to label a shape."], "und": ["Shapes can be described and compared using their geometric attributes.", "Shapes are categorized according to their attributes including the number of sides and angles within the shape.", "Those categories can contain subcategories, for example, rhombuses, rectangles, squares, trapezoids, parallelograms, etc.", "Attributes of a circle."], "do": ["Describe, analyze, and compare properties of two- dimensional shapes.", "Compare and classify shapes by attributes, sides and angles.", "Group shapes with shared attributes to define a larger category (e.g., quadrilaterals).", "Draw examples and non- examples of quadrilaterals with specific attributes."]}, {"code": "3.G.2", "dom": "G", "name": "Equal parts and fractions", "gen": "parts", "desc": "Split shapes into equal areas and name each part as a unit fraction.", "know": ["A whole shape can be divided into equal parts.", "The equal parts may not be the same shape.", "How to divide shapes (circles and rectangles) into two, three, or four equal parts and use the terms halves, thirds, or fourths to describe the parts.", "A fraction represents quantities where a whole is divided into equal-sized parts.", "How to use the term numerator to indicate the number of parts and denominator to represents the total number of parts a whole is portioned into."], "und": ["Unit fractions can be used to describe a whole that has been divided into parts.", "The size of the fractional part is relative to the size of the whole.", "Composition and decomposition of rectangular regions.", "How to partition a rectangle into equal squares."], "do": ["Divide shapes into parts with equal areas.", "Represent the area of each part as a unit fraction."]}];
+const DOMS={OA:"Operations and Algebraic Thinking",NBT:"Number and Operations in Base Ten",NF:"Number and Operations—Fractions",MD:"Measurement and Data",G:"Geometry"};
+const LIBC=Object.fromEntries(LIB.map(s=>[s.code,s]));
+const LIBG=Object.fromEntries(LIB.map(s=>[s.gen,s]));
+
+/* ---------- pictures for the newer standards: fraction bars, number lines, clocks, graphs, area ---------- */
+const VK="#1C2838",VS="#8EC5FF",VW="#6DB3F2";
+const svgw=(w,h,body,label,maxw)=>`<div class="fig"><svg viewBox="0 0 ${w} ${h}" width="${Math.min(w,maxw||w)}" role="img" aria-label="${esc(label||"picture")}" style="max-width:100%;height:auto">${body}</svg></div>`;
+const tx=(x,y,t,o={})=>`<text x="${x}" y="${y}" text-anchor="${o.a||"middle"}" font-size="${o.s||14}" font-weight="${o.w||600}" fill="${o.c||VK}" font-family="system-ui,sans-serif">${esc(String(t))}</text>`;
+const fracTx=(x,y,a,b,s=13)=>b===1?tx(x,y,a,{s}):`${tx(x,y-7,a,{s})}<line x1="${x-7}" y1="${y-3}" x2="${x+7}" y2="${y-3}" stroke="${VK}" stroke-width="1.4"/>${tx(x,y+11,b,{s})}`;
+function vizHTML(v){
+  if(v.fbar){const {d,shade}=v.fbar,W=260,H=46,cw=W/d;let s="";for(let i=0;i<d;i++)s+=`<rect x="${4+i*cw}" y="4" width="${cw}" height="${H}" fill="${i<shade?VS:"#fff"}" stroke="${VK}" stroke-width="2"/>`;
+    return svgw(W+8,H+8,s,`a bar cut into ${d} equal parts, ${shade} shaded`)}
+  if(v.fcirc){const {d,shade}=v.fcirc,c=50,r=44;let s="";for(let i=0;i<d;i++){const a0=-Math.PI/2+i*2*Math.PI/d,a1=a0+2*Math.PI/d;
+      s+=`<path d="M${c},${c} L${(c+r*Math.cos(a0)).toFixed(1)},${(c+r*Math.sin(a0)).toFixed(1)} A${r},${r} 0 0 1 ${(c+r*Math.cos(a1)).toFixed(1)},${(c+r*Math.sin(a1)).toFixed(1)} Z" fill="${i<shade?VS:"#fff"}" stroke="${VK}" stroke-width="2"/>`}
+    return svgw(100,100,s,`a circle cut into ${d} equal parts, ${shade} shaded`,130)}
+  if(v.fnl){const {d,max=1,dot,lab,all,two}=v.fnl,W=520,x0=30,x1=W-30,line=(y,den,labels,dotAt,dotLab)=>{let s=`<line x1="${x0-10}" y1="${y}" x2="${x1+10}" y2="${y}" stroke="${VK}" stroke-width="2.5"/>`;
+      const n=den*max;for(let k=0;k<=n;k++){const x=x0+(x1-x0)*k/n,whole=k%den===0;s+=`<line x1="${x}" y1="${y-(whole?12:8)}" x2="${x}" y2="${y+(whole?12:8)}" stroke="${VK}" stroke-width="${whole?2.5:1.8}"/>`;
+        if(whole)s+=tx(x,y+32,k/den,{s:16,w:700});else if(labels)s+=fracTx(x,y+34,k,den,12)}
+      if(dotAt!=null){const x=x0+(x1-x0)*dotAt/n;s+=`<circle cx="${x}" cy="${y}" r="7" fill="#C0392B"/>`+(dotLab?tx(x,y-20,dotLab,{s:16,w:800,c:"#C0392B"}):"")}return s};
+    let s=line(36,d,all,dot,lab),h=86;if(two){s+=line(128,two,true);h=178}
+    return svgw(W,h,s,`number line from 0 to ${max}`)}
+  if(v.clock){const {h,m}=v.clock,c=80,R=72;let s=`<circle cx="${c}" cy="${c}" r="${R}" fill="#fff" stroke="${VK}" stroke-width="4"/>`;
+    for(let i=0;i<60;i++){const a=i*Math.PI/30,big=i%5===0,r1=R-(big?11:6);s+=`<line x1="${(c+r1*Math.sin(a)).toFixed(1)}" y1="${(c-r1*Math.cos(a)).toFixed(1)}" x2="${(c+(R-2)*Math.sin(a)).toFixed(1)}" y2="${(c-(R-2)*Math.cos(a)).toFixed(1)}" stroke="${VK}" stroke-width="${big?2.5:1}"/>`}
+    for(let i=1;i<=12;i++){const a=i*Math.PI/6;s+=tx((c+(R-24)*Math.sin(a)).toFixed(1),(c-(R-24)*Math.cos(a)+6).toFixed(1),i,{s:15,w:700})}
+    const ha=((h%12)+m/60)*Math.PI/6,ma=m*Math.PI/30;
+    s+=`<line x1="${c}" y1="${c}" x2="${(c+38*Math.sin(ha)).toFixed(1)}" y2="${(c-38*Math.cos(ha)).toFixed(1)}" stroke="${VK}" stroke-width="6" stroke-linecap="round"/>`;
+    s+=`<line x1="${c}" y1="${c}" x2="${(c+60*Math.sin(ma)).toFixed(1)}" y2="${(c-60*Math.cos(ma)).toFixed(1)}" stroke="#2B59C3" stroke-width="3.5" stroke-linecap="round"/><circle cx="${c}" cy="${c}" r="5" fill="${VK}"/>`;
+    return svgw(160,160,s,"an analog clock",180)}
+  if(v.beaker){const {max,val}=v.beaker,X=50,Y=14,W=80,H=200,y=k=>Y+H-H*k/max;let s=`<rect x="${X}" y="${y(val)}" width="${W}" height="${H*val/max}" fill="${VW}" opacity=".75"/>`;
+    s+=`<path d="M${X},${Y-6} L${X},${Y+H} L${X+W},${Y+H} L${X+W},${Y-6}" fill="none" stroke="${VK}" stroke-width="3"/>`;
+    for(let k=1;k<=max;k++)s+=`<line x1="${X}" y1="${y(k)}" x2="${X+22}" y2="${y(k)}" stroke="${VK}" stroke-width="2"/>`+tx(X-8,y(k)+5,k,{a:"end",s:13});
+    s+=tx(X+W/2,Y+H+22,"liters (L)",{s:13});return svgw(170,250,s,"a container marked in liters",170)}
+  if(v.bar){const {title,cats,vals,step,y:yl}=v.bar,top=Math.ceil((Math.max(...vals)+step)/step)*step,X=58,Y=34,W=380,H=200,bw=W/cats.length*.55;
+    let s=tx(X+W/2,18,title,{s:15,w:800});
+    for(let k=0;k<=top;k+=step){const yy=Y+H-H*k/top;s+=`<line x1="${X}" y1="${yy}" x2="${X+W}" y2="${yy}" stroke="#C9D3DD" stroke-width="1"/>`+tx(X-8,yy+5,k,{a:"end",s:12})}
+    cats.forEach((c,i)=>{const cx=X+W/cats.length*(i+.5),hh=H*vals[i]/top;s+=`<rect x="${cx-bw/2}" y="${Y+H-hh}" width="${bw}" height="${hh}" fill="#2B59C3"/>`+tx(cx,Y+H+18,c,{s:12})});
+    s+=`<line x1="${X}" y1="${Y}" x2="${X}" y2="${Y+H}" stroke="${VK}" stroke-width="2"/><line x1="${X}" y1="${Y+H}" x2="${X+W}" y2="${Y+H}" stroke="${VK}" stroke-width="2"/>`;
+    s+=`<text x="14" y="${Y+H/2}" transform="rotate(-90 14 ${Y+H/2})" text-anchor="middle" font-size="12" fill="${VK}" font-family="system-ui,sans-serif">${esc(yl||"")}</text>`;
+    return svgw(X+W+14,Y+H+30,s,`bar graph: ${title}`)}
+  if(v.pict){const {title,cats,vals,key}=v.pict,rowH=34;let s=tx(230,20,title,{s:15,w:800});
+    cats.forEach((c,i)=>{const y=40+i*rowH;s+=`<line x1="8" y1="${y+rowH}" x2="452" y2="${y+rowH}" stroke="#C9D3DD"/>`+tx(100,y+22,c,{a:"end",s:13});
+      for(let k=0;k<vals[i];k++)s+=tx(126+k*34,y+25,"★",{s:24,c:"#D9971A"})});
+    const ky=40+cats.length*rowH+24;s+=tx(230,ky,`Key: ★ = ${key} votes`,{s:13,w:700});
+    return svgw(460,ky+10,s,`picture graph: ${title}`)}
+  if(v.ruler){const {len,obj}=v.ruler,X=20,u=70,inch=6;let s=`<rect x="${X}" y="14" width="${len/4*u}" height="22" rx="6" fill="${VS}" stroke="${VK}" stroke-width="2"/>`+tx(X+len/8*u,30,obj,{s:12});
+    s+=`<rect x="${X}" y="44" width="${inch*u}" height="46" fill="#FFF6D6" stroke="${VK}" stroke-width="2"/>`;
+    for(let q=0;q<=inch*4;q++){const x=X+q*u/4,L=q%4===0?26:q%2===0?18:11;s+=`<line x1="${x}" y1="44" x2="${x}" y2="${44+L}" stroke="${VK}" stroke-width="${q%4===0?2:1.3}"/>`;if(q%4===0)s+=tx(x,86,q/4,{s:13,w:700})}
+    return svgw(X*2+inch*u,100,s,"an object next to an inch ruler")}
+  if(v.lplot){const {xs,data,title}=v.lplot,X=40,W=440,step=W/(xs.length-1||1);let s=tx(X+W/2,18,title,{s:14,w:800});const base=40+Math.max(...xs.map(x=>data[x]))*22;
+    s+=`<line x1="${X-14}" y1="${base}" x2="${X+W+14}" y2="${base}" stroke="${VK}" stroke-width="2.5"/>`;
+    xs.forEach((x,i)=>{const cx=X+i*step,w=Math.floor(x/4),f=x%4;s+=`<line x1="${cx}" y1="${base-7}" x2="${cx}" y2="${base+7}" stroke="${VK}" stroke-width="2"/>`;
+      s+=f?`${tx(cx-8,base+28,w,{s:14,w:700})}${fracTx(cx+8,base+28,f===2?1:f,f===2?2:4,11)}`:tx(cx,base+28,w,{s:14,w:700});
+      for(let k=0;k<data[x];k++)s+=tx(cx,base-12-k*22,"×",{s:22,w:800,c:"#2B59C3"})});
+    return svgw(X*2+W,base+46,s,`line plot: ${title}`)}
+  if(v.sqgrid){const {cells,lab,num}=v.sqgrid,u=34,R=Math.max(...cells.map(c=>c[0]))+1,C=Math.max(...cells.map(c=>c[1]))+1;let s="";
+    cells.forEach(([r,c],i)=>{s+=`<rect x="${10+c*u}" y="${10+r*u}" width="${u}" height="${u}" fill="${VS}" stroke="${VK}" stroke-width="2"/>`;if(num)s+=tx(10+c*u+u/2,10+r*u+u/2+5,i+1,{s:13})});
+    if(lab)s+=tx(10+u/2,10+R*u+18,lab,{s:12});return svgw(20+C*u+(lab?40:0),20+R*u+(lab?22:0),s,`${cells.length} unit squares`,300)}
+  if(v.rect){const {w,h,tiles,unit,split}=v.rect,u=Math.min(32,300/w),X=46,Y=12;let s=`<rect x="${X}" y="${Y}" width="${w*u}" height="${h*u}" fill="${tiles?VS:"#fff"}" stroke="${VK}" stroke-width="2.5"/>`;
+    if(tiles){for(let i=1;i<w;i++)s+=`<line x1="${X+i*u}" y1="${Y}" x2="${X+i*u}" y2="${Y+h*u}" stroke="${VK}" stroke-width="1"/>`;for(let j=1;j<h;j++)s+=`<line x1="${X}" y1="${Y+j*u}" x2="${X+w*u}" y2="${Y+j*u}" stroke="${VK}" stroke-width="1"/>`}
+    if(split)s+=`<line x1="${X+split*u}" y1="${Y-6}" x2="${X+split*u}" y2="${Y+h*u+6}" stroke="#C0392B" stroke-width="4"/>`+tx(X+split*u/2,Y+h*u+20,split,{s:14,w:700})+tx(X+split*u+(w-split)*u/2,Y+h*u+20,w-split,{s:14,w:700});
+    else s+=tx(X+w*u/2,Y+h*u+20,`${w}${unit?" "+unit:""}`,{s:14,w:700});
+    s+=tx(X-8,Y+h*u/2+5,`${h}${unit?" "+unit:""}`,{a:"end",s:14,w:700});return svgw(X+w*u+20,Y+h*u+30,s,`a rectangle ${w} by ${h}`)}
+  if(v.lshape){const {W,H,cw,ch,cut}=v.lshape,u=Math.min(30,280/W),X=40,Y=24,p=[[0,0],[W-cw,0],[W-cw,ch],[W,ch],[W,H],[0,H]].map(([a,b])=>`${X+a*u},${Y+b*u}`).join(" ");
+    let s=`<polygon points="${p}" fill="${VS}" stroke="${VK}" stroke-width="2.5"/>`;
+    if(cut)s+=`<line x1="${X}" y1="${Y+ch*u}" x2="${X+(W-cw)*u}" y2="${Y+ch*u}" stroke="#C0392B" stroke-width="3" stroke-dasharray="7 5"/>`;
+    s+=tx(X+(W-cw)*u/2,Y-8,W-cw,{s:14,w:700})+tx(X+(W-cw)*u+8,Y+ch*u/2+5,ch,{a:"start",s:14,w:700})+tx(X+(W-cw/2)*u,Y+ch*u-8,cw,{s:14,w:700})+tx(X+W*u+8,Y+(ch+H)/2*u+5,H-ch,{a:"start",s:14,w:700})+tx(X+W*u/2,Y+H*u+20,W,{s:14,w:700})+tx(X-8,Y+H*u/2+5,H,{a:"end",s:14,w:700});
+    return svgw(X+W*u+36,Y+H*u+30,s,"a figure made of two rectangles")}
+  return"";
+}
+const vizText=v=>v&&(v.alt||"a picture");
+
 /* ---------- active test ---------- */
 const SKILLS_A1=SKILLS;
+Object.assign(ICONS,{props:"⇄",divfact:"÷",fluency:"⚡",twostep:"2",patterns:"…",tens:"10",nf1:"½",nf2a:"↔",nf2b:"↔",nf3a:"=",nf3b:"=",nf3c:"1",nf3d:"<",time:"🕒",volmass:"⚖",graphs:"📊",lineplot:"📏",md5a:"□",md5b:"▦",md6:"▦",md7a:"▦",md7b:"▭",md7c:"▭",md7d:"⌐",perim:"▢"});
+/* every question maker, old and new */
+const GG={has:k=>GEN.skills.includes(k)||GEN2.skills.includes(k),make:(k,s)=>(GEN.skills.includes(k)?GEN:GEN2).make(k,s)};
+const genOf=k=>k.gen||(GG.has(k.id)?k.id:(LIBC[k.std]||{}).gen)||null;
+/* standards a teacher assigned that the test does not cover become extra checkpoints */
+function addExtras(codes){
+  const base=SKILLS.filter(k=>!k.extra),extra=[];
+  [...new Set(codes||[])].forEach(c=>{const L0=LIBC[c];if(!L0||base.some(k=>k.std===c)||extra.some(k=>k.std===c))return;extra.push({id:L0.gen,std:c,name:L0.name,qs:[],twins:[],extra:true,gen:L0.gen})});
+  SKILLS=[...base,...extra];
+}
+const allAssigned=list=>list.flatMap(s=>s.assigned||[]);
+/* a student's trail: assigned standards first, then the rest; "off" = not on this student's trail */
+const trailFor=s=>{const on=SKILLS.filter(k=>s.prog.skills[k.id]&&s.prog.skills[k.id].status!=="off"),a=new Set(s.assigned||[]);return [...on.filter(k=>a.has(k.std)),...on.filter(k=>!a.has(k.std))]};
 let TESTID="a1",NQ=30,ACT=null;
 /* switch the whole app to one test: the built-in Assessment 1, or a test a teacher imported */
 function useTest(t){
@@ -1620,14 +2064,20 @@ function initStudent(s){
   if(!s.prog||!s.prog.skills){const keep=s.prog||{};s.prog={stars:0,skills:{},log:{},...keep,skills:{},log:keep.log||{}}}
   SKILLS.forEach(k=>{if(s.prog.skills[k.id])return;const missed=s.missed?k.qs.filter(n=>s.missed.includes(n)):k.qs;
     const rest=k.qs.filter(n=>!missed.includes(n));
-    s.prog.skills[k.id]={status:(s.missed&&!missed.length)?"skip":"todo",streak:0,
+    s.prog.skills[k.id]={status:k.extra?"off":(s.missed&&!missed.length)?"skip":"todo",streak:0,
       queue:[...missed.map(n=>"q"+n),...k.twins,...rest.map(n=>"q"+n)]};});
   /* practice added later (new questions): add to each list */
   SKILLS.forEach(k=>{const sk=s.prog.skills[k.id];[...k.twins,...k.qs.map(n=>"q"+n)].forEach(id=>{if(!sk.queue.includes(id))sk.queue.push(id)})});
   return s;
 }
 /* a student as one test sees them */
-function viewStudent(raw){const s={...raw,missed:raw.missed?.[TESTID]??null,prog:raw.prog?.[TESTID]?JSON.parse(JSON.stringify(raw.prog[TESTID])):null,raw};return initStudent(s)}
+function viewStudent(raw){const s={...raw,missed:raw.missed?.[TESTID]??null,prog:raw.prog?.[TESTID]?JSON.parse(JSON.stringify(raw.prog[TESTID])):null,raw};initStudent(s);
+  const a=new Set(s.assigned||[]);
+  SKILLS.forEach(k=>{const sk=s.prog.skills[k.id];if(!sk)return;
+    if(a.has(k.std)){if(sk.status==="off"||sk.status==="skip"){sk.was=sk.status;sk.status="todo"}sk.asg=true}
+    else if(sk.asg){if(sk.status==="todo")sk.status=sk.was||(k.extra?"off":"todo");delete sk.asg;delete sk.was}
+    else if(k.extra&&sk.status==="todo")sk.status="off"});
+  return s}
 let saveTimer=null,saving=false,saveAgain=false;
 function save(){
   if(S.demo||!S.student||!TOKEN||S.role!=="student")return;
@@ -1640,7 +2090,7 @@ async function flushSave(){
   saving=false;markSaved();if(saveAgain){saveAgain=false;flushSave()}
 }
 function markSaved(){const el=document.getElementById("savestate");if(el)el.innerHTML=S.saveErr?'<span class="pill oops">Not saved yet: check the internet</span>':""}
-const curSkill=s=>SKILLS.find(k=>s.prog.skills[k.id]&&s.prog.skills[k.id].status==="todo");
+const curSkill=s=>trailFor(s).find(k=>s.prog.skills[k.id].status==="todo");
 /* blank = scores not entered yet (practice everything); "none" or 0 = missed nothing */
 const parseMissed=t=>{t=String(t||"").trim();if(!t)return null;if(/^(none|0)$/i.test(t))return [];
   return [...new Set(t.split(/[^0-9]+/).map(Number).filter(n=>n>=1&&n<=Math.max(NQ,1)))].sort((a,b)=>a-b)};
@@ -1661,7 +2111,7 @@ const flash=(id,msg)=>{S.flash={id,msg}};
 function busy(btn,txt){if(btn){btn.disabled=true;btn.dataset.t=btn.textContent;btn.textContent=txt||"Working…"}}
 
 /* ---------- home page ---------- */
-const LD={step:0,dq:{hl:new Set(),sel:null,done:false,r:0},dtab:"class",jour:1,faq:-1};
+const LD={step:0,dq:{hl:new Set(),sel:null,done:false,r:0},dtab:"class",jour:0,faq:-1};
 const L_STEPS=[
  {t:"Find the gaps",k:"Starting point",d:"The teacher enters which questions each student missed on the test, by hand or from a spreadsheet. Every student gets their own trail, built from the standards they missed.",
   art:()=>`<div class="mock"><div class="mock-h">Questions missed</div>${[["Ava","#2, #5, #11"],["Ben","#7"],["Cara","none"]].map(([n,m])=>`<div class="mrow"><b>${n}</b><span>${m}</span></div>`).join("")}<div class="mrow muted" style="font-size:.85rem"><span>Trail starts with the standards they missed</span></div></div>`},
@@ -1678,7 +2128,7 @@ const L_JOUR=[
  {std:"3.NBT.2",n:"Adding and subtracting",s:"skip"},{std:"3.OA.4",n:"Finding the missing number",s:"todo"},{std:"3.OA.2",n:"What division means",s:"todo"},
  {std:"3.G.2",n:"Equal parts and fractions",s:"todo"},{std:"3.NBT.1",n:"Rounding",s:"todo"}];
 const L_FAQ=[
- ["Who is it for?","Students practicing grade 3 math (it comes with a full grade 3 benchmark test built in), plus their teachers and school leaders. Teachers can import their own tests for other units or grades."],
+ ["Who is it for?","Grade 3 math students in Mississippi, their teachers, and school leaders. All 33 Mississippi CCRS grade 3 math standards are built in, along with a full benchmark test, and teachers can import their own tests."],
  ["What devices does it work on?","Any device with a web browser: Chromebooks, iPads, laptops, and phones. Progress is saved online, so students can switch devices."],
  ["How do students log in?","With a 6-letter class code and their own 4-digit code. No email or password. A classroom device remembers the class, so students only type 4 digits."],
  ["Can I use my own tests?","Yes. Upload a test as a PDF and the AI reads it, or use a spreadsheet. You check every question and answer before it is saved."],
@@ -1689,6 +2139,7 @@ const lPreview={
  class:()=>`<div class="dp-grid"><div class="mock"><div class="mock-h">Path to 60%</div><div class="goal" style="gap:18px"><div><span class="big">55%</span><span class="muted">11 of 20 finished</span></div><div><span class="big">60%</span><span class="muted">goal: 12</span></div></div><div class="meter"><span style="width:55%"></span><i style="left:60%"></i></div><p style="font-size:.9rem"><b>1 more student</b> reaches the goal.</p></div>
    <div class="mock"><div class="mock-h">Needs attention</div><ul class="attn"><li><b>Jaylen</b><span class="pill purple">3.OA.4</span><p>Missed 4 of last 5. Pull into a small group and review breakdown #9.</p></li><li><b>Mia</b><span class="pill purple">3.G.2</span><p>Missed 3 of last 5 on equal parts.</p></li></ul></div></div>`,
  items:()=>`<div class="mock"><div class="mock-h">Item analysis: lowest first, so you know what to reteach</div>${[[29,"3.NBT.1",38],[12,"3.OA.4",45],[24,"3.G.2",52],[16,"3.OA.2",64],[3,"3.OA.1",81]].map(([n,s,p])=>`<div class="hb"><span class="hl2"><b>#${n}</b> <span class="muted">${s}</span></span><span class="track"><span style="width:${p}%;background:${heat(p)}"></span></span><b>${p}%</b></div>`).join("")}</div>`,
+ why:()=>`<div class="mock"><div class="mock-h">Why they missed it · 3.NF.2b Fractions on a number line</div><ol class="miss"><li><div class="mhead"><b>5 students</b><span class="muted">9 times</span></div><p class="mex">“Count the spaces between 0 and 1, not the tick marks.”</p></li><li><div class="mhead"><b>2 students</b><span class="muted">3 times</span></div><p class="mex">“Start counting after 0. The 0 mark is not a jump.”</p></li></ol></div>`,
  compare:()=>`<div class="mock"><div class="mock-h">Compare classes by standard</div><div class="tablewrap"><table class="roster cmp"><thead><tr><th>Standard</th><th>Homeroom</th><th>Room 12</th><th>Room 14</th></tr></thead><tbody>
    ${[["3.NBT.1",[48,72,66]],["3.NBT.2",[85,90,78]],["3.OA.4",[42,58,71]],["3.G.2",[67,54,80]]].map(([s,v])=>`<tr><td><b>${s}</b></td>${v.map(x=>`<td><span class="hc" style="--c:${heat(x)}">${x}%</span></td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`,
  student:()=>`<div class="mock"><div class="mock-h">Every student</div><div class="tablewrap"><table class="roster"><thead><tr><th>Student</th><th>Path</th><th>Working on</th><th>Accuracy</th></tr></thead><tbody>
@@ -1711,7 +2162,7 @@ function landing(){
   const J=LD.jour,jour=L_JOUR.map((x,i)=>({...x,state:x.s==="skip"?"done":i<J?"done":i===J?"now":"later"}));
   app.innerHTML=`
   <nav class="lnav"><div class="brand">${LOGO}<div><b>Path to Proficiency</b><small>Grade 3 math</small></div></div>
-   <div class="lnav-links"><a href="#how">How it works</a><a href="#journey">Journey</a><a href="#data">Teacher data</a><a href="#faq">FAQ</a></div>
+   <div class="lnav-links"><a href="#diff">Why us</a><a href="#how">How it works</a><a href="#journey">Journey</a><a href="#data">Teacher data</a><a href="#faq">FAQ</a></div>
    <div class="row"><button class="ghost small" data-go="tch">Teacher login</button><button class="small" data-go="stu">Student login</button></div></nav>
 
   <section class="lhero">
@@ -1721,7 +2172,7 @@ function landing(){
     <p class="lead">Path to Proficiency turns each student’s test results into a personal practice trail. Students fix the exact mistakes they made, step by step, with a friendly AI tutor at their side. Teachers see who is stuck, on what, and what to reteach next.</p>
     <div class="row"><button data-go="stu">Student login</button><button class="ghost" data-go="demo">Try it as a student</button></div>
     ${dev?`<p class="muted" style="font-size:.9rem">This device is set up for <b>${esc(dev.name)}</b>${dev.teacher?` · ${esc(dev.teacher)}`:""}.</p>`:""}
-    <div class="chips"><span>✓ Built on Common Core standards</span><span>✓ Read-aloud for every step</span><span>✓ Works on any device</span></div>
+    <div class="chips"><span>✓ All 33 Mississippi grade 3 math standards</span><span>✓ Read-aloud for every step</span><span>✓ Works on any device</span></div>
    </div>${HERO_ART}
   </section>
 
@@ -1731,6 +2182,18 @@ function landing(){
     <div class="wcard"><span class="wico">🎯</span><h3>Practice the right thing</h3><p>Worksheets give every student the same problems. Here, each student only practices the standards they actually missed, and skips what they already know.</p></div>
     <div class="wcard"><span class="wico">💡</span><h3>Understand the mistake</h3><p>Getting it right next time starts with knowing why it was wrong. Every wrong answer comes with a plain-language reason and a step-by-step fix.</p></div>
    </div></section>
+
+  <section class="lsec" id="diff"><div class="lsec-h"><span class="eyebrow">What makes it different</span><h2>Most practice programs show <i>what</i> students missed. This one shows <i>why</i>.</h2></div>
+   <div class="diffwrap">
+    <div class="mock diffmock"><div class="mock-h">Why they missed it · 3.OA.3</div>
+     <ol class="miss"><li><div class="mhead"><b>6 students</b><span class="muted">14 times</span></div><p class="mex">“That adds the numbers. Equal groups means multiply.”</p><p class="muted" style="font-size:.85rem">Ava, Ben, Cara, Jaylen, Mia, Noah</p></li>
+      <li><div class="mhead"><b>3 students</b><span class="muted">5 times</span></div><p class="mex">“That is how many in one group. Multiply by the number of groups.”</p><p class="muted" style="font-size:.85rem">Diego, Imani, Zoe</p></li></ol></div>
+    <div class="difflist">
+     <div><b>🔍 The mistake behind every wrong answer</b><p class="muted">Each wrong choice is linked to the thinking that leads to it. The app groups the same mistake across different questions and shows you which students make it, so your teacher station reteaches the real problem.</p></div>
+     <div><b>📋 Built from your own test, aligned to Mississippi</b><p class="muted">Trails start from the benchmark questions each student actually missed. All 33 Mississippi CCRS grade 3 math standards are built in, with what students should know, understand, and do from the MDE scaffolding document.</p></div>
+     <div><b>🎯 You decide what each student practices</b><p class="muted">Assign any standard to one student, a small group, or the whole class. Assigned standards jump to the front of their trail.</p></div>
+     <div><b>📖 Reading and math together</b><p class="muted">Students highlight the key words before solving, the same close reading that state tests reward.</p></div>
+    </div></div></section>
 
   <section class="lsec" id="how"><div class="lsec-h"><span class="eyebrow">How it works</span><h2>Five steps from test results to mastery</h2><p class="muted">Tap a step to see it.</p></div>
    <div class="steps5">
@@ -1751,9 +2214,9 @@ function landing(){
    </div></section>
 
   <section class="lsec" id="data"><div class="lsec-h"><span class="eyebrow">For teachers and schools</span><h2>The data you get, updated as students practice</h2><p class="muted">Sample data shown.</p></div>
-   <div class="tabs" role="tablist" aria-label="Teacher views">${[["class","Class progress"],["student","Every student"],["items","Item analysis"],["compare","Compare classes"]].map(([id,l])=>`<button class="small" role="tab" aria-pressed="${LD.dtab===id}" data-dt="${id}">${l}</button>`).join("")}</div>
+   <div class="tabs" role="tablist" aria-label="Teacher views">${[["class","Class progress"],["why","Why they missed it"],["student","Every student"],["items","Item analysis"],["compare","Compare classes"]].map(([id,l])=>`<button class="small" role="tab" aria-pressed="${LD.dtab===id}" data-dt="${id}">${l}</button>`).join("")}</div>
    <div class="dprev pop">${lPreview[LD.dtab]()}</div>
-   <div class="feat">${[["Path to your goal","See how many students finished their trail, and how many more you need to reach your class goal."],["Who needs help now","Students who miss 3 of their last 5 on a standard are flagged, with the question to review together."],["Ready-made small groups","Students working on the same standard are grouped for you."],["What to reteach","Every test question ranked from hardest to easiest, with a step-by-step breakdown for the board."],["Compare classes","Side-by-side by teacher and standard, for grade-level teams and school leaders."],["Import tests and scores","Bring in a test from a PDF or spreadsheet, and scores from a CSV."]].map(([t,d])=>`<div><b>${t}</b><p class="muted">${d}</p></div>`).join("")}</div>
+   <div class="feat">${[["Path to your goal","See how many students finished their trail, and how many more you need to reach your class goal."],["Who needs help now","Students who miss 3 of their last 5 on a standard are flagged, with the question to review together."],["Ready-made small groups","Students working on the same standard are grouped for you."],["Why they missed it","The mistakes behind wrong answers, grouped and ranked, with the students who make each one."],["What to reteach","Every test question ranked from hardest to easiest, with a step-by-step breakdown for the board."],["Assign standards","Give any of the 33 standards to one student, a group, or the whole class."],["Compare classes","Side-by-side by teacher and standard, for grade-level teams and school leaders."],["Import tests and scores","Bring in a test from a PDF or spreadsheet, and scores from a CSV."]].map(([t,d])=>`<div><b>${t}</b><p class="muted">${d}</p></div>`).join("")}</div>
   </section>
 
   <section class="lsec" id="faq"><div class="lsec-h"><span class="eyebrow">Questions</span><h2>Good to know</h2></div>
@@ -1775,7 +2238,7 @@ function landing(){
   const da=document.getElementById("d-again");if(da)da.onclick=keep(()=>{LD.dq={hl:new Set(),sel:null,done:false,r:0}});
   const dp=document.getElementById("d-prev");if(dp)dp.onclick=keep(()=>D.r--);
   const dn=document.getElementById("d-next");if(dn)dn.onclick=keep(()=>D.r++);
-  document.getElementById("j-next").onclick=keep(()=>{LD.jour=LD.jour>=L_JOUR.length?1:LD.jour+1});
+  document.getElementById("j-next").onclick=keep(()=>{LD.jour=LD.jour>=L_JOUR.length?0:LD.jour<1?2:LD.jour+1});
   app.querySelectorAll("[data-dt]").forEach(b=>b.onclick=keep(()=>LD.dtab=b.dataset.dt));
   app.querySelectorAll("[data-faq]").forEach(b=>b.onclick=keep(()=>LD.faq=LD.faq===+b.dataset.faq?-1:+b.dataset.faq));
   app.querySelectorAll(".lnav-links a").forEach(a=>a.onclick=e=>{e.preventDefault();document.querySelector(a.getAttribute("href"))?.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"})});
@@ -1867,13 +2330,13 @@ SCREENS.recover=recover;
 /* ---------- student ---------- */
 function startStudent(d){
   TOKEN=d.token;ls.set(SKEY,{token:d.token,role:"student"},sessionStorage);SB=d;S.role="student";S.demo=false;
-  if(d.test)TESTS[d.test.id]=d.test;useTest(d.test);
+  if(d.test)TESTS[d.test.id]=d.test;useTest(d.test);addExtras(d.student.assigned);
   db={mastery:d.cls.mastery,videos:d.cls.videos||{},goal:d.cls.goal};TEACHER=d.teacher||"Your teacher";
   S.student=viewStudent({...d.student,prog:d.prog});S.screen="home";S.err="";render();
 }
 function home(){
   const s=S.student,p=s.prog,cur=curSkill(s),first=s.name.replace(" (sample)","");
-  const done=SKILLS.filter(k=>p.skills[k.id].status!=="todo").length;
+  const TR=trailFor(s),asg=new Set(s.assigned||[]),done=TR.filter(k=>p.skills[k.id].status!=="todo").length;
   const sk=cur&&p.skills[cur.id];
   const MASTERY=MAST();
   const msg=!cur?`You made it to the summit, ${esc(first)}! You are proficient on ${esc(TEST_NAME)}.`
@@ -1889,10 +2352,10 @@ function home(){
    </div>`:`<div class="card mission" style="align-items:flex-start">${HERO_ART}${scout(msg)}</div>`;
   app.innerHTML=header(`<button class="ghost" id="out">Sign out</button>`)+mission+`
   <div class="card">
-   <div class="top"><h2>My trail</h2><span class="pill gold">${done} of ${SKILLS.length} checkpoints</span></div>
+   <div class="top"><h2>My trail</h2><span class="pill gold">${done} of ${TR.length} checkpoints</span></div>
    ${s.missed&&s.missed.length?`<p class="muted">On the test you missed ${missedText(s.missed)}. Your trail starts with those.</p>`:""}
-   <ol class="trail">${SKILLS.map((k,i)=>{const st=p.skills[k.id].status,cls=st==="todo"?(k===cur?"now":"later"):"done";
-     const pill=st==="skip"?'<span class="pill go">Got it on the test</span>':st==="done"?'<span class="pill go">Mastered</span>':k===cur?'<span class="pill now">You are here</span>':'<span class="pill">Coming up</span>';
+   <ol class="trail">${TR.map((k,i)=>{const st=p.skills[k.id].status,cls=st==="todo"?(k===cur?"now":"later"):"done";
+     const pill=st==="skip"?'<span class="pill go">Got it on the test</span>':st==="done"?'<span class="pill go">Mastered</span>':k===cur?'<span class="pill now">You are here</span>':asg.has(k.std)?'<span class="pill purple">From your teacher</span>':'<span class="pill">Coming up</span>';
      return `<li class="stop ${cls}"><span class="num">${cls==="done"?"✓":i+1}</span><span style="display:flex;gap:10px;align-items:center;min-width:0">${ico(k.id)}<span><span class="name">${esc(k.name)}</span><br><span class="muted" style="font-size:.85rem">${esc(k.std)}</span></span></span>${pill}</li>`}).join("")}
      <li class="stop summit${cur?'':' reached'}"><span class="num">★</span><span><span class="name">Summit of Mastery</span><br><span class="muted" style="font-size:.85rem">Finish every checkpoint</span></span>${cur?'':'<span class="pill gold">You made it!</span>'}</li></ol>
   </div>
@@ -1903,8 +2366,11 @@ function home(){
 SCREENS.home=home;
 
 function topUp(sk,id,n=4){
-  if(TESTID==="a1"){while(sk.queue.length<n)sk.queue.push(genId(id));return}
-  const k=SKILLS.find(x=>x.id===id),pool=[...k.twins,...k.qs.map(n=>"q"+n)].filter(getQ);if(!pool.length)return;
+  const k=SKILLS.find(x=>x.id===id),g=k&&genOf(k);
+  if(g&&(TESTID==="a1"||k.extra)){while(sk.queue.length<n)sk.queue.push(genId(g));return}
+  const pool=[...k.twins,...k.qs.map(n=>"q"+n)].filter(getQ);
+  if(g){let guard=0;while(sk.queue.length<n&&guard++<50){const c=pool.filter(x=>!sk.queue.includes(x));sk.queue.push(c.length&&Math.random()<.5?c[Math.floor(Math.random()*c.length)]:genId(g))}return}
+  if(!pool.length)return;
   let guard=0;while(sk.queue.length<n&&guard++<50){const c=pool.filter(x=>!sk.queue.includes(x)),from=c.length?c:pool;sk.queue.push(from[Math.floor(Math.random()*from.length)])}
 }
 function newQ(){const k=curSkill(S.student),sk=S.student.prog.skills[k.id];
@@ -1964,7 +2430,7 @@ function wireChat(){
 async function sendChat(text){
   const c=S.chat;if(c.busy)return;c.msgs.push({role:"user",content:text});c.busy=true;c.err="";render();
   const q=S.q,k=SKILLS.find(x=>x.id===S.k);
-  const qd={parts:q.parts.map(p=>p.img?{img:1,alt:ALT[p.img]||"a picture from the test"}:p),choices:(q.choices||[]).map(ch=>ch&&ch.img?{alt:(ALT[ch.img]||"a picture").replace(/^Choice [A-E]: /,""),eq:ch.eq}:ch),
+  const qd={parts:q.parts.map(p=>p.img?{img:1,alt:ALT[p.img]||"a picture from the test"}:p.viz?{fig:vizText(p.viz)}:p),choices:(q.choices||[]).map(ch=>ch&&ch.img?{alt:(ALT[ch.img]||"a picture").replace(/^Choice [A-E]: /,""),eq:ch.eq}:ch),
     ans:q.type==="matrix"?q.rows.map(r=>`${r.n} → ${r.a}`).join(", "):q.ans,type:q.type,steps:q.steps,std:k&&k.std,skillName:k&&k.name};
   if(q.type==="matrix")qd.parts=[...q.parts,"Rows: "+q.rows.map(r=>r.n).join(", ")+". Columns: "+q.cols.join(", ")];
   try{const d=await api("tutor",{q:qd,testId:TESTID,picked:S.sel.join(" and "),result:S.result,messages:c.msgs,grade:ACT?.grade||"3"});
@@ -2023,6 +2489,8 @@ function grade(q){
   if(ok) award(p,"first");
   (p.recent=p.recent||[]).push({k:k.id,q:S.qid,ok}); if(p.recent.length>30)p.recent.shift();
   p.last=Date.now();
+  if(!ok){const from=q._from||{},pick=q.type==="mc"?from[S.sel[0]]||S.sel[0]:q.type==="multi"?S.sel.filter(l=>!q.ans.includes(l)).map(l=>from[l]||l).sort().join(""):q.type==="input"?String(Number(String(S.sel[0]).replace(/,/g,""))):"r"+q.rows.findIndex((r,j)=>S.sel[j]!==r.a);
+    (p.miss=p.miss||[]).push({q:S.qid,k:k.id,p:pick,t:Date.now()});if(p.miss.length>80)p.miss.splice(0,p.miss.length-80)}
   if(sk.queue[0]===S.qid)sk.queue.shift();
   if(ok){sk.streak++;p.stars++}
   else{sk.streak=0;topUp(sk,k.id,3);sk.queue.splice(3,0,S.qid)} // comes back after 3 other questions, with the choices in a new order
@@ -2109,6 +2577,7 @@ async function openClass(id,tab){
   try{
     const d=(await api("classData",{ids:[id]})).classes[0];
     useTest(await getTest(d.cls.testId));
+    addExtras(allAssigned(d.students));
     CUR={cls:d.cls,raw:d.students,students:d.students.map(viewStudent)};
     db={mastery:d.cls.mastery,videos:d.cls.videos||{},goal:d.cls.goal};
     TEACHER=tName(d.cls.teacherId);
@@ -2119,23 +2588,23 @@ async function openClass(id,tab){
 function teacher(){
   const tt=S.tt||"classes";
   if(tt!=="class"){TEACHER=TB.me.name}
-  const top=[["classes","My classes"],["compare","Compare classes"],["tests","Tests"],["teachers",isAdmin()?"Teachers":"My account"]];
+  const top=[["classes","My classes"],["compare","Compare classes"],["standards","Standards"],["tests","Tests"],["teachers",isAdmin()?"Teachers":"My account"]];
   const nav=`<div class="tabs" role="group" aria-label="Teacher pages">${top.map(([id,l])=>`<button data-tt="${id}" aria-pressed="${tt===id||(tt==="class"&&id==="classes")}">${l}</button>`).join("")}</div>`;
   let body="";
   if(tt==="class"&&CUR){
     const tab=S.tab||"class";
     const tabs=`<div class="card" style="gap:10px;padding:14px 16px"><div class="top"><div><span class="label">Class</span><h2>${esc(CUR.cls.name)}</h2><span class="muted" style="font-size:.85rem">${esc(tName(CUR.cls.teacherId))} · ${esc(TEST_NAME)} · class code <b style="letter-spacing:.1em">${esc(CUR.cls.join)}</b></span></div>
       <button class="ghost small" id="allc">← All classes</button></div>
-      <div class="tabs" role="group" aria-label="Class pages">${[["class","Class progress"],["bd","Question breakdowns"],["items","Item analysis"],["setup","Students"],["settings","Class settings"]].map(([id,l])=>`<button class="small" data-tab="${id}" aria-pressed="${tab===id}">${l}</button>`).join("")}</div></div>`;
-    body=tabs+({class:tClass,bd:tBreak,items:tItems,setup:tSetup,settings:tSettings})[tab]();
-  } else body=({classes:tClasses,compare:tCompare,tests:tTests,teachers:tTeachers,class:tClasses})[tt]();
+      <div class="tabs" role="group" aria-label="Class pages">${[["class","Class progress"],["why","Why they missed it"],["bd","Question breakdowns"],["items","Item analysis"],["setup","Students"],["settings","Class settings"]].map(([id,l])=>`<button class="small" data-tab="${id}" aria-pressed="${tab===id}">${l}</button>`).join("")}</div></div>`;
+    body=tabs+({class:tClass,why:tWhy,bd:tBreak,items:tItems,setup:tSetup,settings:tSettings})[tab]();
+  } else body=({classes:tClasses,compare:tCompare,standards:tStandards,tests:tTests,teachers:tTeachers,class:tClasses})[tt]();
   app.innerHTML=header(`<button class="ghost" id="out">Sign out</button>`,`${TB.school.name} · ${TB.me.name}${isAdmin()?" (admin)":""}`)+nav+(S.err?`<div class="fb oops" role="alert"><p>${esc(S.err)}</p></div>`:"")+body;
   document.getElementById("out").onclick=signOut;
   app.querySelectorAll("[data-tt]").forEach(b=>b.onclick=()=>{S.tt=b.dataset.tt;S.err="";if(S.tt!=="class")useTest(null);render()});
   const allc=document.getElementById("allc");if(allc)allc.onclick=()=>{S.tt="classes";useTest(null);render()};
   app.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;S.err="";render()});
-  if(tt==="class"&&CUR)({class:()=>{},bd:wireBreak,items:()=>{},setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
-  else ({classes:wireClasses,compare:wireCompare,tests:wireTests,teachers:wireTeachers,class:wireClasses})[tt]();
+  if(tt==="class"&&CUR)({class:()=>{},why:()=>{},bd:wireBreak,items:()=>{},setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
+  else ({classes:wireClasses,compare:wireCompare,standards:wireStandards,tests:wireTests,teachers:wireTeachers,class:wireClasses})[tt]();
 }
 SCREENS.teacher=teacher;
 
@@ -2173,25 +2642,25 @@ function tClass(){
      <p>${finished>=need?`<b>You reached the goal!</b>`:`<b>${need-finished} more student${need-finished===1?"":"s"}</b> need to finish their path to reach ${goal}%.`}</p>
      <p class="muted" style="font-size:.85rem">“Finished” means the student showed mastery in practice on every standard they missed. That is a good sign, but it is not the same as passing the benchmark.</p>`
    :`<p class="muted">Add your students under Students to track your class goal.</p>`}</div>`;
-  const stdRows=SKILLS.map(k=>{const ok=real.filter(s=>s.prog.skills[k.id].status!=="todo").length,on=real.filter(s=>curSkill(s)===k);
-    const p2=N?Math.round(ok/N*100):0,col=heat(p2);
-    return `<tr><td><b>${esc(k.std)}</b><br><span class="muted">${esc(k.name)}</span></td><td>${N?`<span class="bar"><span style="width:${p2}%;background:${col}"></span></span> ${ok}/${N}`:"—"}</td>
+  const stdRows=SKILLS.map(k=>{const who=real.filter(s=>s.prog.skills[k.id]&&s.prog.skills[k.id].status!=="off"),M=who.length,ok=who.filter(s=>s.prog.skills[k.id].status!=="todo").length,on=real.filter(s=>curSkill(s)===k);
+    const p2=M?Math.round(ok/M*100):0,col=heat(p2);
+    return `<tr><td><b>${esc(k.std)}</b>${k.extra?' <span class="pill purple">Assigned</span>':""}<br><span class="muted">${esc(k.name)}</span></td><td>${M?`<span class="bar"><span style="width:${p2}%;background:${col}"></span></span> ${ok}/${M}`:"—"}</td>
       <td>${on.length?on.map(s=>esc(s.name)).join(", "):'<span class="muted">—</span>'}</td></tr>`}).join("");
   const attn=real.map(s=>{const cur=curSkill(s);if(!cur)return null;const rec=(s.prog.recent||[]).filter(r=>r.k===cur.id).slice(-5);
       const miss=rec.filter(r=>!r.ok).length;if(rec.length<3||miss<3)return null;
       const qs={};(s.prog.recent||[]).filter(r=>r.k===cur.id&&!r.ok&&(getQ(r.q)||{}).n).forEach(r=>qs[r.q]=(qs[r.q]||0)+1);
-      const top=Object.entries(qs).sort((a,b)=>b[1]-a[1])[0];return {s,cur,miss,n:rec.length,top:top&&getQ(top[0]).n}}).filter(Boolean);
+      const top=Object.entries(qs).sort((a,b)=>b[1]-a[1])[0];return {s,cur,miss,n:rec.length,top:top&&getQ(top[0]).n,tm:topMiss(s,cur.id)}}).filter(Boolean);
   const attnCard=`<div class="card"><div class="top"><h2>Needs attention</h2><span class="pill ${attn.length?'oops':'go'}">${attn.length} student${attn.length===1?"":"s"}</span></div>
    ${attn.length?`<ul class="attn">${attn.map(a=>`<li><b>${esc(a.s.name)}</b><span class="pill purple">${esc(a.cur.std)}</span>
-     <p>Missed ${a.miss} of their last ${a.n} on ${esc(a.cur.name.toLowerCase())}. Next step: pull them into a small group for ${esc(a.cur.std)}${a.top?` and go over <button class="link" data-goq="${a.top}">breakdown #${a.top}</button> together`:""}.</p></li>`).join("")}</ul>`
+     <p>Missed ${a.miss} of their last ${a.n} on ${esc(a.cur.name.toLowerCase())}. Next step: pull them into a small group for ${esc(a.cur.std)}${a.top?` and go over <button class="link" data-goq="${a.top}">breakdown #${a.top}</button> together`:""}.</p>${a.tm?`<p style="font-size:.9rem"><b>Most common mistake:</b> ${fmt(a.tm.ex)}</p>`:""}</li>`).join("")}</ul>`
    :`<p class="muted">No one is stuck right now. A student shows up here after missing 3 of their last 5 questions on the same standard.</p>`}</div>`;
   const groupsCard=`<div class="card"><h2>Standards and small groups</h2><p class="muted">Students in the same row are working on the same standard right now. Pull them together for a small group.</p>
    <div class="tablewrap"><table class="roster"><thead><tr><th>Standard</th><th>Proficient</th><th>Small group (working on it now)</th></tr></thead><tbody>${stdRows}</tbody></table></div></div>`;
-  const rows=CUR.students.map(s=>{const p=s.prog,cur=curSkill(s),done=SKILLS.filter(k=>p.skills[k.id].status!=="todo").length;
+  const rows=CUR.students.map(s=>{const p=s.prog,cur=curSkill(s),TR=trailFor(s),done=TR.filter(k=>p.skills[k.id].status!=="todo").length;
     const tries=Object.values(p.log).reduce((a,l)=>a+l.tries,0),right=Object.values(p.log).reduce((a,l)=>a+l.right,0);
     return `<tr><td><b>${esc(s.name)}</b><br><span class="muted">code ${esc(s.code)}</span></td>
      <td>${s.missed==null?'<span class="muted">not entered</span>':missedText(s.missed)}</td>
-     <td><span class="bar"><span style="width:${SKILLS.length?done/SKILLS.length*100:0}%;background:var(--go)"></span></span> ${done}/${SKILLS.length}</td>
+     <td><span class="bar"><span style="width:${TR.length?done/TR.length*100:0}%;background:var(--go)"></span></span> ${done}/${TR.length}${(s.assigned||[]).length?`<br><span class="muted" style="font-size:.8rem">Assigned: ${esc(s.assigned.join(", "))}</span>`:""}</td>
      <td>${cur?`${esc(cur.std)}<br><span class="muted">${esc(cur.name)}</span>`:'<span style="color:var(--go);font-weight:700">Proficient</span>'}</td>
      <td>${tries?Math.round(right/tries*100)+"%":"—"}<br><span class="muted">${tries} answered</span></td>
      <td>${p.tutor?.total||0}</td></tr>`}).join("");
@@ -2205,7 +2674,7 @@ document.addEventListener("click",e=>{if(e.target.id==="reload"&&CUR){openClass(
 
 function wrongList(q){return q.type==="matrix"?q.rows.map(r=>`<li>${r.n}: ${fmt(r.why)}</li>`):q.type==="input"?Object.entries(q.whyIn||{}).map(([v,t])=>`<li>If they wrote ${esc(v)}: ${fmt(t)}</li>`).concat(q.whyElse?[`<li>Anything else: ${fmt(q.whyElse)}</li>`]:[]):
     q.choices.map((_,i)=>L[i]).filter(l=>q.type==="mc"?l!==q.ans:!q.ans.includes(l)).map(l=>`<li><b>${l}</b>: ${fmt(q.why?.[l]||"—")}</li>`)}
-function reviewHTML(q,label){const sk=SKILLS.find(k=>k.id===q.skill)||{std:""};
+function reviewHTML(q,label){const sk=SKILLS.find(k=>k.id===q.skill)||{std:(LIBG[q.skill]||{}).code||""};
   return `<div class="notebook ro"><div class="row" style="justify-content:space-between"><span class="label">${esc(label)} · ${esc(sk.std)}</span><span class="pill go">Answer: ${esc(ansText(q))}</span></div>
     ${bodyHTML(q,null,"keys")}
     ${q.choices?`<div class="choices${q.choices.some(c=>typeof c==="string"&&c.length>40)||q.choices.some(c=>c.table)?' one':''}">${q.choices.map((c,i)=>{const l=L[i],ok=q.type==="mc"?q.ans===l:q.ans.includes(l);
@@ -2220,20 +2689,14 @@ function tBreak(){
   const nums=qNums();if(!nums.length)return `<div class="card"><p class="muted">This test has no questions.</p></div>`;
   const n=nums.includes(S.bdq)?S.bdq:nums[0],q=Object.values(QSA).find(x=>x.n===n),i=nums.indexOf(n);
   let practiceCard="";
-  if(TESTID==="a1"){
-    if(!S.genSk||!SKILLS.some(k=>k.id===S.genSk))S.genSk=SKILLS[0].id; if(!S.genSeed)S.genSeed=Math.floor(Math.random()*1e9);
-    const gq=GEN.make(S.genSk,S.genSeed);
-    practiceCard=`<div class="card"><h2>New practice questions</h2><p class="muted">After the test questions, students get new questions made on the spot, with new numbers every time. Pick a standard to see examples.</p>
-    <div class="row"><label class="f" style="flex:1;min-width:200px">Standard<select id="g-sk">${SKILLS.map(k=>`<option value="${k.id}" ${k.id===S.genSk?'selected':''}>${esc(k.std)} ${esc(k.name)}</option>`).join("")}</select></label>
-    <button class="ghost" id="g-new" style="align-self:flex-end">Show another</button></div></div>${reviewHTML(gq,"Practice example")}`;
-  } else {
-    if(!S.genSk||!SKILLS.some(k=>k.id===S.genSk))S.genSk=SKILLS[0].id;
-    const k=SKILLS.find(x=>x.id===S.genSk),list=k.twins,j=Math.min(S.genI||0,Math.max(0,list.length-1));
-    practiceCard=`<div class="card"><h2>Practice questions</h2><p class="muted">Students practice these after the test questions on each standard. ${TB.ai?"You can make more with AI on the Tests page.":""}</p>
-    <div class="row"><label class="f" style="flex:1;min-width:200px">Standard<select id="g-sk">${SKILLS.map(k=>`<option value="${k.id}" ${k.id===S.genSk?'selected':''}>${esc(k.std)} ${esc(k.name)} (${k.twins.length})</option>`).join("")}</select></label>
-    ${list.length>1?`<button class="ghost" id="g-next" style="align-self:flex-end">Show another</button>`:""}</div></div>
-    ${list.length?reviewHTML(getQ(list[j]),`Practice ${j+1} of ${list.length}`):`<div class="card"><p class="muted">No practice questions for this standard yet. Students will see the test questions again with the choices mixed up.</p></div>`}`;
+  if(TESTID!=="a1"&&SKILLS.some(k=>k.twins.length)){
+    if(!S.tsk||!SKILLS.some(k=>k.id===S.tsk))S.tsk=SKILLS.find(k=>k.twins.length).id;
+    const k=SKILLS.find(x=>x.id===S.tsk),list=k.twins,j=Math.min(S.genI||0,Math.max(0,list.length-1));
+    practiceCard=`<div class="card"><h2>This test’s practice questions</h2>
+    <div class="row"><label class="f" style="flex:1;min-width:200px">Standard<select id="t-sk">${SKILLS.filter(k=>k.twins.length).map(k=>`<option value="${esc(k.id)}" ${k.id===S.tsk?'selected':''}>${esc(k.std)} ${esc(k.name)} (${k.twins.length})</option>`).join("")}</select></label>
+    ${list.length>1?`<button class="ghost" id="g-next" style="align-self:flex-end">Show another</button>`:""}</div></div>${list.length?reviewHTML(getQ(list[j]),`Practice ${j+1} of ${list.length}`):""}`;
   }
+  practiceCard+=libPreviewCard();
   return `<div class="card"><h2>Question breakdowns</h2><p class="muted">Every question from ${esc(TEST_NAME)}, broken down step by step. Good for reviewing on the board.</p>
    <div class="qnav">${nums.map(x=>`<button data-q="${x}" aria-pressed="${n===x}">${x}</button>`).join("")}</div></div>
    ${reviewHTML(q,`Question #${n}`)}
@@ -2245,9 +2708,9 @@ function wireBreak(){
   app.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>{S.bdq=+b.dataset.q;render()});
   document.getElementById("bprev").onclick=()=>{S.bdq=nums[i-1];render()};
   document.getElementById("bnext").onclick=()=>{S.bdq=nums[i+1];render()};
-  document.getElementById("g-sk").onchange=e=>{S.genSk=e.target.value;S.genSeed=Math.floor(Math.random()*1e9);S.genI=0;render()};
-  const gn=document.getElementById("g-new");if(gn)gn.onclick=()=>{S.genSeed=Math.floor(Math.random()*1e9);render()};
-  const gx=document.getElementById("g-next");if(gx)gx.onclick=()=>{const k=SKILLS.find(x=>x.id===S.genSk);S.genI=((S.genI||0)+1)%k.twins.length;render()};
+  wireLibPreview();
+  const ts=document.getElementById("t-sk");if(ts)ts.onchange=e=>{S.tsk=e.target.value;S.genI=0;render()};
+  const gx=document.getElementById("g-next");if(gx)gx.onclick=()=>{const k=SKILLS.find(x=>x.id===S.tsk);S.genI=((S.genI||0)+1)%k.twins.length;render()};
 }
 function itemStats(students){
   const withData=students.filter(s=>!isSample(s)&&s.missed);
@@ -2266,13 +2729,13 @@ function tItems(){
 document.addEventListener("click",e=>{const b=e.target.closest("[data-goq]");if(b){S.tab="bd";S.bdq=+b.dataset.goq;render()}});
 
 /* ---------- students ---------- */
-const rosterOut=list=>list.map(s=>({id:s.id,name:s.name,code:s.code,missed:s.missed||{},sample:!!s.sample}));
+const rosterOut=list=>list.map(s=>({id:s.id,name:s.name,code:s.code,missed:s.missed||{},assigned:s.assigned||[],sample:!!s.sample}));
 async function saveRoster(list,extra={}){
   const d=await api("rosterSave",{classId:CUR.cls.id,students:rosterOut(list),...extra});
   const progById=Object.fromEntries(CUR.raw.map(s=>[s.id,s.prog]));
   list.forEach(s=>{if(s.id&&s.prog)progById[s.id]=s.prog});
   if(extra.progs)Object.assign(progById,extra.progs);
-  CUR.raw=d.students.map(s=>({...s,prog:progById[s.id]||{}}));CUR.students=CUR.raw.map(viewStudent);
+  CUR.raw=d.students.map(s=>({...s,prog:progById[s.id]||{}}));addExtras(allAssigned(CUR.raw));CUR.students=CUR.raw.map(viewStudent);
 }
 const newCode=(taken)=>{for(let i=0;i<500;i++){const c=String(1000+Math.floor(Math.random()*9000));if(!taken.has(c))return c}return ""};
 function tSetup(){
@@ -2299,12 +2762,12 @@ function tSetup(){
   return `<div class="card"><h2>Add a student</h2><p class="muted">Type the question numbers they missed on ${esc(TEST_NAME)}, like 2, 5, 11. Type “none” if they missed nothing. Leave it blank if you don’t have their scores yet, and they will practice every standard.</p>
    <form class="grid" id="add"><label class="f">First name<input id="f-name" required maxlength="60"></label><label class="f">Secret code (4 digits)<input id="f-code" inputmode="numeric" pattern="[0-9]{4}" required value="${newCode(new Set(list.map(s=>s.code)))}"></label>
     <label class="f" style="grid-column:1/-1">Questions missed<input id="f-missed" placeholder="2, 5, 11, 19"></label><button type="submit">Add student</button></form><p class="err" id="add-err" role="alert"></p></div>
-  ${editCard}${csvCard}${codes}
+  ${assignCard()}${editCard}${csvCard}${codes}
   ${oldReal.length?`<div class="card"><h2>Students saved on this device</h2><p class="muted">This device has ${oldReal.length} student${oldReal.length===1?"":"s"} from the old version of the app (${esc(oldReal.slice(0,5).map(s=>s.name).join(", "))}${oldReal.length>5?"…":""}). Bring them into ${esc(CUR.cls.name)} with their progress?</p>
    <div class="row"><button id="old-go">Bring them in</button></div><p class="err" id="old-err" role="alert"></p></div>`:""}`;
 }
 function wireSetup(){
-  const list=CUR.raw;
+  const list=CUR.raw;wireAssign();
   document.getElementById("add").onsubmit=async e=>{e.preventDefault();const code=document.getElementById("f-code").value.trim(),err=document.getElementById("add-err");
     if(list.some(s=>s.code===code)){err.textContent="That code is already taken. Pick another 4-digit code.";return}
     const s={name:document.getElementById("f-name").value.trim(),code,missed:{[TESTID]:parseMissed(document.getElementById("f-missed").value)}};
@@ -2773,6 +3236,94 @@ async function addPractice(t,n,onProg,onlyEmpty){
       t.practice[k.id]=[...(t.practice[k.id]||[]),...list].slice(-30);break}catch(e){if(a)console.warn(e)}}
     done++;onProg(done,todo.length)});
 }
+
+
+/* ---------- every standard: preview and library ---------- */
+const libOptions=sel=>Object.entries(DOMS).map(([d,dn])=>`<optgroup label="${esc(dn)}">${LIB.filter(x=>x.dom===d).map(x=>`<option value="${x.code}" ${x.code===sel?"selected":""}>${x.code} ${esc(x.name)}</option>`).join("")}</optgroup>`).join("");
+function libSample(code,seed){const x=LIBC[code];try{return GG.make(x.gen,seed)}catch(e){console.error(e);return null}}
+function libPreviewCard(){
+  if(!LIBC[S.genSk])S.genSk=LIB[0].code; if(!S.genSeed)S.genSeed=Math.floor(Math.random()*1e9);
+  const q=libSample(S.genSk,S.genSeed);
+  return `<div class="card"><h2>Practice for any standard</h2><p class="muted">Every Mississippi grade 3 math standard has a question maker, so practice never runs out. Pick a standard to see an example.</p>
+    <div class="row"><label class="f" style="flex:1;min-width:220px">Standard<select id="g-sk">${libOptions(S.genSk)}</select></label>
+    <button class="ghost" id="g-new" style="align-self:flex-end">Show another</button></div></div>${q?reviewHTML(q,"Practice example"):""}`;
+}
+function wireLibPreview(){
+  const g=document.getElementById("g-sk");if(g)g.onchange=e=>{S.genSk=e.target.value;S.genSeed=Math.floor(Math.random()*1e9);render()};
+  const n=document.getElementById("g-new");if(n)n.onclick=()=>{S.genSeed=Math.floor(Math.random()*1e9);render()};
+}
+function tStandards(){
+  const open=S.stdOpen,q=open?libSample(open,S.stdSeed||1):null;
+  return `<div class="card"><h2>Mississippi grade 3 math standards</h2>
+   <p class="muted">All ${LIB.length} standards from the 2025 MS CCRS for Mathematics, with what students should know, understand, and be able to do (from the MDE Grade 3 Scaffolding Document). Every standard has practice. To give a standard to students, open a class and use <b>Students → Assign standards</b>.</p>
+   <div class="row">${Object.entries(DOMS).map(([d,dn])=>`<a class="pill" href="#dom-${d}">${d} · ${esc(dn)}</a>`).join("")}</div></div>
+  ${Object.entries(DOMS).map(([d,dn])=>`<div class="card" id="dom-${d}"><h2>${esc(dn)}</h2><div class="stdlist">${LIB.filter(x=>x.dom===d).map(x=>`<div class="stdi${open===x.code?" open":""}">
+     <div class="top"><div><b>${x.code}</b> · ${esc(x.name)}<br><span class="muted" style="font-size:.9rem">${esc(x.desc)}</span></div>
+      <div class="row"><button class="ghost small" data-sprev="${x.code}">${open===x.code?"Hide":"Details and sample"}</button></div></div>
+     ${open===x.code?`<div class="kud">${[["Know",x.know],["Understand",x.und],["Be able to do",x.do]].map(([h,l])=>`<div><h3>${h}</h3><ul>${l.map(t=>`<li>${esc(t)}</li>`).join("")}</ul></div>`).join("")}</div>
+      <div class="row"><b>Sample practice question</b><button class="ghost small" id="s-again">Show another</button></div>${q?reviewHTML(q,"Practice example"):""}`:""}</div>`).join("")}</div></div>`).join("")}`;
+}
+function wireStandards(){
+  app.querySelectorAll("[data-sprev]").forEach(b=>b.onclick=()=>{const c=b.dataset.sprev;S.stdOpen=S.stdOpen===c?null:c;S.stdSeed=Math.floor(Math.random()*1e9);const y=window.scrollY;render();window.scrollTo(0,y)});
+  const a=document.getElementById("s-again");if(a)a.onclick=()=>{S.stdSeed=Math.floor(Math.random()*1e9);const y=window.scrollY;render();window.scrollTo(0,y)};
+}
+
+/* ---------- assigning standards ---------- */
+function assignCard(){
+  const list=CUR.raw.filter(s=>!isSample(s)),A=S.asg||(S.asg={s:new Set(),c:new Set()});
+  return `<div class="card"><h2>Assign standards</h2>
+   <p class="muted">Pick students and standards, then tap Assign. Assigned standards move to the front of each student’s trail, even ones they got right on the test. Practice is ready for every standard.</p>
+   ${list.length?`<div class="asg">
+    <div><h3>Students</h3><label class="chk"><input type="checkbox" id="as-all" ${A.s.size===list.length?"checked":""}> Whole class</label>
+     <div class="asl">${list.map(s=>`<label class="chk"><input type="checkbox" data-as-s="${s.id}" ${A.s.has(s.id)?"checked":""}> ${esc(s.name)}</label>`).join("")}</div></div>
+    <div><h3>Standards</h3>${Object.entries(DOMS).map(([d,dn])=>{const L0=LIB.filter(x=>x.dom===d),n=L0.filter(x=>A.c.has(x.code)).length;
+      return `<details ${n||S.asgOpen===d?"open":""} data-dom="${d}"><summary><b>${d}</b> ${esc(dn)}${n?` <span class="pill purple">${n} picked</span>`:""}</summary><div class="asl">${L0.map(x=>`<label class="chk"><input type="checkbox" data-as-c="${x.code}" ${A.c.has(x.code)?"checked":""}> <span><b>${x.code}</b> ${esc(x.name)}</span></label>`).join("")}</div></details>`}).join("")}</div>
+   </div>
+   <div class="row"><button id="as-go" ${A.s.size&&A.c.size?"":"disabled"}>Assign ${A.c.size||""} standard${A.c.size===1?"":"s"} to ${A.s.size||""} student${A.s.size===1?"":"s"}</button><button class="ghost" id="as-rm" ${A.s.size&&A.c.size?"":"disabled"}>Remove from them</button></div>
+   <p class="muted" id="as-msg" role="status"></p>
+   ${list.some(s=>(s.assigned||[]).length)?`<h3>Assigned now</h3><div class="tablewrap"><table class="roster"><tbody>${list.filter(s=>(s.assigned||[]).length).map(s=>`<tr><td><b>${esc(s.name)}</b></td><td><div class="row" style="gap:6px">${s.assigned.map(c=>`<span class="pill purple">${esc(c)} <button class="link small" data-unasg="${s.id}|${esc(c)}" aria-label="Remove ${esc(c)} from ${esc(s.name)}">×</button></span>`).join("")}</div></td></tr>`).join("")}</tbody></table></div>`:""}`
+   :`<p class="muted">Add students first.</p>`}</div>`;
+}
+function wireAssign(){
+  const A=S.asg;if(!A||!document.getElementById("as-go")&&!app.querySelector("[data-unasg]"))return;
+  const list=CUR.raw.filter(s=>!isSample(s)),keep=fn=>()=>{const y=window.scrollY;fn();render();window.scrollTo(0,y)};
+  const all=document.getElementById("as-all");if(all)all.onchange=keep(()=>{if(all.checked)list.forEach(s=>A.s.add(s.id));else A.s.clear()});
+  app.querySelectorAll("[data-as-s]").forEach(b=>b.onchange=keep(()=>{b.checked?A.s.add(b.dataset.asS):A.s.delete(b.dataset.asS)}));
+  app.querySelectorAll("[data-as-c]").forEach(b=>b.onchange=keep(()=>{b.checked?A.c.add(b.dataset.asC):A.c.delete(b.dataset.asC);S.asgOpen=b.closest("details").dataset.dom}));
+  const save=async(fn,msg,btn)=>{busy(btn,"Saving…");const next=CUR.raw.map(s=>({...s,assigned:fn(s)}));
+    try{await saveRoster(next);flash("as-msg",msg);S.tab="setup";render()}catch(e){document.getElementById("as-msg").textContent=e.message;if(btn){btn.disabled=false;btn.textContent="Try again"}}};
+  const go=document.getElementById("as-go");if(go)go.onclick=()=>{const c=[...A.c];save(s=>A.s.has(s.id)?[...new Set([...(s.assigned||[]),...c])]:s.assigned||[],`Assigned ${c.join(", ")} to ${A.s.size} student${A.s.size===1?"":"s"}.`,go).then(()=>{A.c.clear()})};
+  const rm=document.getElementById("as-rm");if(rm)rm.onclick=()=>{const c=new Set(A.c);save(s=>A.s.has(s.id)?(s.assigned||[]).filter(x=>!c.has(x)):s.assigned||[],"Removed.",rm)};
+  app.querySelectorAll("[data-unasg]").forEach(b=>b.onclick=()=>{const [id,c]=b.dataset.unasg.split("|");save(s=>s.id===id?(s.assigned||[]).filter(x=>x!==c):s.assigned||[],`Removed ${c}.`,null)});
+}
+
+/* ---------- why they missed it ---------- */
+const MNAMES=["Mia","Jayden","Aaliyah","Carlos","Kenji","Zoe","Malik","Sofia","Imani","Diego","Ava","Elijah","Priya","Marcus","Layla","Noah","Amara","Luis","Hana","Jamal","Sam","Maria"];
+const MWORDS="cookies|pencils|apples|crayons|marbles|stickers|books|eggs|flowers|muffins|balls|shells|cards|chairs|plants|beads|bag|bags|cup|cups|basket|baskets|box|boxes|jar|jars|page|pages|shelf|shelves|carton|cartons|vase|vases|tray|trays|bin|bins|bucket|buckets|pile|piles|row|rows|pot|pots|string|strings|friends|students|tables|teams|groups|classes|pizza|pie|cake|pancake|sandwich|brownie|crayon|pencil|eraser|ribbon|key|rectangle|circle|centimeters|inches|meters|feet|kilograms|grams|liters";
+const MRE=new RegExp(`\\b(${MNAMES.join("|")}|${MWORDS})\\b`,"gi");
+const mnorm=t=>String(t||"").replace(/\[\d+\/\d+\]/g,"#").replace(/\d+(:\d+)?/g,"#").replace(MRE,"_").replace(/\b[A-E]\b/g,"L").toLowerCase().replace(/\s+/g," ").trim();
+function missWhy(m){const q=getQ(m.q);if(!q)return"";
+  if(q.type==="mc")return q.why?.[m.p]||"";
+  if(q.type==="multi")return q.why?.[String(m.p)[0]]||"";
+  if(q.type==="input")return (q.whyIn&&q.whyIn[m.p])||q.whyElse||"";
+  if(q.type==="matrix"){const r=q.rows[+String(m.p).slice(1)];return r?r.why:""}return""}
+function missGroups(students,kid){const g=new Map();
+  students.forEach(s=>(s.prog.miss||[]).forEach(m=>{if(kid&&m.k!==kid)return;const w=missWhy(m);if(!w||/is right, but you missed one/.test(w))return;const key=m.k+"|"+mnorm(w);
+    const x=g.get(key)||{k:m.k,ex:w,n:0,who:new Set(),last:0};x.n++;x.who.add(s.name);if(m.t>x.last){x.last=m.t;x.ex=w}g.set(key,x)}));
+  return [...g.values()].sort((a,b)=>b.who.size-a.who.size||b.n-a.n)}
+function tWhy(){
+  const real=realStudents(),groups=missGroups(real),byK={};groups.forEach(x=>(byK[x.k]=byK[x.k]||[]).push(x));
+  const total=groups.reduce((a,x)=>a+x.n,0);
+  const order=SKILLS.filter(k=>byK[k.id]);Object.keys(byK).forEach(id=>{if(!order.some(k=>k.id===id)){const L0=LIBG[id];order.push({id,std:L0?L0.code:"",name:L0?L0.name:"Other"})}});
+  return `<div class="card"><div class="top"><h2>Why they missed it</h2><span class="pill">${total} mistake${total===1?"":"s"} so far</span></div>
+   <p class="muted">Every wrong answer in practice is matched to the mistake behind it. Mistakes of the same kind are grouped, even across different questions, so you can see what students are thinking and reteach the right thing. Most common first.</p>
+   ${total?"":`<p class="fb info">Nothing yet. This fills in as students practice.</p>`}</div>
+   ${order.map(k=>{const list=byK[k.id],stud=new Set(list.flatMap(x=>[...x.who])).size;
+     return `<div class="card"><div class="top"><div><span class="label">${esc(k.std)}</span><h3>${esc(k.name)}</h3></div><span class="pill oops">${stud} student${stud===1?"":"s"}</span></div>
+      <ol class="miss">${list.slice(0,5).map(x=>`<li><div class="mhead"><b>${x.who.size} student${x.who.size===1?"":"s"}</b><span class="muted">${x.n} time${x.n===1?"":"s"}</span></div><p class="mex">“${fmt(x.ex)}”</p><p class="muted" style="font-size:.85rem">${esc([...x.who].join(", "))}</p></li>`).join("")}</ol>
+      ${list.length>5?`<p class="muted" style="font-size:.85rem">${list.length-5} smaller mistake types not shown.</p>`:""}</div>`}).join("")}`;
+}
+const topMiss=(s,kid)=>{const g=missGroups([s],kid);return g[0]&&g[0].n>=2?g[0]:null};
 
 /* ---------- start ---------- */
 (async()=>{
