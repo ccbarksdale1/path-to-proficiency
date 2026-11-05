@@ -372,6 +372,37 @@ ol.miss li{padding:10px 12px;border-radius:12px;background:var(--oops-soft)}
 .rep-box{border:2px solid var(--oops-soft)}
 details.card>summary{cursor:pointer}
 @media print{.lnav,.tabs,button{display:none!important}}
+/* ---------- Game Arcade ---------- */
+.game-card{background:linear-gradient(135deg,var(--card),color-mix(in srgb,var(--gold) 14%,var(--card)))}
+.arc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.arc-game{align-items:flex-start}.arc-game h3{margin:0}.arc-ico{font-size:2.4rem;line-height:1}
+.arc-game button{margin-top:auto}
+.game-area{min-height:420px;position:relative;overflow:hidden}
+.g-prompt{font-size:2rem;font-weight:800;text-align:center;margin:4px 0}
+.sky{position:relative;height:340px;border-radius:16px;background:linear-gradient(#bfe6ff,#eaf7ff);overflow:hidden}
+.balloon{position:absolute;bottom:-120px;width:84px;height:100px;border-radius:50% 50% 46% 46%;border:0;padding:0;color:#fff;font-size:1.5rem;font-weight:800;box-shadow:inset -8px -10px 0 rgba(0,0,0,.12);animation:rise linear forwards;cursor:pointer}
+.balloon::after{content:"";position:absolute;left:50%;bottom:-24px;width:2px;height:24px;background:#7a8a99}
+.balloon.b0{background:#e5484d}.balloon.b1{background:#2f80ed}.balloon.b2{background:#9b51e0}.balloon.b3{background:#f2994a}
+.balloon.popped{animation:none;transform:scale(1.6);opacity:0;transition:.25s}
+.balloon.shake{animation-play-state:paused;filter:grayscale(.6)}
+@keyframes rise{to{bottom:110%}}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-width:560px;margin:0 auto;width:100%}
+.mcard{aspect-ratio:1/1;font-size:1.25rem;font-weight:800;background:var(--blue);color:#fff;border-radius:14px;padding:4px}
+.mcard.up{background:var(--card);color:var(--ink);border:2px solid var(--blue)}
+.mcard.done{background:color-mix(in srgb,var(--go) 20%,var(--card));border-color:var(--go);opacity:.8}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-width:480px;margin:0 auto;width:100%}
+.tile{font-size:1.3rem;font-weight:800;padding:16px 4px;background:var(--card);color:var(--ink);border:2px solid var(--rule);border-radius:14px}
+.tile.sel{background:var(--gold);border-color:var(--gold);color:#1b1b1b}
+.race{display:flex;flex-direction:column;gap:10px;margin-bottom:8px}
+.lane{position:relative;display:flex;align-items:center;gap:8px;height:44px}
+.lane .who{width:44px;font-weight:700;font-size:.85rem}
+.lane .path{flex:1;display:flex;gap:4px;align-items:center}
+.lane .path i{flex:1;height:10px;border-radius:5px;background:var(--rule)}
+.lane .path i.on{background:var(--go)}.lane .path i.bot{background:var(--gold)}
+.lane .flag{font-size:1.3rem}
+.lane .runner{position:absolute;top:-2px;font-size:1.6rem;transition:left .4s}
+@media (max-width:520px){.cards,.tiles{gap:6px}.mcard{font-size:1rem}.balloon{width:66px;height:80px;font-size:1.2rem}.g-prompt{font-size:1.6rem}}
+@media (prefers-reduced-motion:reduce){.balloon{animation-duration:30s!important}}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1871,7 +1902,7 @@ function render(){app.className="wrap"+(S.screen==="teacher"||S.screen==="setup"
   const view=[S.screen,S.qid,S.tab,S.tt,S.bdq,S.cid].join("|"); if(view!==lastView){lastView=view;window.scrollTo?.(0,0)}
   if(S.flash){const el=document.getElementById(S.flash.id);if(el)el.textContent=S.flash.msg;S.flash=null}
   markSaved()}
-function signOut(){stopPlay();document.getElementById("chirp")?.remove();TOKEN=null;TB=SB=CUR=null;ls.set(SKEY,null,sessionStorage);useTest(null);TEACHER="Your teacher";S={screen:"landing",code:"",err:""};render()}
+function signOut(){stopPlay();try{clearInterval(gameTimer);if(S.G&&S.G.st)clearInterval(S.G.st.botT)}catch(e){}document.getElementById("chirp")?.remove();TOKEN=null;TB=SB=CUR=null;ls.set(SKEY,null,sessionStorage);useTest(null);TEACHER="Your teacher";S={screen:"landing",code:"",err:""};render()}
 const flash=(id,msg)=>{S.flash={id,msg}};
 function busy(btn,txt){if(btn){btn.disabled=true;btn.dataset.t=btn.textContent;btn.textContent=txt||"Working…"}}
 
@@ -1966,6 +1997,7 @@ function landing(){
     <div class="wcard"><span class="wico">🧩</span><h3>Station planner</h3><p>Pick how many groups or how many students per group. The planner groups students by the standard and the mistake they share, puts the group that needs you most at the teacher table first, and prints the rotation.</p></div>
     <div class="wcard"><span class="wico">⚡</span><h3>Fluency sprints</h3><p>Timed fact sheets with a pass bar, like a paper Multiplication Madness sheet. Seven levels from × 0, 1, 2 up to mixed review. Students level up when they pass, and teachers see the class’s trouble facts.</p></div>
     <div class="wcard"><span class="wico">🐦</span><h3>Meet Chirp</h3><p>Every few questions, Chirp the bird flies in with a cheer that fits the moment: a hot streak, a tough patch, or a checkpoint around the corner. No ads, no prizes to buy, just encouragement.</p></div>
+    <div class="wcard"><span class="wico">🎮</span><h3>Game Arcade</h3><p>Students earn game tokens by mastering checkpoints, leveling up in fluency, and collecting stars. Each token unlocks a short math game: Balloon Pop, Match It, Make the Number, and a Summit Race built from their own standards.</p></div>
    </div></section>
 
   <section class="lsec" id="how"><div class="lsec-h"><span class="eyebrow">How it works</span><h2>Five steps from test results to mastery</h2><p class="muted">Tap a step to see it.</p></div>
@@ -2123,7 +2155,7 @@ function home(){
      ${scout(msg)}
      <div class="row"><button id="go">${t(sk.streak||Object.keys(p.log).length?"Keep climbing":"Start my mission")}</button>${db.videos[cur.id]?`<a class="btnlink" href="${esc(db.videos[cur.id])}" target="_blank" rel="noopener">▶ Watch the lesson</a>`:""}</div>
    </div>`:`<div class="card mission" style="align-items:flex-start">${HERO_ART}${scout(msg)}</div>`;
-  app.innerHTML=header(`${langToggle()}<button class="ghost" id="out">${t("Sign out")}</button>`)+mission+fluCard()+`
+  app.innerHTML=header(`${langToggle()}<button class="ghost" id="out">${t("Sign out")}</button>`)+mission+fluCard()+gameCard()+`
   <div class="card">
    <div class="top"><h2>${t("My trail")}</h2><span class="pill gold">${done} of ${TR.length} checkpoints</span></div>
    ${s.missed&&s.missed.length?`<p class="muted">On the test you missed ${missedText(s.missed)}. Your trail starts with those.</p>`:""}
@@ -2136,6 +2168,7 @@ function home(){
   document.getElementById("out").onclick=signOut;wireLang();
   const g=document.getElementById("go"); if(g) g.onclick=()=>{newQ();S.screen="practice";render()};
   const fg=document.getElementById("flu-go"); if(fg) fg.onclick=fluStart;
+  const ag=document.getElementById("arcade-go"); if(ag) ag.onclick=()=>{S.screen="arcade";render()};
 }
 SCREENS.home=home;
 
@@ -2293,7 +2326,7 @@ function feedback(q){
   if(S.rev&&S.result==="right") return `<div class="fb go"><p style="display:flex;align-items:center"><span class="burst" aria-hidden="true"></span><b>${t("Yes! You still remember this one.")}</b>&nbsp;+1 ★</p>
      ${S.full?stepsPlayer(q):`<button class="ghost small" id="see" style="align-self:flex-start">${t("See the breakdown")}</button>`}<button id="next">${t("Next question")}</button></div>`;
   if(S.result==="right") return `<div class="fb go"><p style="display:flex;align-items:center"><span class="burst" aria-hidden="true"></span><b>${t("Yes! That’s right.")}</b>&nbsp;+1 ★</p>
-     <p class="note" style="color:var(--go)">${S.mastered?`That makes ${MASTERY} in a row. You reached the checkpoint!`:`${CHEERS[(sk.streak+Object.keys(S.student.prog.log).length)%CHEERS.length]} ${MASTERY-sk.streak} more in a row to reach the checkpoint.`}</p>${nb}
+     <p class="note" style="color:var(--go)">${S.mastered?`That makes ${MASTERY} in a row. You reached the checkpoint!`:`${CHEERS[(sk.streak+Object.keys(S.student.prog.log).length)%CHEERS.length]} ${MASTERY-sk.streak} more in a row to reach the checkpoint.`}</p>${S.mastered&&gameOn()?`<p class="note" style="color:var(--go)">🪙 ${t("You earned a game token! Spend it in the Game Arcade.")}</p>`:""}${nb}
      ${S.full?stepsPlayer(q):`<button class="ghost small" id="see" style="align-self:flex-start">${t("See the breakdown")}</button>`}
      <button id="next">${S.mastered?"See my badge":t("Next question")}</button></div>`;
   return `${scout(t(S.fast?"Whoa, that was fast! Did you work it out, or guess? Let’s slow down and learn from this one.":"Mistakes help us climb. Let’s learn from this one."))}
@@ -2666,7 +2699,10 @@ function tSettings(){
     <label class="f">Fluency: questions per sheet<input id="c-fn" type="number" min="10" max="60" value="${c.flu?.n||30}"></label>
     <label class="f">Fluency: right to pass<input id="c-fp" type="number" min="1" max="60" value="${c.flu?.pass||28}"></label>
     <label class="f">Fluency: time (minutes)<input id="c-fs" type="number" min="0.5" max="15" step="0.5" value="${(c.flu?.secs||180)/60}"></label>
+    <label class="f chk"><span><input type="checkbox" id="c-games" ${c.games?.on!==false?"checked":""}> Game Arcade on (students earn tokens)</span></label>
+    <label class="f">Arcade: minutes per game<input id="c-gm" type="number" min="1" max="10" value="${c.games?.mins||3}"></label>
     <button type="submit">Save settings</button></form>
+   <div class="row"><button type="button" class="ghost small" id="gm-bonus">Give everyone 1 bonus token</button><span class="muted" id="gm-msg" role="status"></span></div>
    <p class="muted" style="font-size:.85rem">Switching the test keeps each student’s progress on the old test. Enter missed questions for the new test under Students.${TB.ai?"":" The AI tutor needs an AI key on the server before students can use it."}</p>
    <p class="muted" id="cs-msg" role="status"></p></div>
   <div class="card"><h2>Your videos</h2><p class="muted">Paste a link to your own lesson video for each standard. Students see a “Watch the lesson” button on their path and a link after a wrong answer.</p>
@@ -2675,12 +2711,12 @@ function tSettings(){
    <div class="row">${dev&&dev.join===c.join?`<button class="ghost" id="dev-off">Forget this class on this device</button>`:`<button class="ghost" id="dev-on">Use this device for ${esc(c.name)}</button>`}</div></div>
   <div class="card"><h2>Delete class</h2><p class="muted">This removes the class, its students, and all of their progress.</p><div class="row" id="del-box"><button class="ghost" id="del">Delete ${esc(c.name)}</button></div><p class="err" id="del-err" role="alert"></p></div>`;
 }
-async function saveClass(patch){const c=CUR.cls;const d=await api("classSave",{id:c.id,name:c.name,teacherId:c.teacherId,testId:c.testId,goal:c.goal,mastery:c.mastery,tutor:c.tutor,chirp:c.chirp,flu:c.flu,videos:c.videos,...patch});Object.assign(TB,d);return d.cls}
+async function saveClass(patch){const c=CUR.cls;const d=await api("classSave",{id:c.id,name:c.name,teacherId:c.teacherId,testId:c.testId,goal:c.goal,mastery:c.mastery,tutor:c.tutor,chirp:c.chirp,flu:c.flu,games:c.games,videos:c.videos,...patch});Object.assign(TB,d);return d.cls}
 function wireSettings(){
   const c=CUR.cls;
   document.getElementById("cs").onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Saving…");
     const patch={name:document.getElementById("c-name").value,testId:document.getElementById("c-test").value,goal:+document.getElementById("c-goal").value,mastery:+document.getElementById("c-mast").value,tutor:document.getElementById("c-tutor").checked,chirp:document.getElementById("c-chirp").checked,
-      flu:{on:document.getElementById("c-flu").checked,n:+document.getElementById("c-fn").value,pass:+document.getElementById("c-fp").value,secs:Math.round(+document.getElementById("c-fs").value*60)}};
+      flu:{on:document.getElementById("c-flu").checked,n:+document.getElementById("c-fn").value,pass:+document.getElementById("c-fp").value,secs:Math.round(+document.getElementById("c-fs").value*60)},games:{on:document.getElementById("c-games").checked,mins:+document.getElementById("c-gm").value}};
     const ct=document.getElementById("c-t");if(ct)patch.teacherId=ct.value;
     try{const testChanged=patch.testId!==c.testId;await saveClass(patch);await openClass(c.id,"settings");flash("cs-msg",testChanged?`Saved. Students now practice ${testName(patch.testId)}.`:"Saved.");render()}
     catch(er){document.getElementById("cs-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save settings"}};
@@ -2688,6 +2724,7 @@ function wireSettings(){
     app.querySelectorAll("#vids input[data-k]").forEach(i=>{const v=i.value.trim();if(v)videos[i.dataset.k]=v;else delete videos[i.dataset.k]});
     busy(e.submitter,"Saving…");
     try{CUR.cls=await saveClass({videos});db.videos=CUR.cls.videos;flash("v-msg","Links saved.");render()}catch(er){document.getElementById("v-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save links"}};
+  const gb=document.getElementById("gm-bonus");if(gb)gb.onclick=()=>giveBonus(gb);
   const on=document.getElementById("dev-on");if(on)on.onclick=()=>{ls.set(CKEY,{join:c.join,name:c.name,teacher:tName(c.teacherId)});render()};
   const off=document.getElementById("dev-off");if(off)off.onclick=()=>{ls.set(CKEY,null);render()};
   document.getElementById("del").onclick=()=>{document.getElementById("del-box").innerHTML=`<span>Delete ${esc(c.name)} and all progress? This can’t be undone.</span><button id="del-yes" style="background:var(--oops)">Delete</button><button class="ghost" id="del-no">Keep</button>`;
@@ -3181,6 +3218,7 @@ function fluency(){
       <div class="flu-score"><b>${F.right}</b><span>of ${F.qs.length} right</span></div>
       <p>${F.passed?`You needed ${F.pass}. ${F.levelUp?`Next up: Level ${F.lvl+2}, ${esc(FLU_LEVELS[F.lvl+1].name)}.`:"You finished the top level!"}`:`You need ${F.pass} to level up. That’s ${F.pass-F.right} more. You can do it!`}</p>
       <p class="muted">Time: ${Math.floor(F.used/60)}:${String(F.used%60).padStart(2,"0")}</p>
+      ${F.levelUp&&gameOn()?`<p class="newbadge">🪙 ${t("You earned a game token! Spend it in the Game Arcade.")}</p>`:""}
       <div class="row"><button id="flu-again">${t(F.passed&&F.levelUp?"Try the next level":"Try again")}</button><button class="ghost" id="back2">${t("Back to my trail")}</button></div></div>
      ${missed.length||skipped.length?`<div class="card"><h3>${t("Practice these")}</h3><div class="flu-miss">${[...missed.map(x=>`<span><s>${esc(x.v)}</s> ${esc(x.q.t.replace("∎","?"))} = <b>${x.q.ans}</b></span>`),...skipped.slice(0,8).map(q=>`<span class="muted">${esc(q.t.replace("∎","?"))} = <b>${q.ans}</b></span>`)].join("")}</div></div>`:""}`;
     document.getElementById("back").onclick=document.getElementById("back2").onclick=()=>{S.screen="home";render()};
@@ -3559,6 +3597,116 @@ const CHIRP_ES={streak:n=>`¡${n} seguidas! ¡Estás que ardes!`,near:n=>`¡Solo
  gen:["¡Sigue subiendo! Cada pregunta te hace más fuerte.","¡Me encanta cómo sigues intentando!","¡Lo estás haciendo muy bien!","¡Tú puedes!"],fluPass:"¡Wow! ¡Tu cerebro es cada vez más rápido!",fluTry:"Cada intento te hace más rápido. ¡Otra vez!",mastered:"¡Llegaste a la parada! ¡Estoy muy orgulloso de ti!"};
 function langToggle(){return S.demo||S.role==="student"?`<button class="ghost small" id="lang">${S.lang==="es"?"English":"Español"}</button>`:""}
 function wireLang(){const b=document.getElementById("lang");if(b)b.onclick=()=>{S.lang=S.lang==="es"?"en":"es";if(!S.demo&&S.student){const all=S.student.raw.prog||(S.student.raw.prog={});all._pref={...(all._pref||{}),lang:S.lang};api("progSave",{testId:"_pref",prog:all._pref}).catch(()=>{})}render()}}
+
+/* ================= Game Arcade: earn tokens by mastering checkpoints, play math games ================= */
+const gameCfg=()=>(SB&&SB.cls&&SB.cls.games)||{on:true,mins:3};
+const gameOn=()=>S.demo||!SB||gameCfg().on!==false;
+const gameProg=()=>{if(S.demo)return S.demoGame||(S.demoGame={spent:0,bonus:2,best:{}});const s=S.student;if(!s.raw)s.raw={prog:{}};const all=s.raw.prog||(s.raw.prog={});return all._game||(all._game={spent:0,bonus:0,best:{}})};
+function tokensEarned(){const p=S.student.prog,done=Object.values(p.skills||{}).filter(k=>k.status==="done").length,fl=S.demo?0:(fluProg().level||0);
+  return {done,fl,stars:Math.floor((p.stars||0)/25),total:done+fl+Math.floor((p.stars||0)/25)}}
+const tokensLeft=()=>{const g=gameProg();return Math.max(0,tokensEarned().total+(g.bonus||0)-(g.spent||0))};
+function saveGame(){if(S.demo)return;api("progSave",{testId:"_game",prog:gameProg()}).catch(()=>{S.saveErr=true;markSaved()})}
+const GAMES=[
+ {id:"pop",name:"Balloon Pop",ico:"🎈",desc:"Pop the balloon with the right answer before it floats away.",kind:"Facts"},
+ {id:"match",name:"Match It",ico:"🃏",desc:"Flip cards to find matching pairs.",kind:"Puzzle"},
+ {id:"make",name:"Make the Number",ico:"🧮",desc:"Tap numbers that add up to the target.",kind:"Puzzle"},
+ {id:"race",name:"Summit Race",ico:"🏔️",desc:"Race Chirp to the top by answering questions from your trail.",kind:"Your standards"},
+];
+function gameCard(){if(!gameOn())return"";const n=tokensLeft();
+  return `<div class="card game-card"><div class="top"><h2>🎮 ${t("Game Arcade")}</h2><span class="pill gold">🪙 ${n} ${t(n===1?"token":"tokens")}</span></div>
+   <p class="muted">${t("Earn a token for every checkpoint you master, every fluency level up, and every 25 stars.")}</p>
+   <div class="row"><button id="arcade-go" class="ghost">${t("Open the arcade")}</button></div></div>`}
+function arcade(){
+  const n=tokensLeft(),e=tokensEarned(),mins=gameCfg().mins||3,g=gameProg();
+  app.innerHTML=header(`${langToggle()}<button class="ghost" id="back">${t("My trail")}</button>`)+`
+   <div class="card arc-hero"><div class="top"><h2>🎮 ${t("Game Arcade")}</h2><span class="pill gold" style="font-size:1rem">🪙 ${n} ${t(n===1?"token":"tokens")}</span></div>
+    <p>${t("One token = one game")} (${mins} ${t(mins===1?"minute":"minutes")}). ${n?t("Pick a game!"):t("Master a checkpoint to earn your next token.")}</p>
+    <p class="muted" style="font-size:.85rem">${t("You earned")}: ${e.done} ${t("checkpoints")} · ${e.fl} ${t("fluency levels")} · ${e.stars} × 25 ${t("stars")}${g.bonus?` · ${g.bonus} ${t("bonus from your teacher")}`:""}</p></div>
+   <div class="arc-grid">${GAMES.map(G=>`<div class="card arc-game"><div class="arc-ico" aria-hidden="true">${G.ico}</div><h3>${t(G.name)}</h3><span class="pill">${t(G.kind)}</span><p class="muted">${t(G.desc)}</p>${g.best?.[G.id]?`<p style="font-size:.85rem">${t("Best")}: <b>${g.best[G.id]}</b></p>`:""}<button data-play="${G.id}" ${n?"":"disabled"}>${t("Play")} · 🪙 1</button></div>`).join("")}</div>`;
+  document.getElementById("back").onclick=()=>{S.screen="home";render()};wireLang();
+  app.querySelectorAll("[data-play]").forEach(b=>b.onclick=()=>{if(!tokensLeft())return;const gp=gameProg();gp.spent=(gp.spent||0)+1;saveGame();startGame(b.dataset.play)});
+}
+SCREENS.arcade=arcade;
+
+/* ---------- shared game shell ---------- */
+let gameTimer=null;
+function startGame(id){clearInterval(gameTimer);const mins=gameCfg().mins||3;S.G={id,score:0,end:Date.now()+mins*60000,over:false,st:{}};GINIT[id](S.G.st);S.screen="game";
+  gameTimer=setInterval(()=>{const left=Math.max(0,S.G.end-Date.now()),el=document.getElementById("g-time");if(el)el.textContent=`${Math.floor(left/60000)}:${String(Math.floor(left%60000/1000)).padStart(2,"0")}`;if(left<=0)endGame()},250);render()}
+function endGame(){clearInterval(gameTimer);gameTimer=null;const G=S.G;if(!G||G.over)return;G.over=true;const gp=gameProg();gp.best=gp.best||{};const nb=G.score>(gp.best[G.id]||0);if(nb)gp.best[G.id]=G.score;G.newBest=nb;
+  (gp.plays=gp.plays||[]).push({g:G.id,s:G.score,d:Date.now()});gp.plays=gp.plays.slice(-40);saveGame();render();setTimeout(()=>chirp(nb?"fluPass":"right"),600)}
+function game(){
+  const G=S.G,def=GAMES.find(x=>x.id===G.id),left=Math.max(0,G.end-Date.now());
+  if(G.over){app.innerHTML=header()+`<div class="card pop" style="text-align:center;align-items:center"><div class="arc-ico" style="font-size:3rem">${def.ico}</div><h2>${t("Time’s up!")}</h2>
+    <div class="flu-score"><b>${G.score}</b><span>${t("points")}</span></div>${G.newBest?`<p class="newbadge">🏆 ${t("New best score!")}</p>`:""}
+    <div class="row"><button id="g-arc">${t("Back to the arcade")}</button><button class="ghost" id="g-home">${t("My trail")}</button></div></div>`;
+    document.getElementById("g-arc").onclick=()=>{S.screen="arcade";render()};document.getElementById("g-home").onclick=()=>{S.screen="home";render()};return}
+  app.innerHTML=`<div class="flu-top"><span class="label">${def.ico} ${esc(t(def.name))}</span><span class="flu-time" id="g-time">${Math.floor(left/60000)}:${String(Math.floor(left%60000/1000)).padStart(2,"0")}</span><span class="pill gold">⭐ ${G.score}</span><button class="ghost small" id="g-stop">${t("Stop")}</button></div>
+   <div class="card game-area" id="g-area">${GVIEW[G.id](G.st)}</div>`;
+  document.getElementById("g-stop").onclick=endGame;GWIRE[G.id](G.st);
+}
+SCREENS.game=game;
+const gRand=(a,b)=>a+Math.floor(Math.random()*(b-a+1)),gPick=a=>a[Math.floor(Math.random()*a.length)],gShuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const gLevel=()=>S.demo?0:(fluProg().level||0);
+const GINIT={},GVIEW={},GWIRE={};
+
+/* ---------- Balloon Pop ---------- */
+GINIT.pop=st=>{const L=FLU_LEVELS[Math.min(gLevel(),5)],q=fluQuestion(L,Math.random);const set=new Set([q.ans]);let g=0;while(set.size<4&&g++<50){const w=q.ans+gPick([-10,-2,-1,1,2,3,10,q.ans>5?-3:4]);if(w>=0)set.add(w)}
+  Object.assign(st,{q,opts:gShuf([...set]),pop:null,wrong:null,miss:st.miss||0,round:(st.round||0)+1})};
+GVIEW.pop=st=>`<p class="g-prompt">${esc(st.q.t.replace("∎","?"))} = ?</p><div class="sky" id="sky">${st.opts.map((v,i)=>`<button class="balloon b${i}${st.wrong===v?" shake":""}" data-v="${v}" style="left:${8+i*23}%;animation-duration:${7+i*.6}s;animation-delay:${i*.25}s" aria-label="Balloon ${v}"><span>${v}</span></button>`).join("")}</div><p class="muted" style="text-align:center">${t("Tap the balloon with the right answer!")}</p>`;
+GWIRE.pop=st=>{app.querySelectorAll(".balloon").forEach(b=>{b.onclick=()=>{const v=+b.dataset.v;if(v===st.q.ans){S.G.score+=10;b.classList.add("popped");setTimeout(()=>{GINIT.pop(st);render()},250)}else{st.wrong=v;b.classList.add("shake");setTimeout(()=>b.classList.remove("shake"),400)}};
+  b.onanimationend=e=>{if(e.animationName==="rise"&&+b.dataset.v===st.q.ans&&!S.G.over){st.miss++;GINIT.pop(st);render()}}})};
+
+/* ---------- Match It ---------- */
+GINIT.match=st=>{const fr=SKILLS.some(k=>/NF/.test(k.std))&&Math.random()<.5,pairs=[];const seen=new Set();let g=0;
+  while(pairs.length<6&&g++<200){let a,b;if(fr){const [n,d]=gPick([[1,2],[1,3],[2,3],[1,4],[3,4],[1,5],[2,5],[1,6],[5,6]]),k=gPick([2,3,4]);a=`[${n}/${d}]`;b=`[${n*k}/${d*k}]`}else{const q=fluQuestion(FLU_LEVELS[Math.min(gLevel(),5)],Math.random);if(q.t.includes("∎")||q.t.startsWith("Round"))continue;a=q.t;b=String(q.ans)}
+    if(seen.has(a)||seen.has(b))continue;seen.add(a);seen.add(b);pairs.push([a,b])}
+  Object.assign(st,{cards:gShuf(pairs.flatMap(([a,b],i)=>[{v:a,p:i},{v:b,p:i}])).map(c=>({...c,up:false,done:false})),open:[],moves:0,lock:false})};
+GVIEW.match=st=>`<p class="g-prompt">${t("Find the matching pairs!")}</p><div class="cards">${st.cards.map((c,i)=>`<button class="mcard${c.up||c.done?" up":""}${c.done?" done":""}" data-i="${i}" ${c.done?"disabled":""}>${c.up||c.done?fmt(c.v):"?"}</button>`).join("")}</div><p class="muted" style="text-align:center">${t("Moves")}: ${st.moves}</p>`;
+GWIRE.match=st=>{app.querySelectorAll(".mcard").forEach(b=>b.onclick=()=>{const c=st.cards[+b.dataset.i];if(st.lock||c.up||c.done)return;c.up=true;st.open.push(c);
+  if(st.open.length===2){st.moves++;const [x,y]=st.open;if(x.p===y.p){x.done=y.done=true;st.open=[];S.G.score+=15;if(st.cards.every(c=>c.done)){S.G.score+=25;setTimeout(()=>{GINIT.match(st);render()},500)}}
+    else{st.lock=true;setTimeout(()=>{x.up=y.up=false;st.open=[];st.lock=false;render()},800)}}render()})};
+
+/* ---------- Make the Number ---------- */
+const makeSpec=()=>{const g=gradeOf();return g>=5?{target:1,vals:[1,2,3,4,5,6,7,8,9].map(x=>x/10),fmt:v=>v.toFixed(1),eps:1e-9}:g===4?{target:1000,vals:[100,200,300,400,500,600,700,800,900,150,250,350,450,550,650,750,850],fmt:v=>v.toLocaleString(),eps:0}:{target:100,vals:[10,20,30,40,50,60,70,80,90,15,25,35,45,55,65,75,85],fmt:v=>String(v),eps:0}};
+GINIT.make=st=>{const sp=makeSpec();const tiles=[];while(tiles.length<16){const a=gPick(sp.vals.filter(v=>v<sp.target)),b=+(sp.target-a).toFixed(2);if(sp.vals.includes(b)||sp.target===1){tiles.push(a,b)}else tiles.push(gPick(sp.vals))}
+  Object.assign(st,{sp,tiles:gShuf(tiles.slice(0,16)).map(v=>({v,sel:false})),msg:""})};
+GVIEW.make=st=>{const sum=st.tiles.filter(x=>x.sel).reduce((a,x)=>a+x.v,0);return `<p class="g-prompt">${t("Make")} <b>${st.sp.fmt(st.sp.target)}</b></p><p class="muted" style="text-align:center">${t("Your total")}: <b>${st.sp.fmt(+sum.toFixed(2))}</b> ${st.msg?`· ${esc(st.msg)}`:""}</p>
+  <div class="tiles">${st.tiles.map((x,i)=>`<button class="tile${x.sel?" sel":""}" data-i="${i}">${st.sp.fmt(x.v)}</button>`).join("")}</div><div class="row" style="justify-content:center"><button class="ghost small" id="mk-clear">${t("Clear")}</button><button class="ghost small" id="mk-new">${t("New tiles")}</button></div>`};
+GWIRE.make=st=>{app.querySelectorAll(".tile").forEach(b=>b.onclick=()=>{const x=st.tiles[+b.dataset.i];x.sel=!x.sel;st.msg="";const sel=st.tiles.filter(y=>y.sel),sum=+sel.reduce((a,y)=>a+y.v,0).toFixed(2);
+  if(Math.abs(sum-st.sp.target)<1e-9){S.G.score+=10*sel.length;st.msg=t("Nice!");sel.forEach(y=>{y.v=gPick(st.sp.vals);y.sel=false});
+    /* keep at least one pair that makes the target */const a=gPick(st.sp.vals.filter(v=>v<st.sp.target)),i=gRand(0,7),j=gRand(8,15);st.tiles[i].v=a;st.tiles[j].v=+(st.sp.target-a).toFixed(2)}
+  else if(sum>st.sp.target+1e-9){st.msg=t("Too much! Try again.");st.tiles.forEach(y=>y.sel=false)}render()});
+  document.getElementById("mk-clear").onclick=()=>{st.tiles.forEach(y=>y.sel=false);render()};document.getElementById("mk-new").onclick=()=>{GINIT.make(st);render()}};
+
+/* ---------- Summit Race: questions from the student's own trail ---------- */
+function raceQ(){const k=curSkill(S.student)||SKILLS[0],g=genOf(k)||"fluency";for(let i=0;i<30;i++){try{const q=viewQ(GG.make(g,Math.floor(Math.random()*1e9)));if(q.type==="mc"||q.type==="input")return {q,k}}catch(e){}}return {q:viewQ(GG.make("fluency",1)),k}}
+GINIT.race=st=>{const {q,k}=raceQ();Object.assign(st,{me:st.me||0,bot:st.bot||0,q,k,fb:null,last:Date.now(),wins:st.wins||0,started:st.started||Date.now()});
+  clearInterval(st.botT);st.botT=setInterval(()=>{if(S.screen!=="game"||S.G.over){clearInterval(st.botT);return}st.bot=Math.min(10,st.bot+1);if(st.bot>=10){st.fb={ok:false,t:t("Chirp reached the top! New race!")};st.me=0;st.bot=0}const el=document.getElementById("race-track");if(el)el.outerHTML=raceTrack(st)},12000)};
+const raceTrack=st=>`<div class="race" id="race-track"><div class="lane"><span class="who">${t("You")}</span><div class="path">${Array.from({length:10},(_,i)=>`<i class="${i<st.me?"on":""}"></i>`).join("")}<b class="flag">🏁</b></div><span class="runner" style="left:calc(${st.me*9.5}% + 52px)">🧗</span></div>
+  <div class="lane"><span class="who">Chirp</span><div class="path">${Array.from({length:10},(_,i)=>`<i class="${i<st.bot?"bot":""}"></i>`).join("")}<b class="flag">🏁</b></div><span class="runner" style="left:calc(${st.bot*9.5}% + 52px)">🐦</span></div></div>`;
+GVIEW.race=st=>{const q=st.q;return `${raceTrack(st)}${st.wins?`<p class="muted" style="text-align:center">🏆 ${t("Races won")}: ${st.wins}</p>`:""}
+  <div class="notebook ro"><span class="label">${esc(st.k.std)} · ${esc(st.k.name)}</span>${bodyHTML(q,null,"plain")}</div>
+  ${st.fb?`<div class="fb ${st.fb.ok?"go":"oops"}"><p>${st.fb.t}</p></div>`:""}
+  ${q.type==="mc"?`<div class="choices">${q.choices.map((c,i)=>`<button class="choice" data-rl="${L[i]}"><b class="l">${L[i]}</b><div>${choiceInner(c)}</div></button>`).join("")}</div>`
+   :`<form id="race-f" class="row"><input id="race-in" class="num" inputmode="decimal" autocomplete="off" aria-label="Your answer"><button type="submit">${t("Go!")}</button></form>`}`};
+GWIRE.race=st=>{const answer=ok=>{if(ok){st.me++;S.G.score+=10;st.fb={ok:true,t:t("Right! You climbed one step.")};if(st.me>=10){st.wins++;S.G.score+=50;st.fb={ok:true,t:t("You reached the summit first! 🏆 New race!")};st.me=0;st.bot=0}}
+    else st.fb={ok:false,t:`${t("Not quite.")} ${t("The answer is")} ${esc(ansText(st.q))}.`};const {q,k}=raceQ();st.q=q;st.k=k;render()};
+  app.querySelectorAll("[data-rl]").forEach(b=>b.onclick=()=>answer(st.q.type==="mc"&&b.dataset.rl===st.q.ans));
+  const f=document.getElementById("race-f");if(f){const i=document.getElementById("race-in");i.focus();f.onsubmit=e=>{e.preventDefault();if(i.value.trim())answer(Number(i.value.replace(/,/g,""))===Number(st.q.ans))}}};
+
+/* Spanish for the arcade */
+Object.assign(ES,{"Game Arcade":"Sala de juegos","token":"ficha","tokens":"fichas","Earn a token for every checkpoint you master, every fluency level up, and every 25 stars.":"Gana una ficha por cada parada que domines, cada nivel de fluidez y cada 25 estrellas.","Open the arcade":"Abrir la sala de juegos",
+ "One token = one game":"Una ficha = un juego","minutes":"minutos","minute":"minuto","Pick a game!":"¡Elige un juego!","Master a checkpoint to earn your next token.":"Domina una parada para ganar tu próxima ficha.","You earned":"Ganaste","checkpoints":"paradas","fluency levels":"niveles de fluidez","stars":"estrellas","bonus from your teacher":"de regalo de tu maestro",
+ "Balloon Pop":"Revienta globos","Match It":"Encuentra la pareja","Make the Number":"Forma el número","Summit Race":"Carrera a la cumbre","Facts":"Operaciones","Puzzle":"Rompecabezas","Your standards":"Tus estándares",
+ "Pop the balloon with the right answer before it floats away.":"Revienta el globo con la respuesta correcta antes de que se vaya volando.","Flip cards to find matching pairs.":"Voltea cartas para encontrar parejas.","Tap numbers that add up to the target.":"Toca números que sumen el objetivo.","Race Chirp to the top by answering questions from your trail.":"Compite con Chirp hasta la cima contestando preguntas de tu camino.",
+ "Best":"Mejor","Play":"Jugar","Time’s up!":"¡Se acabó el tiempo!","points":"puntos","New best score!":"¡Nuevo récord!","Back to the arcade":"Volver a la sala de juegos","Tap the balloon with the right answer!":"¡Toca el globo con la respuesta correcta!","Find the matching pairs!":"¡Encuentra las parejas!","Moves":"Movidas",
+ "Make":"Forma","Your total":"Tu total","Clear":"Borrar","New tiles":"Fichas nuevas","Nice!":"¡Bien!","Too much! Try again.":"¡Te pasaste! Intenta otra vez.","You":"Tú","Races won":"Carreras ganadas","Go!":"¡Ya!","Right! You climbed one step.":"¡Correcto! Subiste un paso.",
+ "You reached the summit first! 🏆 New race!":"¡Llegaste primero a la cumbre! 🏆 ¡Nueva carrera!","Chirp reached the top! New race!":"¡Chirp llegó primero! ¡Nueva carrera!","Not quite.":"Casi.","You earned a game token! Spend it in the Game Arcade.":"¡Ganaste una ficha de juego! Úsala en la sala de juegos.","The answer is":"La respuesta es"});
+
+/* teacher: give bonus tokens */
+async function giveBonus(btn){const msg=document.getElementById("gm-msg");busy(btn,"Giving…");
+  try{const r=await api("gameBonus",{classId:CUR.cls.id,n:1});msg.textContent=`Gave ${r.count} student${r.count===1?"":"s"} a bonus token.`}catch(e){msg.textContent=e.message}
+  btn.disabled=false;btn.textContent="Give everyone 1 bonus token"}
 
 /* ---------- start ---------- */
 (async()=>{
