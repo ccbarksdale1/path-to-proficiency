@@ -75,7 +75,8 @@ export function makeApi({ store, env }) {
   const codeHash = (school, code) => sha(school.salt + ":" + code);
   const pubTeacher = t => ({ id: t.id, name: t.name, admin: !!t.admin });
   const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false,
-    flu: { on: c.flu?.on !== false, secs: c.flu?.secs || 180, pass: c.flu?.pass || 28, n: c.flu?.n || 30 } });
+    flu: { on: c.flu?.on !== false, secs: c.flu?.secs || 180, pass: c.flu?.pass || 28, n: c.flu?.n || 30 },
+    games: { on: c.games?.on !== false, mins: c.games?.mins || 3 } });
   const testMeta = t => ({ id: t.id, name: t.name, grade: t.grade || "", ownerId: t.ownerId || null, created: t.created || 0, nq: Object.keys(t.qs || {}).length, skills: (t.skills || []).length });
   const BUILTIN = { id: "a1", name: "Grade 3 benchmark (8 standards, enter missed question numbers)", builtIn: true, grade: "3", nq: 0, skills: 8 };
   const STDTESTS = [["std3", "3", 33], ["std4", "4", 34], ["std5", "5", 34]].map(([id, g, n]) => ({ id, name: `Grade ${g}: all standards (no test)`, builtIn: true, grade: g, nq: 0, skills: n }));
@@ -292,6 +293,7 @@ How you teach:
       const n = Math.max(10, Math.min(60, Math.round(+b.flu.n || 30)));
       c.flu = { on: b.flu.on !== false, n, secs: Math.max(30, Math.min(900, Math.round(+b.flu.secs || 180))), pass: Math.max(1, Math.min(n, Math.round(+b.flu.pass || 28))) };
     }
+    if (b.games && typeof b.games === "object") c.games = { on: b.games.on !== false, mins: Math.max(1, Math.min(10, Math.round(+b.games.mins || 3))) };
     if (b.videos && typeof b.videos === "object") c.videos = Object.fromEntries(Object.entries(b.videos).filter(([, v]) => /^https?:\/\//i.test(String(v))).map(([k, v]) => [str(k, 40), str(v, 500)]));
     await saveSchool(school);
     return { cls: pubClass(c), ...boot(ctx) };
@@ -359,6 +361,16 @@ How you teach:
     return { ok: true };
   };
 
+  /* arcade: teacher gives every student in a class bonus game tokens */
+  A.gameBonus = async b => {
+    const ctx = await teacherCtx(b.token);
+    const c = myClass(ctx, b.classId);
+    const n = Math.max(1, Math.min(5, Math.round(+b.n || 1)));
+    const roster = (await getJ("roster/" + c.id)) || { students: [] };
+    for (const s of roster.students) await mutJ(`prog/${c.id}/${s.id}`, all => { all = all || {}; const g = all._game || { spent: 0, bonus: 0, best: {} }; g.bonus = (g.bonus || 0) + n; all._game = g; return all });
+    return { ok: true, count: roster.students.length };
+  };
+
   /* station plans: one saved plan per class */
   A.planGet = async b => { const ctx = await teacherCtx(b.token); const c = myClass(ctx, b.classId); return { plan: await getJ("plan/" + c.id) } };
   A.planSave = async b => {
@@ -400,7 +412,10 @@ How you teach:
     const tid = str(b.testId, 40);
     if (!b.prog || typeof b.prog !== "object") bad("Nothing to save.");
     if (JSON.stringify(b.prog).length > 400000) bad("Progress is too big to save.");
-    await mutJ(`prog/${cls.id}/${st.id}`, all => { all = all || {}; all[tid] = { ...b.prog, tutor: all[tid]?.tutor || b.prog.tutor }; return all }); // tutor counts are kept by the server
+    await mutJ(`prog/${cls.id}/${st.id}`, all => { all = all || {}; const old = all[tid] || {};
+      all[tid] = { ...b.prog, tutor: old.tutor || b.prog.tutor };
+      if (tid === "_game") { all[tid].bonus = old.bonus || 0; all[tid].spent = Math.max(+old.spent || 0, +b.prog.spent || 0) } // tokens: bonus is set by the teacher, spent never goes down
+      return all }); // tutor counts are kept by the server
     return { ok: true };
   };
 
