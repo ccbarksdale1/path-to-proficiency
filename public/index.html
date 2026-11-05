@@ -324,6 +324,41 @@ ol.miss li{padding:10px 12px;border-radius:12px;background:var(--oops-soft)}
 @media (max-width:760px){.diffwrap{grid-template-columns:1fr}}
 .difflist{display:flex;flex-direction:column;gap:14px}.difflist p{font-size:.95rem;margin-top:2px}
 .diffmock{background:var(--card)}
+/* ---- fluency ---- */
+.flu-card{border:2px solid var(--gold)}
+.flu-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.flu-time{font-family:var(--display);font-size:2rem;font-weight:700;font-variant-numeric:tabular-nums}
+.flu-meter span{background:var(--star);transition:width .25s linear}
+.flu-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;max-width:420px;margin:0 auto;width:100%}
+.flu-grid i{height:14px;border-radius:4px;background:var(--rule)}.flu-grid i.ok{background:var(--go)}.flu-grid i.no{background:var(--oops)}.flu-grid i.now{background:var(--gold);box-shadow:0 0 0 2px var(--star)}
+.flu-q{align-items:center;text-align:center}
+.flu-prob{font-family:var(--display);font-size:clamp(2.4rem,9vw,4rem);font-weight:700;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.flu-pad{max-width:280px}.flu-pad button{padding:10px 0;font-size:1.3rem}
+.flu-score{display:flex;flex-direction:column;align-items:center}.flu-score b{font-family:var(--display);font-size:4rem;line-height:1;color:var(--go)}
+.flu-miss{display:flex;flex-wrap:wrap;gap:8px}.flu-miss span{padding:6px 10px;border-radius:10px;background:var(--paper);border:1px solid var(--rule);font-variant-numeric:tabular-nums}.flu-miss s{color:var(--oops);margin-right:4px}
+.facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}.fact{display:flex;flex-direction:column;gap:2px;padding:10px;border-radius:12px;background:var(--paper);border:1px solid var(--rule)}.fact b{font-size:1.3rem;font-variant-numeric:tabular-nums}.fact .hc{align-self:flex-start}.fact .muted{font-size:.8rem}
+/* ---- Chirp ---- */
+.chirp{position:fixed;right:16px;bottom:16px;z-index:50;display:flex;align-items:flex-end;gap:8px;max-width:min(380px,calc(100vw - 32px));animation:chirpIn .9s cubic-bezier(.2,.9,.3,1.2) both}
+.chirp.out{animation:chirpOut .5s ease-in both}
+.chirp-bird{width:84px;flex:none}.chirp-bird svg{width:100%;display:block}
+.chirp .cw{transform-origin:44px 56px;animation:flap .25s ease-in-out 6 alternate}
+.chirp .cb{animation:bob 1.6s ease-in-out infinite}
+.chirp-b{background:var(--card);border:2px solid #3FA7F5;border-radius:16px 16px 4px 16px;padding:10px 14px;font-family:var(--display);font-size:1.05rem;color:var(--ink);box-shadow:0 10px 30px -12px rgba(0,60,120,.45)}
+.chirp-x{position:absolute;top:-10px;right:-6px;width:28px;height:28px;padding:0;border-radius:50%;background:var(--card);color:var(--ink);border:2px solid var(--rule);font-size:1rem;line-height:1}
+@keyframes chirpIn{0%{transform:translate(120%,-60px) rotate(-8deg);opacity:0}100%{transform:none;opacity:1}}
+@keyframes chirpOut{to{transform:translate(120%,-80px);opacity:0}}
+@keyframes flap{from{transform:rotate(0)}to{transform:rotate(-28deg)}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@media (prefers-reduced-motion:reduce){.chirp,.chirp.out,.chirp .cw,.chirp .cb{animation:none}}
+/* ---- station planner ---- */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.pgroup{border-top:6px solid var(--gc)}
+.pmem{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.pmem li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--rule)}
+.pmem select{padding:4px 6px;font-size:.85rem}
+.gchip{display:inline-block;padding:3px 10px;border-radius:99px;font-weight:700;font-size:.85rem;background:var(--gc);color:#fff}
+.g0{--gc:#2B59C3}.g1{--gc:#1A7D50}.g2{--gc:#C8463B}.g3{--gc:#8A5A00}.g4{--gc:#6B3FA0}.g5{--gc:#0E7C86}.g6{--gc:#B03A78}.g7{--gc:#555F6D}
+.rot td{vertical-align:middle}.reteach p{font-size:.92rem;white-space:normal}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -2195,6 +2230,13 @@ function landing(){
      <div><b>📖 Reading and math together</b><p class="muted">Students highlight the key words before solving, the same close reading that state tests reward.</p></div>
     </div></div></section>
 
+  <section class="lsec" id="tools"><div class="lsec-h"><span class="eyebrow">Built for how teachers teach</span><h2>Stations, fluency, and a little cheering section</h2></div>
+   <div class="why3">
+    <div class="wcard"><span class="wico">🧩</span><h3>Station planner</h3><p>Pick how many groups or how many students per group. The planner groups students by the standard and the mistake they share, puts the group that needs you most at the teacher table first, and prints the rotation.</p></div>
+    <div class="wcard"><span class="wico">⚡</span><h3>Fluency sprints</h3><p>Timed fact sheets with a pass bar, like a paper Multiplication Madness sheet. Seven levels from × 0, 1, 2 up to mixed review. Students level up when they pass, and teachers see the class’s trouble facts.</p></div>
+    <div class="wcard"><span class="wico">🐦</span><h3>Meet Chirp</h3><p>Every few questions, Chirp the bird flies in with a cheer that fits the moment: a hot streak, a tough patch, or a checkpoint around the corner. No ads, no prizes to buy, just encouragement.</p></div>
+   </div></section>
+
   <section class="lsec" id="how"><div class="lsec-h"><span class="eyebrow">How it works</span><h2>Five steps from test results to mastery</h2><p class="muted">Tap a step to see it.</p></div>
    <div class="steps5">
     <div class="steplist" role="tablist" aria-label="Steps">${L_STEPS.map((s,i)=>`<button role="tab" aria-selected="${i===LD.step}" data-step="${i}" class="stepb${i===LD.step?" on":""}"><span class="sn">${i+1}</span><span><small>${s.k}</small><b>${s.t}</b></span></button>`).join("")}</div>
@@ -2216,7 +2258,7 @@ function landing(){
   <section class="lsec" id="data"><div class="lsec-h"><span class="eyebrow">For teachers and schools</span><h2>The data you get, updated as students practice</h2><p class="muted">Sample data shown.</p></div>
    <div class="tabs" role="tablist" aria-label="Teacher views">${[["class","Class progress"],["why","Why they missed it"],["student","Every student"],["items","Item analysis"],["compare","Compare classes"]].map(([id,l])=>`<button class="small" role="tab" aria-pressed="${LD.dtab===id}" data-dt="${id}">${l}</button>`).join("")}</div>
    <div class="dprev pop">${lPreview[LD.dtab]()}</div>
-   <div class="feat">${[["Path to your goal","See how many students finished their trail, and how many more you need to reach your class goal."],["Who needs help now","Students who miss 3 of their last 5 on a standard are flagged, with the question to review together."],["Ready-made small groups","Students working on the same standard are grouped for you."],["Why they missed it","The mistakes behind wrong answers, grouped and ranked, with the students who make each one."],["What to reteach","Every test question ranked from hardest to easiest, with a step-by-step breakdown for the board."],["Assign standards","Give any of the 33 standards to one student, a group, or the whole class."],["Compare classes","Side-by-side by teacher and standard, for grade-level teams and school leaders."],["Import tests and scores","Bring in a test from a PDF or spreadsheet, and scores from a CSV."]].map(([t,d])=>`<div><b>${t}</b><p class="muted">${d}</p></div>`).join("")}</div>
+   <div class="feat">${[["Path to your goal","See how many students finished their trail, and how many more you need to reach your class goal."],["Who needs help now","Students who miss 3 of their last 5 on a standard are flagged, with the question to review together."],["Ready-made small groups","Students working on the same standard are grouped for you."],["Why they missed it","The mistakes behind wrong answers, grouped and ranked, with the students who make each one."],["What to reteach","Every test question ranked from hardest to easiest, with a step-by-step breakdown for the board."],["Assign standards","Give any of the 33 standards to one student, a group, or the whole class."],["Station planner","Groups built from data, a rotation schedule, and printable group cards."],["Fluency tracking","Levels, best scores, passes, and the facts your class misses most."],["Compare classes","Side-by-side by teacher and standard, for grade-level teams and school leaders."],["Import tests and scores","Bring in a test from a PDF or spreadsheet, and scores from a CSV."]].map(([t,d])=>`<div><b>${t}</b><p class="muted">${d}</p></div>`).join("")}</div>
   </section>
 
   <section class="lsec" id="faq"><div class="lsec-h"><span class="eyebrow">Questions</span><h2>Good to know</h2></div>
@@ -2350,7 +2392,7 @@ function home(){
      ${scout(msg)}
      <div class="row"><button id="go">${sk.streak||Object.keys(p.log).length?"Keep climbing":"Start my mission"}</button>${db.videos[cur.id]?`<a class="btnlink" href="${esc(db.videos[cur.id])}" target="_blank" rel="noopener">▶ Watch the lesson</a>`:""}</div>
    </div>`:`<div class="card mission" style="align-items:flex-start">${HERO_ART}${scout(msg)}</div>`;
-  app.innerHTML=header(`<button class="ghost" id="out">Sign out</button>`)+mission+`
+  app.innerHTML=header(`<button class="ghost" id="out">Sign out</button>`)+mission+fluCard()+`
   <div class="card">
    <div class="top"><h2>My trail</h2><span class="pill gold">${done} of ${TR.length} checkpoints</span></div>
    ${s.missed&&s.missed.length?`<p class="muted">On the test you missed ${missedText(s.missed)}. Your trail starts with those.</p>`:""}
@@ -2362,6 +2404,7 @@ function home(){
   <div class="card"><h2>My badges</h2>${badgesHTML(p)}</div>`;
   document.getElementById("out").onclick=signOut;
   const g=document.getElementById("go"); if(g) g.onclick=()=>{newQ();S.screen="practice";render()};
+  const fg=document.getElementById("flu-go"); if(fg) fg.onclick=fluStart;
 }
 SCREENS.home=home;
 
@@ -2496,7 +2539,7 @@ function grade(q){
   else{sk.streak=0;topUp(sk,k.id,3);sk.queue.splice(3,0,S.qid)} // comes back after 3 other questions, with the choices in a new order
   S.mastered=ok&&sk.streak>=MAST();
   if(S.mastered){sk.status="done";p.stars+=5;award(p,"trail");if(!curSkill(s))award(p,"summit")} // counts right away, even if they leave this page
-  save(); render();
+  chirpTick(ok); save(); render();
 }
 function whyText(q){
   if(q.type==="mc")return fmt(q.why?.[S.sel[0]]||"Look at the breakdown below to see how to solve it.");
@@ -2595,15 +2638,15 @@ function teacher(){
     const tab=S.tab||"class";
     const tabs=`<div class="card" style="gap:10px;padding:14px 16px"><div class="top"><div><span class="label">Class</span><h2>${esc(CUR.cls.name)}</h2><span class="muted" style="font-size:.85rem">${esc(tName(CUR.cls.teacherId))} · ${esc(TEST_NAME)} · class code <b style="letter-spacing:.1em">${esc(CUR.cls.join)}</b></span></div>
       <button class="ghost small" id="allc">← All classes</button></div>
-      <div class="tabs" role="group" aria-label="Class pages">${[["class","Class progress"],["why","Why they missed it"],["bd","Question breakdowns"],["items","Item analysis"],["setup","Students"],["settings","Class settings"]].map(([id,l])=>`<button class="small" data-tab="${id}" aria-pressed="${tab===id}">${l}</button>`).join("")}</div></div>`;
-    body=tabs+({class:tClass,why:tWhy,bd:tBreak,items:tItems,setup:tSetup,settings:tSettings})[tab]();
+      <div class="tabs" role="group" aria-label="Class pages">${[["class","Class progress"],["why","Why they missed it"],["plan","Station planner"],["fluency","Fluency"],["bd","Question breakdowns"],["items","Item analysis"],["setup","Students"],["settings","Class settings"]].map(([id,l])=>`<button class="small" data-tab="${id}" aria-pressed="${tab===id}">${l}</button>`).join("")}</div></div>`;
+    body=tabs+({class:tClass,why:tWhy,plan:tPlanner,fluency:tFluency,bd:tBreak,items:tItems,setup:tSetup,settings:tSettings})[tab]();
   } else body=({classes:tClasses,compare:tCompare,standards:tStandards,tests:tTests,teachers:tTeachers,class:tClasses})[tt]();
   app.innerHTML=header(`<button class="ghost" id="out">Sign out</button>`,`${TB.school.name} · ${TB.me.name}${isAdmin()?" (admin)":""}`)+nav+(S.err?`<div class="fb oops" role="alert"><p>${esc(S.err)}</p></div>`:"")+body;
   document.getElementById("out").onclick=signOut;
   app.querySelectorAll("[data-tt]").forEach(b=>b.onclick=()=>{S.tt=b.dataset.tt;S.err="";if(S.tt!=="class")useTest(null);render()});
   const allc=document.getElementById("allc");if(allc)allc.onclick=()=>{S.tt="classes";useTest(null);render()};
   app.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;S.err="";render()});
-  if(tt==="class"&&CUR)({class:()=>{},why:()=>{},bd:wireBreak,items:()=>{},setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
+  if(tt==="class"&&CUR)({class:()=>{},why:()=>{},plan:wirePlanner,fluency:wireFluency,bd:wireBreak,items:()=>{},setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
   else ({classes:wireClasses,compare:wireCompare,standards:wireStandards,tests:wireTests,teachers:wireTeachers,class:wireClasses})[tt]();
 }
 SCREENS.teacher=teacher;
@@ -2877,6 +2920,11 @@ function tSettings(){
     <label class="f">Class goal (% of students)<input id="c-goal" type="number" min="1" max="100" value="${c.goal}" required></label>
     <label class="f">Right in a row to master a standard (3 to 20)<input id="c-mast" type="number" min="3" max="20" value="${c.mastery}" required></label>
     <label class="f chk"><span><input type="checkbox" id="c-tutor" ${c.tutor?"checked":""}> Let students ask Scout, the AI tutor</span></label>
+    <label class="f chk"><span><input type="checkbox" id="c-chirp" ${c.chirp!==false?"checked":""}> Chirp the bird cheers students on</span></label>
+    <label class="f chk"><span><input type="checkbox" id="c-flu" ${c.flu?.on!==false?"checked":""}> Fluency mode on</span></label>
+    <label class="f">Fluency: questions per sheet<input id="c-fn" type="number" min="10" max="60" value="${c.flu?.n||30}"></label>
+    <label class="f">Fluency: right to pass<input id="c-fp" type="number" min="1" max="60" value="${c.flu?.pass||28}"></label>
+    <label class="f">Fluency: time (minutes)<input id="c-fs" type="number" min="0.5" max="15" step="0.5" value="${(c.flu?.secs||180)/60}"></label>
     <button type="submit">Save settings</button></form>
    <p class="muted" style="font-size:.85rem">Switching the test keeps each student’s progress on the old test. Enter missed questions for the new test under Students.${TB.ai?"":" The AI tutor needs an AI key on the server before students can use it."}</p>
    <p class="muted" id="cs-msg" role="status"></p></div>
@@ -2886,11 +2934,12 @@ function tSettings(){
    <div class="row">${dev&&dev.join===c.join?`<button class="ghost" id="dev-off">Forget this class on this device</button>`:`<button class="ghost" id="dev-on">Use this device for ${esc(c.name)}</button>`}</div></div>
   <div class="card"><h2>Delete class</h2><p class="muted">This removes the class, its students, and all of their progress.</p><div class="row" id="del-box"><button class="ghost" id="del">Delete ${esc(c.name)}</button></div><p class="err" id="del-err" role="alert"></p></div>`;
 }
-async function saveClass(patch){const c=CUR.cls;const d=await api("classSave",{id:c.id,name:c.name,teacherId:c.teacherId,testId:c.testId,goal:c.goal,mastery:c.mastery,tutor:c.tutor,videos:c.videos,...patch});Object.assign(TB,d);return d.cls}
+async function saveClass(patch){const c=CUR.cls;const d=await api("classSave",{id:c.id,name:c.name,teacherId:c.teacherId,testId:c.testId,goal:c.goal,mastery:c.mastery,tutor:c.tutor,chirp:c.chirp,flu:c.flu,videos:c.videos,...patch});Object.assign(TB,d);return d.cls}
 function wireSettings(){
   const c=CUR.cls;
   document.getElementById("cs").onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Saving…");
-    const patch={name:document.getElementById("c-name").value,testId:document.getElementById("c-test").value,goal:+document.getElementById("c-goal").value,mastery:+document.getElementById("c-mast").value,tutor:document.getElementById("c-tutor").checked};
+    const patch={name:document.getElementById("c-name").value,testId:document.getElementById("c-test").value,goal:+document.getElementById("c-goal").value,mastery:+document.getElementById("c-mast").value,tutor:document.getElementById("c-tutor").checked,chirp:document.getElementById("c-chirp").checked,
+      flu:{on:document.getElementById("c-flu").checked,n:+document.getElementById("c-fn").value,pass:+document.getElementById("c-fp").value,secs:Math.round(+document.getElementById("c-fs").value*60)}};
     const ct=document.getElementById("c-t");if(ct)patch.teacherId=ct.value;
     try{const testChanged=patch.testId!==c.testId;await saveClass(patch);await openClass(c.id,"settings");flash("cs-msg",testChanged?`Saved. Students now practice ${testName(patch.testId)}.`:"Saved.");render()}
     catch(er){document.getElementById("cs-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save settings"}};
@@ -3324,6 +3373,243 @@ function tWhy(){
       ${list.length>5?`<p class="muted" style="font-size:.85rem">${list.length-5} smaller mistake types not shown.</p>`:""}</div>`}).join("")}`;
 }
 const topMiss=(s,kid)=>{const g=missGroups([s],kid);return g[0]&&g[0].n>=2?g[0]:null};
+
+
+/* ================= Fluency mode: timed fact practice (like a Multiplication Madness sheet) ================= */
+const FLU_LEVELS=[
+ {name:"× 0, 1, 2, 5, 10",ops:["x"],f:[0,1,2,5,10]},
+ {name:"× 3 and 4 (plus earlier facts)",ops:["x"],f:[0,1,2,3,4,5,10],focus:[3,4]},
+ {name:"× 6, 7, 8, 9",ops:["x"],f:[2,3,4,5,6,7,8,9],focus:[6,7,8,9]},
+ {name:"All × facts 0 to 10",ops:["x"],f:[0,1,2,3,4,5,6,7,8,9,10]},
+ {name:"÷ facts",ops:["d"],f:[1,2,3,4,5,6,7,8,9,10]},
+ {name:"× and ÷ mixed",ops:["x","d"],f:[2,3,4,5,6,7,8,9,10]},
+ {name:"Mixed review (facts + spiral)",ops:["x","d","r"],f:[2,3,4,5,6,7,8,9]},
+];
+const fluCfg=()=>(SB&&SB.cls&&SB.cls.flu)||{on:true,secs:180,pass:28,n:30};
+const fluProg=()=>{const s=S.student;if(!s.raw)s.raw={prog:{}};const all=s.raw.prog||(s.raw.prog={});return all._flu||(all._flu={level:0,att:[],facts:{}})};
+function fluQuestion(L,rand){
+  const ri=(a,b)=>a+Math.floor(rand()*(b-a+1)),pk=a=>a[Math.floor(rand()*a.length)];
+  const op=pk(L.ops),fa=L.focus&&rand()<.6?pk(L.focus):pk(L.f),fb=ri(0,10);
+  if(op==="x"){const [a,b]=rand()<.5?[fa,fb]:[fb,fa];return {t:`${a} × ${b}`,ans:a*b,key:`${Math.min(a,b)}×${Math.max(a,b)}`,hard:Math.max(a,b)+Math.min(a,b)/10}}
+  if(op==="d"){const d=Math.max(1,fa),q=ri(1,10);return {t:`${d*q} ÷ ${d}`,ans:q,key:`${d*q}÷${d}`,hard:Math.max(d,q)+2}}
+  const k=ri(0,4);
+  if(k===0){const a=ri(12,89),b=ri(11,99-a+10);return {t:`${a} + ${b}`,ans:a+b,key:"add",hard:3}}
+  if(k===1){const a=ri(40,99),b=ri(11,a-5);return {t:`${a} − ${b}`,ans:a-b,key:"sub",hard:4}}
+  if(k===2){const a=ri(2,9),t=ri(2,9)*10;return {t:`${a} × ${t}`,ans:a*t,key:"x10",hard:5}}
+  if(k===3){const a=ri(2,9),b=ri(2,9);return {t:`${a} × ∎ = ${a*b}`,ans:b,key:`${Math.min(a,b)}×${Math.max(a,b)}`,hard:7}}
+  const n=ri(11,98);return {t:`Round ${n} to the nearest 10`,ans:Math.round(n/10)*10,key:"round",hard:2};
+}
+function fluSheet(level,n){
+  const L=FLU_LEVELS[level],seed=Math.floor(Math.random()*1e9);let a=seed>>>0;const rand=()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+  const out=[],seen=new Set();let g=0;while(out.length<n&&g++<n*20){const q=fluQuestion(L,rand);if(seen.has(q.t)&&g<n*10)continue;seen.add(q.t);out.push(q)}
+  return out.sort((x,y)=>x.hard-y.hard); /* rows get harder, like the paper sheet */
+}
+function fluCard(){
+  if(!S.demo&&(!SB||fluCfg().on===false))return"";
+  const fp=S.demo?{level:0,att:[]}:fluProg(),c=fluCfg(),L=FLU_LEVELS[fp.level]||FLU_LEVELS[0],best=Math.max(0,...fp.att.filter(x=>x.lvl===fp.level).map(x=>x.r));
+  return `<div class="card flu-card"><div class="top"><h2>⚡ Fluency</h2><span class="pill gold">Level ${fp.level+1} of ${FLU_LEVELS.length}</span></div>
+   <p><b>${esc(L.name)}</b></p><p class="muted">Get ${c.pass} of ${c.n} right in ${Math.round(c.secs/60*10)/10} minute${c.secs===60?"":"s"} to level up.${best?` Your best: <b>${best}</b>.`:""}</p>
+   <div class="row"><button id="flu-go">Start fluency</button></div></div>`;
+}
+let fluTimer=null;
+function fluStart(){const fp=S.demo?{level:0}:fluProg(),c=fluCfg();S.F={lvl:fp.level||0,qs:fluSheet(fp.level||0,c.n),i:0,res:[],start:Date.now(),secs:c.secs,pass:c.pass,done:false,ready:true};S.screen="fluency";render()}
+function fluEnd(){clearInterval(fluTimer);fluTimer=null;const F=S.F;if(F.done)return;F.done=true;F.used=Math.min(F.secs,Math.round((Date.now()-F.start)/1000));
+  const right=F.res.filter(x=>x.ok).length;F.right=right;F.passed=right>=F.pass;
+  if(!S.demo){const fp=fluProg();fp.att=[...(fp.att||[]),{d:Date.now(),lvl:F.lvl,r:right,n:F.qs.length,s:F.used,p:F.passed}].slice(-60);fp.facts=fp.facts||{};
+    F.res.forEach(x=>{if(/[×÷]/.test(x.q.key)){const f=fp.facts[x.q.key]||(fp.facts[x.q.key]={t:0,r:0});f.t++;if(x.ok)f.r++}});
+    if(F.passed&&fp.level<FLU_LEVELS.length-1){fp.level++;F.levelUp=true}
+    api("progSave",{testId:"_flu",prog:fp}).catch(()=>{S.saveErr=true;markSaved()})}
+  render();setTimeout(()=>chirp(F.passed?"fluPass":"fluTry"),700)}
+function fluency(){
+  const F=S.F,c=fluCfg();
+  if(F.ready&&!F.go){app.innerHTML=header(`<button class="ghost" id="back">My trail</button>`)+`<div class="card" style="text-align:center;align-items:center">
+     <h2>⚡ Fluency · Level ${F.lvl+1}</h2><p class="lead">${esc(FLU_LEVELS[F.lvl].name)}</p>
+     <p>You have <b>${Math.floor(F.secs/60)}:${String(F.secs%60).padStart(2,"0")}</b> to answer ${F.qs.length} questions. Get <b>${F.pass}</b> right to level up.</p>
+     <p class="muted">Type the answer and press Enter. If you’re stuck, skip it and keep going.</p>
+     <button id="flu-start" style="font-size:1.2rem;padding:16px 28px">Ready, set, go!</button></div>`;
+    document.getElementById("back").onclick=()=>{S.screen="home";render()};
+    document.getElementById("flu-start").onclick=()=>{F.go=true;F.start=Date.now();fluTimer=setInterval(()=>{const left=F.secs-Math.floor((Date.now()-F.start)/1000);const el=document.getElementById("flu-t"),bar=document.getElementById("flu-bar");
+      if(el)el.textContent=`${Math.floor(Math.max(0,left)/60)}:${String(Math.max(0,left)%60).padStart(2,"0")}`;if(bar)bar.style.width=Math.max(0,left/F.secs*100)+"%";if(left<=0)fluEnd()},250);render()};return}
+  if(F.done){const missed=F.res.filter(x=>!x.ok),skipped=F.qs.slice(F.res.length);
+    app.innerHTML=header(`<button class="ghost" id="back">My trail</button>`)+`<div class="card pop" style="text-align:center;align-items:center">
+      <h2>${F.passed?(F.levelUp?"Level up! 🎉":"You passed! 🎉"):"Nice work!"}</h2>
+      <div class="flu-score"><b>${F.right}</b><span>of ${F.qs.length} right</span></div>
+      <p>${F.passed?`You needed ${F.pass}. ${F.levelUp?`Next up: Level ${F.lvl+2}, ${esc(FLU_LEVELS[F.lvl+1].name)}.`:"You finished the top level!"}`:`You need ${F.pass} to level up. That’s ${F.pass-F.right} more. You can do it!`}</p>
+      <p class="muted">Time: ${Math.floor(F.used/60)}:${String(F.used%60).padStart(2,"0")}</p>
+      <div class="row"><button id="flu-again">${F.passed&&F.levelUp?"Try the next level":"Try again"}</button><button class="ghost" id="back2">Back to my trail</button></div></div>
+     ${missed.length||skipped.length?`<div class="card"><h3>Practice these</h3><div class="flu-miss">${[...missed.map(x=>`<span><s>${esc(x.v)}</s> ${esc(x.q.t.replace("∎","?"))} = <b>${x.q.ans}</b></span>`),...skipped.slice(0,8).map(q=>`<span class="muted">${esc(q.t.replace("∎","?"))} = <b>${q.ans}</b></span>`)].join("")}</div></div>`:""}`;
+    document.getElementById("back").onclick=document.getElementById("back2").onclick=()=>{S.screen="home";render()};
+    document.getElementById("flu-again").onclick=fluStart;return}
+  const q=F.qs[F.i],right=F.res.filter(x=>x.ok).length;
+  app.innerHTML=`<div class="flu-top"><span class="label">Level ${F.lvl+1} · ${esc(FLU_LEVELS[F.lvl].name)}</span><span class="flu-time" id="flu-t">${Math.floor(F.secs/60)}:00</span><button class="ghost small" id="flu-stop">Stop</button></div>
+   <div class="meter flu-meter"><span id="flu-bar" style="width:100%"></span></div>
+   <div class="flu-grid" aria-label="${F.res.length} of ${F.qs.length} answered">${F.qs.map((_,i)=>`<i class="${i<F.res.length?(F.res[i].ok?"ok":"no"):i===F.i?"now":""}"></i>`).join("")}</div>
+   <div class="card flu-q"><div class="flu-prob">${esc(q.t.replace("∎","☐"))}${q.t.includes("∎")||q.t.startsWith("Round")?"":" ="}</div>
+    <form id="flu-f" class="row" style="justify-content:center"><input id="flu-in" class="num" inputmode="numeric" autocomplete="off" aria-label="Your answer" style="width:160px;font-size:2rem;text-align:center"><button type="submit">Enter</button><button type="button" class="ghost" id="flu-skip">Skip</button></form>
+    <div class="pad flu-pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button type="button" data-k="${n}">${n}</button>`).join("")}<button type="button" data-k="back" aria-label="Delete">⌫</button><button type="button" data-k="0">0</button><button type="button" data-k="go">Go</button></div>
+    <p class="muted" style="text-align:center">${right} right so far</p></div>`;
+  const left=F.secs-Math.floor((Date.now()-F.start)/1000);document.getElementById("flu-t").textContent=`${Math.floor(Math.max(0,left)/60)}:${String(Math.max(0,left)%60).padStart(2,"0")}`;document.getElementById("flu-bar").style.width=Math.max(0,left/F.secs*100)+"%";
+  const inp=document.getElementById("flu-in");inp.focus();
+  const submit=v=>{if(F.done)return;v=String(v).trim();F.res.push({q,v:v||"—",ok:v!==""&&Number(v)===q.ans});F.i++;if(F.i>=F.qs.length)fluEnd();else render()};
+  document.getElementById("flu-f").onsubmit=e=>{e.preventDefault();if(inp.value.trim())submit(inp.value)};
+  document.getElementById("flu-skip").onclick=()=>submit("");
+  document.getElementById("flu-stop").onclick=()=>fluEnd();
+  app.querySelectorAll(".flu-pad button").forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(k==="back")inp.value=inp.value.slice(0,-1);else if(k==="go"){if(inp.value.trim())submit(inp.value);return}else if(inp.value.length<5)inp.value+=k;inp.focus()});
+}
+SCREENS.fluency=fluency;
+
+/* teacher: fluency tab */
+function tFluency(){
+  const real=CUR.raw.filter(s=>!isSample(s)),c=CUR.cls.flu||{secs:180,pass:28,n:30},wk=Date.now()-7*864e5,facts={};
+  const rows=real.map(s=>{const f=s.prog?._flu||{level:0,att:[]},at=f.att||[],last=at[at.length-1],best=Math.max(0,...at.filter(x=>x.lvl===(f.level||0)).map(x=>x.r));
+    Object.entries(f.facts||{}).forEach(([k,v])=>{const x=facts[k]||(facts[k]={t:0,r:0,who:new Set()});x.t+=v.t;x.r+=v.r;if(v.r<v.t)x.who.add(s.name)});
+    return `<tr><td><b>${esc(s.name)}</b></td><td><select data-flv="${s.id}" aria-label="Level for ${esc(s.name)}">${FLU_LEVELS.map((L,i)=>`<option value="${i}" ${i===(f.level||0)?"selected":""}>${i+1}. ${esc(L.name)}</option>`).join("")}</select></td>
+     <td>${last?`${last.r}/${last.n}${last.p?' <span class="pill go">pass</span>':""}<br><span class="muted" style="font-size:.8rem">${new Date(last.d).toLocaleDateString()}</span>`:'<span class="muted">—</span>'}</td><td>${at.length?best:"—"}</td><td>${at.filter(x=>x.d>wk).length}</td><td>${at.filter(x=>x.p).length}</td></tr>`}).join("");
+  const hard=Object.entries(facts).filter(([,v])=>v.t>=2).map(([k,v])=>({k,p:Math.round(v.r/v.t*100),t:v.t,who:v.who})).sort((a,b)=>a.p-b.p||b.t-a.t).slice(0,12);
+  return `<div class="card"><div class="top"><h2>⚡ Fluency</h2><span class="pill">${c.pass} of ${c.n} in ${Math.round(c.secs/60*10)/10} min to pass</span></div>
+   <p class="muted">Students do timed fact sheets from their trail page, like a Multiplication Madness sheet. Passing moves them up a level. Change the timer and pass score in Class settings, and change a student’s level here.</p>
+   <div class="tablewrap"><table class="roster"><thead><tr><th>Student</th><th>Level</th><th>Last try</th><th>Best at level</th><th>Tries this week</th><th>Passes</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="muted">No students yet.</td></tr>`}</tbody></table></div>
+   <p class="muted" id="flv-msg" role="status"></p></div>
+  <div class="card"><h2>Class trouble facts</h2><p class="muted">The facts your class gets wrong most often in fluency (tried at least twice).</p>
+   ${hard.length?`<div class="facts">${hard.map(x=>`<div class="fact"><b>${esc(x.k)}</b><span class="hc" style="--c:${heat(x.p)}">${x.p}%</span><span class="muted">${esc([...x.who].slice(0,4).join(", "))}${x.who.size>4?"…":""}</span></div>`).join("")}</div>`:`<p class="fb info">This fills in as students do fluency.</p>`}</div>`;
+}
+function wireFluency(){
+  app.querySelectorAll("[data-flv]").forEach(sel=>sel.onchange=async()=>{const s=CUR.raw.find(x=>x.id===sel.dataset.flv),f={...(s.prog?._flu||{att:[],facts:{}}),level:+sel.value},msg=document.getElementById("flv-msg");
+    try{await api("progSet",{classId:CUR.cls.id,studentId:s.id,testId:"_flu",prog:f});s.prog={...(s.prog||{}),_flu:f};msg.textContent=`${s.name} is now on level ${+sel.value+1}.`}catch(e){msg.textContent=e.message}});
+}
+
+/* ================= Chirp: a little bird that flies in every few questions to cheer students on ================= */
+const CHIRP_SVG=`<svg viewBox="0 0 120 100" aria-hidden="true"><g class="cb">
+ <ellipse cx="58" cy="56" rx="34" ry="30" fill="#3FA7F5"/><ellipse cx="64" cy="66" rx="20" ry="16" fill="#FFE7A8"/>
+ <path class="cw" d="M40 50 Q18 30 10 52 Q26 62 46 62 Z" fill="#1F7FD1"/>
+ <path d="M88 50 L108 56 L88 62 Z" fill="#F59E0B"/><circle cx="76" cy="44" r="7" fill="#fff"/><circle cx="78" cy="44" r="3.6" fill="#1C2838"/>
+ <path d="M50 28 Q56 14 64 26" fill="none" stroke="#1F7FD1" stroke-width="5" stroke-linecap="round"/>
+ <path d="M50 84 L46 94 M60 85 L60 95" stroke="#F59E0B" stroke-width="4" stroke-linecap="round"/></g></svg>`;
+const chirpOn=()=>S.demo||!SB||SB.cls.chirp!==false;
+let chirpTimer=null;
+function chirpMsg(kind){
+  const s=S.student,first=(s&&s.name||"").replace(" (sample)",""),p=s&&s.prog,k=S.k&&p&&p.skills[S.k],M=MAST(),today=new Date().toDateString();
+  const todayN=p?(p.today&&p.today.d===today?p.today.n:0):0,rec=(p&&p.recent||[]).slice(-6),wrongs=rec.filter(r=>!r.ok).length,pick=a=>a[Math.floor(Math.random()*a.length)];
+  if(kind==="fluPass")return pick([`Wow, ${first}! Your brain is getting faster!`,`Fact champion! Look at you go, ${first}!`,"Tweet tweet! That was super speedy!"]);
+  if(kind==="fluTry")return pick([`Every try makes you faster, ${first}. Let’s go again!`,"Practice those facts and you’ll fly past it next time!","Speed comes with practice. I believe in you!"]);
+  if(kind==="mastered")return pick([`Checkpoint! I’m so proud of you, ${first}!`,"You did it! Up, up, and away to the next one!"]);
+  const opts=[];
+  if(k&&k.streak>=3)opts.push(`${k.streak} in a row, ${first}! You’re on fire!`,`Streak alert! ${k.streak} right in a row!`);
+  if(k&&k.streak>0&&M-k.streak<=3)opts.push(`Only ${M-k.streak} more in a row to the checkpoint!`);
+  if(wrongs>=3)opts.push(`Tricky ones today? Mistakes help your brain grow. Read slow and highlight your key words.`,`Don’t give up, ${first}! Try asking Scout for a hint.`,"Take a deep breath. You’ve got this!");
+  if(todayN>=10)opts.push(`You’ve answered ${todayN} questions today! Amazing effort!`);
+  if(p&&p.stars>=20)opts.push(`${p.stars} stars! You’re a star collector!`);
+  opts.push(`Keep climbing, ${first}! Every question makes you stronger.`,"Hard work beats talent when talent doesn’t work hard!","I love how you keep trying!",`You’re doing great, ${first}!`);
+  return pick(opts);
+}
+function chirp(kind){
+  if(!chirpOn())return;
+  const old=document.getElementById("chirp");if(old)old.remove();clearTimeout(chirpTimer);
+  const el=document.createElement("div");el.id="chirp";el.className="chirp";el.setAttribute("role","status");
+  const msg=chirpMsg(kind);
+  el.innerHTML=`<div class="chirp-bird">${CHIRP_SVG}</div><div class="chirp-b"><b>Chirp says:</b> ${esc(msg)}${TTS?` <button class="link small" id="chirp-say" aria-label="Read this to me">🔊</button>`:""}</div><button class="chirp-x" aria-label="Close">×</button>`;
+  document.body.appendChild(el);
+  const close=()=>{el.classList.add("out");setTimeout(()=>el.remove(),500)};
+  el.querySelector(".chirp-x").onclick=close;const sb=el.querySelector("#chirp-say");if(sb)sb.onclick=()=>speak(msg);
+  chirpTimer=setTimeout(close,7000);
+}
+/* called after every answer: Chirp visits every 4 to 6 questions, or right after a big moment */
+function chirpTick(ok){
+  const p=S.student&&S.student.prog;if(!p)return;const today=new Date().toDateString();
+  p.today=p.today&&p.today.d===today?{d:today,n:p.today.n+1}:{d:today,n:1};
+  S.chirpN=(S.chirpN||0)+1;if(!S.chirpAt)S.chirpAt=4+Math.floor(Math.random()*3);
+  if(S.mastered){setTimeout(()=>chirp("mastered"),600);S.chirpN=0;S.chirpAt=0;return}
+  if(S.chirpN>=S.chirpAt){S.chirpN=0;S.chirpAt=4+Math.floor(Math.random()*3);setTimeout(()=>chirp(ok?"right":"wrong"),900)}
+}
+
+/* ================= Station planner: groups students by what they need, then builds the rotation ================= */
+const PLAN_DEF={mode:"groups",groups:4,size:5,method:"need",stations:"Teacher table, Independent practice, Path to Proficiency, Fluency",mins:30,start:"",names:"Group"};
+function planFeatures(s){const cur=curSkill(s),idx=cur?SKILLS.indexOf(cur):SKILLS.length;
+  const rec=(s.prog.recent||[]).filter(r=>!cur||r.k===cur.id).slice(-10),all=(s.prog.recent||[]).slice(-10),src=rec.length>=3?rec:all;
+  const acc=src.length?src.filter(r=>r.ok).length/src.length:.5,tm=cur?missGroups([s],cur.id)[0]:null;
+  return {s,cur,idx,acc,mk:tm?tm.k+"|"+mnorm(tm.ex):"",n:src.length}}
+function makeGroups(o){
+  const F=CUR.students.filter(s=>!isSample(s)).map(planFeatures),N=F.length;if(!N)return [];
+  let G=o.mode==="size"?Math.ceil(N/Math.max(1,o.size)):Math.max(1,Math.min(o.groups,N));
+  if(o.method==="mixed"){const sorted=[...F].sort((a,b)=>b.acc-a.acc),gs=Array.from({length:G},()=>[]);sorted.forEach((f,i)=>{const r=Math.floor(i/G),c=i%G;gs[r%2?G-1-c:c].push(f)});return gs}
+  const sorted=[...F].sort((a,b)=>a.idx-b.idx||a.mk.localeCompare(b.mk)||a.acc-b.acc),base=N/G;
+  const lo=Math.max(1,Math.floor(base)-1),hi=o.mode==="size"?Math.max(1,o.size):Math.ceil(base)+1;
+  const cost=(i,j)=>{const g=sorted.slice(i,j),sk=new Set(g.map(x=>x.idx)).size,mk=new Set(g.map(x=>x.mk).filter(Boolean)).size,ac=g.map(x=>x.acc);
+    return (sk-1)*10+Math.max(0,mk-1)*3+(Math.max(...ac)-Math.min(...ac))*5+Math.abs(g.length-base)*2};
+  const INF=1e9,dp=Array.from({length:G+1},()=>new Array(N+1).fill(INF)),bk=Array.from({length:G+1},()=>new Array(N+1).fill(-1));dp[0][0]=0;
+  for(let g=1;g<=G;g++)for(let j=1;j<=N;j++)for(let k=lo;k<=hi&&k<=j;k++){const v=dp[g-1][j-k]+cost(j-k,j);if(v<dp[g][j]){dp[g][j]=v;bk[g][j]=j-k}}
+  if(dp[G][N]>=INF){const gs=Array.from({length:G},()=>[]);sorted.forEach((f,i)=>gs[Math.floor(i*G/N)].push(f));return gs}
+  const gs=[];let j=N;for(let g=G;g>0;g--){const i=bk[g][j];gs.unshift(sorted.slice(i,j));j=i}return gs;
+}
+function groupInfo(ids){
+  const studs=ids.map(id=>CUR.students.find(s=>s.id===id)).filter(Boolean),F=studs.map(planFeatures),cnt={};
+  F.forEach(f=>{if(f.cur)cnt[f.cur.id]=(cnt[f.cur.id]||0)+1});
+  const fid=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0]?.[0],focus=SKILLS.find(k=>k.id===fid)||null;
+  const acc=F.length?F.reduce((a,f)=>a+f.acc,0)/F.length:0,mis=focus?missGroups(studs,focus.id).find(x=>x.who.size>=2)||missGroups(studs,focus.id)[0]:null;
+  return {studs,focus,acc,mis,data:F.some(f=>f.n)}}
+function tPlanner(){
+  if(S.planLoaded!==CUR.cls.id){S.planLoaded=CUR.cls.id;S.plan=null;S.planO=null;S.planSaved=null;S.reteach={};api("planGet",{classId:CUR.cls.id}).then(d=>{if(d.plan&&S.planLoaded===CUR.cls.id){S.planSaved=d.plan;S.planO={...PLAN_DEF,...d.plan.o};const ok=new Set(CUR.students.map(s=>s.id));S.plan={groups:d.plan.groups.map(g=>({...g,ids:g.ids.filter(id=>ok.has(id))}))};if(S.tab==="plan")render()}}).catch(()=>{})}
+  const o=S.planO||(S.planO={...PLAN_DEF,...(S.planSaved?.o||{})}),P=S.plan;
+  const N=CUR.students.filter(s=>!isSample(s)).length;
+  const stations=o.stations.split(",").map(x=>x.trim()).filter(Boolean);
+  let body="";
+  if(P&&P.groups.length){
+    const infos=P.groups.map(g=>groupInfo(g.ids)),order=infos.map((x,i)=>i).sort((a,b)=>infos[a].acc-infos[b].acc),G=P.groups.length,R=Math.max(1,stations.length);
+    const at=(g,r)=>(order.indexOf(g)+r)%R; /* neediest group starts at the first station */
+    const time=r=>{if(!o.start)return `Round ${r+1}`;const [h,m]=o.start.split(":").map(Number),t=h*60+m+r*o.mins,H=Math.floor(t/60),M=t%60;return `${((H+11)%12)+1}:${String(M).padStart(2,"0")}`};
+    body=`<div class="card"><div class="top"><h2>Rotation</h2><div class="row"><button class="ghost small" id="pl-print">Print</button><button class="small" id="pl-save">Save plan</button></div></div>
+      <div class="tablewrap"><table class="roster rot"><thead><tr><th></th>${stations.map(s=>`<th>${esc(s)}</th>`).join("")}</tr></thead><tbody>
+      ${Array.from({length:R},(_,r)=>`<tr><td><b>${time(r)}</b>${o.start?"":""}</td>${stations.map((_,st)=>`<td>${P.groups.map((g,gi)=>at(gi,r)===st?`<span class="gchip g${gi%8}">${esc(g.name)}</span>`:"").join(" ")||'<span class="muted">—</span>'}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+      <p class="muted" style="font-size:.85rem">${o.mins}-minute rotations. The group that needs you most starts at ${esc(stations[0]||"the first station")}.${G>R?" Some stations have more than one group.":""}</p><p class="muted" id="pl-msg" role="status"></p></div>
+     <div class="pgrid">${P.groups.map((g,gi)=>{const I=infos[gi],L0=I.focus&&LIBC[I.focus.std],rank=order.indexOf(gi);
+       return `<div class="card pgroup g${gi%8}"><div class="top"><h3><span class="gchip g${gi%8}">${esc(g.name)}</span></h3>${rank===0?'<span class="pill oops">Needs you most</span>':""}</div>
+        <p>${I.focus?`<b>Focus: ${esc(I.focus.std)}</b> ${esc(I.focus.name)}`:`<b>Finished their trails</b>: challenge work or a new standard`}${I.data?` · <span class="muted">${Math.round(I.acc*100)}% recent accuracy</span>`:""}</p>
+        <ul class="pmem">${I.studs.map(s=>`<li><span>${esc(s.name)}</span><select data-mv="${s.id}" aria-label="Move ${esc(s.name)}">${P.groups.map((h,hi)=>`<option value="${hi}" ${hi===gi?"selected":""}>${esc(h.name)}</option>`).join("")}</select></li>`).join("")}</ul>
+        ${I.mis?`<div class="fb oops" style="padding:10px 12px"><p style="font-size:.9rem"><b>Shared mistake (${I.mis.who.size} student${I.mis.who.size===1?"":"s"}):</b> ${fmt(I.mis.ex)}</p></div>`:""}
+        ${L0?`<p style="font-size:.9rem"><b>At the teacher table:</b> ${esc(L0.do[0]||L0.desc)}</p>`:""}
+        <div class="row">${I.focus&&genOf(I.focus)?`<button class="ghost small" data-model="${gi}">${S.model===gi?"Hide":"Model problem"}</button>`:""}${I.focus&&TB.ai?`<button class="ghost small" data-ai="${gi}">✨ 5-minute reteach plan</button>`:""}${I.focus?`<button class="ghost small" data-gas="${gi}">Assign ${esc(I.focus.std)} to group</button>`:""}</div>
+        ${S.model===gi&&I.focus?(()=>{const q=(()=>{try{return GG.make(genOf(I.focus),S.modelSeed||1)}catch(e){return null}})();return q?reviewHTML(q,"Model problem"):""})():""}
+        ${S.reteach&&S.reteach[gi]?`<div class="fb info reteach"><p>${esc(S.reteach[gi]).replace(/\n/g,"<br>")}</p></div>`:""}
+       </div>`}).join("")}</div>`;
+  }
+  return `<div class="card"><h2>Station planner</h2>
+   <p class="muted">Groups your students by the standard they’re on and the mistakes they share, then builds a rotation. Students who need you most go to the teacher table first. You can move anyone, then save or print the plan.</p>
+   ${N<2?`<p class="fb info">Add at least 2 students to make groups.</p>`:`<form class="grid" id="pl-f">
+    <label class="f">Make groups by<select id="pl-mode"><option value="groups" ${o.mode==="groups"?"selected":""}>Number of groups</option><option value="size" ${o.mode==="size"?"selected":""}>Students per group</option></select></label>
+    ${o.mode==="groups"?`<label class="f">Number of groups<input id="pl-n" type="number" min="1" max="10" value="${o.groups}"></label>`:`<label class="f">Students per group (most)<input id="pl-s" type="number" min="1" max="15" value="${o.size}"></label>`}
+    <label class="f">Group students<select id="pl-m"><option value="need" ${o.method==="need"?"selected":""}>By shared need (recommended)</option><option value="mixed" ${o.method==="mixed"?"selected":""}>Mixed levels (peer helpers)</option></select></label>
+    <label class="f">Minutes per rotation<input id="pl-min" type="number" min="5" max="90" value="${o.mins}"></label>
+    <label class="f">Start time (optional)<input id="pl-st" type="time" value="${esc(o.start)}"></label>
+    <label class="f" style="grid-column:1/-1">Stations, in order (comma between)<input id="pl-sta" value="${esc(o.stations)}"></label>
+    <button type="submit">${P?"Make new groups":"Make groups"}</button></form>`}
+   ${S.planSaved?`<p class="muted" style="font-size:.85rem">Last saved ${new Date(S.planSaved.saved).toLocaleString()}.</p>`:""}</div>${body}`;
+}
+function planOpts(){const v=id=>document.getElementById(id);const o=S.planO;
+  o.mode=v("pl-mode").value;if(v("pl-n"))o.groups=Math.max(1,Math.min(10,+v("pl-n").value||4));if(v("pl-s"))o.size=Math.max(1,Math.min(15,+v("pl-s").value||5));
+  o.method=v("pl-m").value;o.mins=Math.max(5,Math.min(90,+v("pl-min").value||30));o.start=v("pl-st").value;o.stations=v("pl-sta").value||PLAN_DEF.stations}
+function wirePlanner(){
+  const keep=fn=>(...a)=>{const y=window.scrollY;fn(...a);render();window.scrollTo(0,y)};
+  const f=document.getElementById("pl-f");
+  if(f){document.getElementById("pl-mode").onchange=keep(()=>planOpts());
+    f.onsubmit=e=>{e.preventDefault();planOpts();const gs=makeGroups(S.planO);S.plan={groups:gs.map((g,i)=>({name:`${S.planO.names} ${i+1}`,ids:g.map(x=>x.s.id)}))};S.reteach={};S.model=null;render()}}
+  app.querySelectorAll("[data-mv]").forEach(sel=>sel.onchange=keep(()=>{const id=sel.dataset.mv,to=+sel.value;S.plan.groups.forEach(g=>g.ids=g.ids.filter(x=>x!==id));S.plan.groups[to].ids.push(id)}));
+  app.querySelectorAll("[data-model]").forEach(b=>b.onclick=keep(()=>{const g=+b.dataset.model;S.model=S.model===g?null:g;S.modelSeed=Math.floor(Math.random()*1e9)}));
+  app.querySelectorAll("[data-ai]").forEach(b=>b.onclick=async()=>{const gi=+b.dataset.ai,I=groupInfo(S.plan.groups[gi].ids),L0=LIBC[I.focus.std]||{};busy(b,"Writing…");
+    try{const d=await api("aiReteach",{std:I.focus.std,name:I.focus.name,mistake:I.mis?I.mis.ex:"",goal:(L0.do||[]).slice(0,2).join(" ")});(S.reteach=S.reteach||{})[gi]=d.plan;keep(()=>{})()}catch(e){b.textContent=e.message}});
+  app.querySelectorAll("[data-gas]").forEach(b=>b.onclick=async()=>{const gi=+b.dataset.gas,I=groupInfo(S.plan.groups[gi].ids),ids=new Set(S.plan.groups[gi].ids);busy(b,"Assigning…");
+    try{await saveRoster(CUR.raw.map(s=>ids.has(s.id)?{...s,assigned:[...new Set([...(s.assigned||[]),I.focus.std])]}:s));b.textContent=`Assigned ${I.focus.std}`}catch(e){b.textContent=e.message}});
+  const sv=document.getElementById("pl-save");if(sv)sv.onclick=async()=>{busy(sv,"Saving…");try{await api("planSave",{classId:CUR.cls.id,plan:{o:S.planO,groups:S.plan.groups}});S.planSaved={o:S.planO,groups:S.plan.groups,saved:Date.now()};sv.textContent="Saved ✓";sv.disabled=false}catch(e){document.getElementById("pl-msg").textContent=e.message;sv.disabled=false;sv.textContent="Save plan"}};
+  const pr=document.getElementById("pl-print");if(pr)pr.onclick=printPlan;
+}
+function printPlan(){
+  const o=S.planO,stations=o.stations.split(",").map(x=>x.trim()).filter(Boolean),w=window.open("","_blank");if(!w){alert("Allow pop-ups to print.");return}
+  const infos=S.plan.groups.map(g=>groupInfo(g.ids)),order=infos.map((x,i)=>i).sort((a,b)=>infos[a].acc-infos[b].acc),R=Math.max(1,stations.length),at=(g,r)=>(order.indexOf(g)+r)%R;
+  w.document.write(`<!doctype html><meta charset="utf-8"><title>Stations · ${esc(CUR.cls.name)}</title><style>body{font-family:system-ui,sans-serif;margin:24px}table{border-collapse:collapse;width:100%;margin-bottom:20px}td,th{border:1px solid #999;padding:8px;text-align:left}.g{display:grid;grid-template-columns:1fr 1fr;gap:12px}.c{border:2px solid #333;border-radius:10px;padding:12px;break-inside:avoid}h3{margin:0 0 6px}</style>
+   <h2>${esc(CUR.cls.name)} · Stations · ${new Date().toLocaleDateString()}</h2>
+   <table><tr><th></th>${stations.map(s=>`<th>${esc(s)}</th>`).join("")}</tr>${Array.from({length:R},(_,r)=>`<tr><td><b>Round ${r+1}</b></td>${stations.map((_,st)=>`<td>${S.plan.groups.filter((g,gi)=>at(gi,r)===st).map(g=>esc(g.name)).join(", ")}</td>`).join("")}</tr>`).join("")}</table>
+   <div class="g">${S.plan.groups.map((g,gi)=>{const I=infos[gi];return `<div class="c"><h3>${esc(g.name)}</h3><p><b>${I.focus?esc(I.focus.std+" "+I.focus.name):"Challenge work"}</b></p><p>${I.studs.map(s=>esc(s.name)).join(", ")}</p>${I.mis?`<p><i>Shared mistake:</i> ${esc(I.mis.ex)}</p>`:""}${S.reteach&&S.reteach[gi]?`<p style="white-space:pre-wrap">${esc(S.reteach[gi])}</p>`:""}</div>`}).join("")}</div><script>print()<\/script>`);
+  w.document.close();
+}
 
 /* ---------- start ---------- */
 (async()=>{
