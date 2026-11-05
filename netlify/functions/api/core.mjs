@@ -307,7 +307,8 @@ How you teach:
       seen.add(code);
       const missed = {};
       if (s.missed && typeof s.missed === "object") for (const [t, m] of Object.entries(s.missed)) missed[str(t, 40)] = m == null ? null : [...new Set((Array.isArray(m) ? m : []).map(Number).filter(n => n >= 1 && n <= 200))].sort((x, y) => x - y);
-      students.push({ id: s.id && /^[A-Za-z0-9]{4,20}$/.test(s.id) ? s.id : "s" + rid(8), name, code, missed, sample: !!s.sample });
+      const assigned = Array.isArray(s.assigned) ? [...new Set(s.assigned.map(x => str(x, 12)).filter(x => /^[0-9K]{1,2}\.[A-Z]{1,4}\.\d{1,2}[a-e]?$/.test(x)))].slice(0, 40) : [];
+      students.push({ id: s.id && /^[A-Za-z0-9]{4,20}$/.test(s.id) ? s.id : "s" + rid(8), name, code, missed, assigned, sample: !!s.sample });
     }
     const keep = new Set(students.map(s => s.id));
     for (const s of old.students) if (!keep.has(s.id)) await del(`prog/${c.id}/${s.id}`);
