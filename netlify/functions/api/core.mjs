@@ -6,6 +6,7 @@ const J = (status, body) => new Response(JSON.stringify(body), { status, headers
 const ok = body => J(200, body);
 const fail = (msg, status = 400) => J(status, { error: msg });
 class HttpErr extends Error { constructor(msg, status = 400) { super(msg); this.status = status } }
+class Conflict extends Error {}
 const bad = (msg, status = 400) => { throw new HttpErr(msg, status) };
 
 const sha = s => crypto.createHash("sha256").update(s).digest("hex");
@@ -21,8 +22,26 @@ export function makeApi({ store, env }) {
   const del = k => store.delete(k);
   const listKeys = async prefix => ((await store.list({ prefix })).blobs || []).map(b => b.key);
 
-  const loadSchool = () => getJ("school");
-  const saveSchool = s => setJ("school", s);
+  /* safe saves: a write only lands if nobody else changed the record since we read it; otherwise the whole action runs again */
+  const ETAG = new WeakMap();
+  const getJE = async k => { const r = await store.getWithMetadata(k, { type: "json" }); return r ? { v: r.data, etag: r.etag } : { v: null, etag: null } };
+  const loadSchool = async () => { const { v, etag } = await getJE("school"); if (v && etag) ETAG.set(v, etag); return v };
+  const saveSchool = async s => {
+    const e = ETAG.get(s), r = await store.setJSON("school", s, e ? { onlyIfMatch: e } : { onlyIfNew: true });
+    if (r && r.modified === false) throw new Conflict();
+    if (r && r.etag) ETAG.set(s, r.etag);
+  };
+  /* read-change-write one record with retries (progress, reports) */
+  async function mutJ(k, fn) {
+    for (let i = 0; i < 6; i++) {
+      const { v, etag } = await getJE(k), nv = await fn(v);
+      if (nv === undefined) return v;
+      const r = await store.setJSON(k, nv, etag ? { onlyIfMatch: etag } : { onlyIfNew: true });
+      if (!r || r.modified !== false) return nv;
+      await new Promise(res => setTimeout(res, 30 + Math.random() * 120));
+    }
+    throw new Conflict();
+  }
 
   /* ---------- sessions ---------- */
   const sign = (school, payload) => {
@@ -92,7 +111,7 @@ export function makeApi({ store, env }) {
       teachers: school.teachers.map(pubTeacher),
       classes: school.classes.filter(c => admin || c.teacherId === me.id).map(pubClass),
       allClassCount: school.classes.length,
-      tests: [BUILTIN, ...(school.tests || [])],
+      tests: [BUILTIN, ...(school.tests || [])], hidden: school.hidden || [],
       ai: !!env.ANTHROPIC_API_KEY,
     };
   }
@@ -293,9 +312,9 @@ How you teach:
     const out = [];
     for (const id of ids.slice(0, 60)) {
       const c = myClass(ctx, id);
-      const roster = (await getJ("roster/" + c.id)) || { students: [] };
+      const { v, etag } = await getJE("roster/" + c.id), roster = v || { students: [] };
       const progs = await Promise.all(roster.students.map(s => getJ(`prog/${c.id}/${s.id}`)));
-      out.push({ cls: pubClass(c), students: roster.students.map((s, i) => ({ ...s, prog: progs[i] || {} })) });
+      out.push({ cls: pubClass(c), rev: etag || "", students: roster.students.map((s, i) => ({ ...s, prog: progs[i] || {} })) });
     }
     return { classes: out };
   };
@@ -303,7 +322,8 @@ How you teach:
   A.rosterSave = async b => {
     const ctx = await teacherCtx(b.token);
     const c = myClass(ctx, b.classId);
-    const old = (await getJ("roster/" + c.id)) || { students: [] };
+    const { v: oldv, etag } = await getJE("roster/" + c.id), old = oldv || { students: [] };
+    if (b.rev && etag && b.rev !== etag) bad("Someone else changed this class a moment ago. It will reload now so nothing gets lost.", 409);
     const list = Array.isArray(b.students) ? b.students.slice(0, 200) : bad("No students sent.");
     const seen = new Set(), students = [];
     for (const s of list) {
@@ -315,14 +335,16 @@ How you teach:
       const missed = {};
       if (s.missed && typeof s.missed === "object") for (const [t, m] of Object.entries(s.missed)) missed[str(t, 40)] = m == null ? null : [...new Set((Array.isArray(m) ? m : []).map(Number).filter(n => n >= 1 && n <= 200))].sort((x, y) => x - y);
       const assigned = Array.isArray(s.assigned) ? [...new Set(s.assigned.map(x => str(x, 12)).filter(x => /^[0-9K]{1,2}\.[A-Z]{1,4}\.\d{1,2}[a-e]?$/.test(x)))].slice(0, 40) : [];
-      students.push({ id: s.id && /^[A-Za-z0-9]{4,20}$/.test(s.id) ? s.id : "s" + rid(8), name, code, missed, assigned, sample: !!s.sample });
+      const m = s.mtss && typeof s.mtss === "object" ? { tier: ["", "2", "3"].includes(String(s.mtss.tier)) ? String(s.mtss.tier) : "", goal: str(s.mtss.goal, 300), notes: str(s.mtss.notes, 2000), start: str(s.mtss.start, 10) } : null;
+      students.push({ id: s.id && /^[A-Za-z0-9]{4,20}$/.test(s.id) ? s.id : "s" + rid(8), name, code, missed, assigned, ...(m ? { mtss: m } : {}), sample: !!s.sample });
     }
     const keep = new Set(students.map(s => s.id));
     for (const s of old.students) if (!keep.has(s.id)) await del(`prog/${c.id}/${s.id}`);
-    await setJ("roster/" + c.id, { students });
+    const w = await store.setJSON("roster/" + c.id, { students }, etag ? { onlyIfMatch: etag } : {});
+    if (w && w.modified === false) bad("Someone else changed this class a moment ago. It will reload now so nothing gets lost.", 409);
     if (b.progs && typeof b.progs === "object") // progress sent along, e.g. when bringing in students saved on this device
       for (const [sid, p] of Object.entries(b.progs)) if (keep.has(sid) && p && typeof p === "object") await setJ(`prog/${c.id}/${sid}`, p);
-    return { students };
+    return { students, rev: w && w.etag || "" };
   };
 
   A.progSet = async b => {
@@ -330,10 +352,8 @@ How you teach:
     const c = myClass(ctx, b.classId);
     const roster = (await getJ("roster/" + c.id)) || { students: [] };
     if (!roster.students.some(s => s.id === b.studentId)) bad("That student was not found.", 404);
-    const k = `prog/${c.id}/${b.studentId}`, all = (await getJ(k)) || {};
     const tid = str(b.testId, 40);
-    if (b.prog == null) delete all[tid]; else all[tid] = b.prog;
-    await setJ(k, all);
+    await mutJ(`prog/${c.id}/${b.studentId}`, all => { all = all || {}; if (b.prog == null) delete all[tid]; else all[tid] = b.prog; return all });
     return { ok: true };
   };
 
@@ -369,18 +389,16 @@ How you teach:
   async function studentPayload(school, c, st, token) {
     const prog = (await getJ(`prog/${c.id}/${st.id}`)) || {};
     const t = school.teachers.find(x => x.id === c.teacherId);
-    return { token, cls: pubClass(c), teacher: t?.name || "", student: st, prog, test: await loadTest(c.testId), ai: !!env.ANTHROPIC_API_KEY };
+    return { token, cls: pubClass(c), teacher: t?.name || "", student: st, prog, test: await loadTest(c.testId), ai: !!env.ANTHROPIC_API_KEY, hidden: school.hidden || [] };
   }
   A.studentBoot = async b => { const { school, cls, st } = await studentCtx(b.token); return studentPayload(school, cls, st, b.token) };
 
   A.progSave = async b => {
     const { cls, st } = await studentCtx(b.token);
-    const k = `prog/${cls.id}/${st.id}`, all = (await getJ(k)) || {};
     const tid = str(b.testId, 40);
     if (!b.prog || typeof b.prog !== "object") bad("Nothing to save.");
     if (JSON.stringify(b.prog).length > 400000) bad("Progress is too big to save.");
-    all[tid] = { ...b.prog, tutor: all[tid]?.tutor || b.prog.tutor }; // tutor counts are kept by the server
-    await setJ(k, all);
+    await mutJ(`prog/${cls.id}/${st.id}`, all => { all = all || {}; all[tid] = { ...b.prog, tutor: all[tid]?.tutor || b.prog.tutor }; return all }); // tutor counts are kept by the server
     return { ok: true };
   };
 
@@ -428,6 +446,63 @@ How you teach:
     return boot(ctx);
   };
 
+  /* ---------- problem reports ---------- */
+  A.reportAdd = async b => {
+    const school = await loadSchool(), p = verify(school, b.token);
+    if (!p) bad("Please sign in again.", 401);
+    let who = "", classId = "";
+    if (p.r === "s") { const { cls, st } = await studentCtx(b.token); who = st.name; classId = cls.id }
+    else { const t = school.teachers.find(x => x.id === p.id); who = (t?.name || "Teacher") + " (teacher)"; classId = str(b.classId, 20) }
+    const q = b.q && typeof b.q === "object" ? b.q : {};
+    const snap = JSON.stringify(q).length < 20000 ? q : { parts: (q.parts || []).filter(x => typeof x === "string") };
+    const rec = { id: "r" + rid(8), t: Date.now(), qid: str(b.qid, 80), std: str(b.std, 20), testId: str(b.testId, 40), reason: str(b.reason, 40), note: str(b.note, 500), who, classId, q: snap, status: "open" };
+    await mutJ("reports", list => { list = list || []; if (p.r === "s" && list.filter(r => r.who === who && r.t > Date.now() - 864e5).length >= 10) bad("Thanks! You already sent a lot of reports today.", 429); list.unshift(rec); return list.slice(0, 500) });
+    return { ok: true };
+  };
+  A.reportList = async b => {
+    const ctx = await teacherCtx(b.token), mine = new Set(ctx.school.classes.filter(c => ctx.admin || c.teacherId === ctx.me.id).map(c => c.id));
+    const list = (await getJ("reports")) || [];
+    return { reports: list.filter(r => ctx.admin || mine.has(r.classId)) };
+  };
+  A.reportUpdate = async b => {
+    const ctx = await teacherCtx(b.token), mine = new Set(ctx.school.classes.filter(c => ctx.admin || c.teacherId === ctx.me.id).map(c => c.id));
+    let hit = null;
+    await mutJ("reports", list => { list = list || []; const r = list.find(x => x.id === b.id); if (!r) bad("That report was not found.", 404); if (!ctx.admin && !mine.has(r.classId)) bad("That report is not for your classes.", 403); r.status = ["open", "fixed", "dismissed", "hidden"].includes(b.status) ? b.status : r.status; hit = r; return list });
+    if (b.status === "hidden" && hit.qid && !hit.qid.startsWith("~")) {
+      const school = await loadSchool(); school.hidden = [...new Set([...(school.hidden || []), hit.testId + "|" + hit.qid])].slice(-2000); await saveSchool(school);
+    }
+    return { ok: true };
+  };
+
+  /* ---------- backups ---------- */
+  A.backupNow = async b => { const ctx = await teacherCtx(b.token); if (!ctx.admin) bad("Only a school admin can make backups.", 403); return { key: await snapshot() } };
+  A.backupList = async b => { const ctx = await teacherCtx(b.token); if (!ctx.admin) bad("Only a school admin can see backups.", 403); return { backups: (await listKeys("backup/")).sort().reverse() } };
+  A.backupGet = async b => { const ctx = await teacherCtx(b.token); if (!ctx.admin) bad("Only a school admin can download backups.", 403); const k = str(b.key, 60); if (!k.startsWith("backup/")) bad("That backup was not found.", 404); const d = await getJ(k); if (!d) bad("That backup was not found.", 404); return { backup: d } };
+  A.schoolExport = async b => { const ctx = await teacherCtx(b.token); if (!ctx.admin) bad("Only a school admin can export the school.", 403); return { backup: await collect() } };
+  A.backupRestore = async b => {
+    const ctx = await teacherCtx(b.token); if (!ctx.admin) bad("Only a school admin can restore a backup.", 403);
+    if (b.confirm !== "RESTORE") bad("Type RESTORE to confirm.");
+    const d = b.backup && typeof b.backup === "object" ? b.backup : await getJ(str(b.key, 60));
+    if (!d || !d.data || !d.data.school) bad("That backup could not be read.");
+    await snapshot("before-restore");
+    const keep = new Set(Object.keys(d.data));
+    for (const k of await listKeys("")) if (!k.startsWith("backup/") && !k.startsWith("fail/") && !keep.has(k)) await del(k);
+    for (const [k, v] of Object.entries(d.data)) await setJ(k, v);
+    return { ok: true, restored: keep.size };
+  };
+  async function collect() {
+    const data = {};
+    for (const k of await listKeys("")) if (!k.startsWith("backup/") && !k.startsWith("fail/")) data[k] = await getJ(k);
+    return { v: 1, made: Date.now(), data };
+  }
+  async function snapshot(tag) {
+    const d = await collect(), key = `backup/${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}${tag ? "-" + tag : ""}`;
+    await setJ(key, d);
+    const all = (await listKeys("backup/")).sort();
+    for (const k of all.slice(0, Math.max(0, all.length - 21))) await del(k); // keep the newest 21
+    return key;
+  }
+
   /* ---------- AI: tutor ---------- */
   A.tutor = async b => {
     const school = await loadSchool();
@@ -439,12 +514,13 @@ How you teach:
       if (cls.tutor === false) bad("Your teacher turned the tutor off for now.", 403);
       who = st.name.replace(/\s*\(sample\)/, "");
       progKey = `prog/${cls.id}/${st.id}`;
-      const all = (await getJ(progKey)) || {}, pr = all[tid] || (all[tid] = {});
-      const u = pr.tutor && pr.tutor.day === today() ? pr.tutor : { day: today(), n: 0, total: pr.tutor?.total || 0 };
       const LIMIT = +env.TUTOR_DAILY_LIMIT || 40;
-      if (u.n >= LIMIT) bad(`You asked Scout ${LIMIT} questions today. Great work! Ask your teacher if you still need help.`, 429);
-      u.n++; u.total = (u.total || 0) + 1; pr.tutor = u;
-      await setJ(progKey, all);
+      await mutJ(progKey, all => {
+        all = all || {}; const pr = all[tid] || (all[tid] = {});
+        const u = pr.tutor && pr.tutor.day === today() ? pr.tutor : { day: today(), n: 0, total: pr.tutor?.total || 0 };
+        if (u.n >= LIMIT) bad(`You asked Scout ${LIMIT} questions today. Great work! Ask your teacher if you still need help.`, 429);
+        u.n++; u.total = (u.total || 0) + 1; pr.tutor = u; return all;
+      });
     }
     const q = b.q || {};
     const L = "ABCDE";
@@ -462,7 +538,8 @@ How you teach:
     // merge back-to-back turns from the same side
     const merged = []; for (const m of msgs) { const last = merged[merged.length - 1]; if (last && last.role === m.role) last.content += "\n" + m.content; else merged.push({ ...m }) }
     if (merged[merged.length - 1].role !== "user") merged.push({ role: "user", content: "Can you help me more?" });
-    const reply = await claude({ model: FAST(), system: TUTOR_SYS(grade, who) + "\n\n" + ctxText, messages: merged, max_tokens: 300 });
+    const lang = b.lang === "es" ? "\nThe student is learning English. Reply in simple Spanish, and give key math words in English too, like \"multiplicar (multiply)\"." : "";
+    const reply = await claude({ model: FAST(), system: TUTOR_SYS(grade, who) + lang + "\n\n" + ctxText, messages: merged, max_tokens: 300 });
     return { reply: reply.trim() };
   };
 
@@ -530,15 +607,23 @@ Use only a pencil, paper, and a whiteboard (no colored materials). Give: 1) a on
   };
 
   /* ---------- router ---------- */
-  return async function handle(req, ip) {
+  handle.snapshot = () => snapshot("auto");
+  return handle;
+  async function handle(req, ip) {
     if (req.method !== "POST") return fail("Use POST.", 405);
     const action = new URL(req.url).pathname.replace(/^\/api\/?/, "").replace(/\/$/, "");
     const fn = Object.prototype.hasOwnProperty.call(A, action) ? A[action] : null;
     if (!fn) return fail("Unknown action.", 404);
     let body = {};
     try { body = await req.json() } catch { body = {} }
-    try { return ok(await fn(body, ip)) }
+    try {
+      for (let i = 0; ; i++) {
+        try { return ok(await fn(body, ip)) }
+        catch (e) { if (e instanceof Conflict && i < 4) { await new Promise(r => setTimeout(r, 40 + Math.random() * 160)); continue } throw e }
+      }
+    }
     catch (e) {
+      if (e instanceof Conflict) return fail("The server was busy saving. Please try again.", 409);
       if (e instanceof HttpErr) return fail(e.message, e.status);
       console.error(e);
       return fail("Something went wrong on the server. Try again.", 500);
