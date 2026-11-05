@@ -55,7 +55,8 @@ export function makeApi({ store, env }) {
   /* ---------- helpers ---------- */
   const codeHash = (school, code) => sha(school.salt + ":" + code);
   const pubTeacher = t => ({ id: t.id, name: t.name, admin: !!t.admin });
-  const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false });
+  const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false,
+    flu: { on: c.flu?.on !== false, secs: c.flu?.secs || 180, pass: c.flu?.pass || 28, n: c.flu?.n || 30 } });
   const testMeta = t => ({ id: t.id, name: t.name, grade: t.grade || "", ownerId: t.ownerId || null, created: t.created || 0, nq: Object.keys(t.qs || {}).length, skills: (t.skills || []).length });
   const BUILTIN = { id: "a1", name: "Assessment 1 (built in)", builtIn: true, grade: "3", nq: 30, skills: 8 };
 
@@ -264,7 +265,12 @@ How you teach:
       goal: Math.max(1, Math.min(100, Math.round(+b.goal || c.goal || 60))),
       mastery: Math.max(3, Math.min(20, Math.round(+b.mastery || c.mastery || 10))),
       tutor: b.tutor === undefined ? c.tutor !== false : !!b.tutor,
+      chirp: b.chirp === undefined ? c.chirp !== false : !!b.chirp,
     });
+    if (b.flu && typeof b.flu === "object") {
+      const n = Math.max(10, Math.min(60, Math.round(+b.flu.n || 30)));
+      c.flu = { on: b.flu.on !== false, n, secs: Math.max(30, Math.min(900, Math.round(+b.flu.secs || 180))), pass: Math.max(1, Math.min(n, Math.round(+b.flu.pass || 28))) };
+    }
     if (b.videos && typeof b.videos === "object") c.videos = Object.fromEntries(Object.entries(b.videos).filter(([, v]) => /^https?:\/\//i.test(String(v))).map(([k, v]) => [str(k, 40), str(v, 500)]));
     await saveSchool(school);
     return { cls: pubClass(c), ...boot(ctx) };
@@ -277,6 +283,7 @@ How you teach:
     await saveSchool(school);
     for (const k of await listKeys("prog/" + c.id + "/")) await del(k);
     await del("roster/" + c.id);
+    await del("plan/" + c.id).catch(() => {});
     return boot(ctx);
   };
 
@@ -327,6 +334,15 @@ How you teach:
     const tid = str(b.testId, 40);
     if (b.prog == null) delete all[tid]; else all[tid] = b.prog;
     await setJ(k, all);
+    return { ok: true };
+  };
+
+  /* station plans: one saved plan per class */
+  A.planGet = async b => { const ctx = await teacherCtx(b.token); const c = myClass(ctx, b.classId); return { plan: await getJ("plan/" + c.id) } };
+  A.planSave = async b => {
+    const ctx = await teacherCtx(b.token); const c = myClass(ctx, b.classId);
+    if (!b.plan || typeof b.plan !== "object" || JSON.stringify(b.plan).length > 100000) bad("That plan could not be saved.");
+    await setJ("plan/" + c.id, { ...b.plan, saved: Date.now() });
     return { ok: true };
   };
 
@@ -487,6 +503,19 @@ Reply with JSON only: {"questions": [ ... ], "answerKey": {"1":"B", ...} (only i
   };
 
   /* ---------- AI: new practice questions for one standard ---------- */
+  A.aiReteach = async b => {
+    await teacherCtx(b.token);
+    const t = await claude({
+      model: FAST(), max_tokens: 900,
+      system: "You are an expert grade 3 math teacher coach. You write short, practical small-group reteach plans for a teacher station. Plain text, no markdown headings.",
+      messages: [{ role: "user", content: `Write a 5-minute reteach plan for a small group working on ${str(b.std, 20)} (${str(b.name, 80)}).
+The mistake most of them make: "${str(b.mistake, 300) || "not known yet"}".
+What students should be able to do: ${str(b.goal, 400)}.
+Use only a pencil, paper, and a whiteboard (no colored materials). Give: 1) a one-sentence goal, 2) a quick warm-up question, 3) three short teaching moves with exact teacher words, 4) one check-for-understanding question with its answer. Keep it under 170 words.` }],
+    });
+    return { plan: t.trim() };
+  };
+
   A.aiPractice = async b => {
     await teacherCtx(b.token);
     const n = Math.max(1, Math.min(4, +b.n || 3));
