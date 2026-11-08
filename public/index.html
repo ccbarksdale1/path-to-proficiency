@@ -403,6 +403,22 @@ details.card>summary{cursor:pointer}
 .lane .runner{position:absolute;top:-2px;font-size:1.6rem;transition:left .4s}
 @media (max-width:520px){.cards,.tiles{gap:6px}.mcard{font-size:1rem}.balloon{width:66px;height:80px;font-size:1.2rem}.g-prompt{font-size:1.6rem}}
 @media (prefers-reduced-motion:reduce){.balloon{animation-duration:30s!important}}
+/* ---------- Tutors ---------- */
+.tutor-band{display:flex;gap:24px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--card);border:1px solid var(--rule);border-radius:20px;padding:28px}
+.tutor-band>div{flex:1;min-width:260px}
+.tutor-steps{list-style:none;padding:0;margin:12px 0 0;display:flex;flex-wrap:wrap;gap:8px}
+.tutor-steps li{background:color-mix(in srgb,var(--go) 12%,var(--card));border-radius:999px;padding:6px 12px;font-size:.9rem}
+.tutor-steps b{color:var(--go);margin-right:4px}
+#tf h3{margin:18px 0 4px}
+.tset{border:1px solid var(--rule);border-radius:12px;padding:10px 14px;display:flex;flex-wrap:wrap;gap:8px 18px}
+.tset legend{font-weight:700;padding:0 6px;font-size:.9rem}
+.tchk{display:flex;gap:8px;align-items:flex-start;font-size:.95rem}
+.tchk input{width:auto;margin-top:3px}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.tu-head{all:unset;cursor:pointer;display:flex;justify-content:space-between;gap:12px;align-items:center;width:100%}
+.tu-head:focus-visible{outline:3px solid var(--gold);border-radius:8px}
+.tu-body{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--rule);padding-top:12px}
+.tu-body p{margin:2px 0}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1959,7 +1975,7 @@ function landing(){
   const J=LD.jour,jour=L_JOUR.map((x,i)=>({...x,state:x.s==="skip"?"done":i<J?"done":i===J?"now":"later"}));
   app.innerHTML=`
   <nav class="lnav"><div class="brand">${LOGO}<div><b>Path to Proficiency</b><small>Grades 3–5 math</small></div></div>
-   <div class="lnav-links"><a href="#diff">Why us</a><a href="#how">How it works</a><a href="#journey">Journey</a><a href="#data">Teacher data</a><a href="#faq">FAQ</a></div>
+   <div class="lnav-links"><a href="#diff">Why us</a><a href="#how">How it works</a><a href="#journey">Journey</a><a href="#data">Teacher data</a><a href="#faq">FAQ</a><a href="#tutors">Tutors</a></div>
    <div class="row"><button class="ghost small" data-go="tch">Teacher login</button><button class="small" data-go="stu">Student login</button></div></nav>
 
   <section class="lhero">
@@ -2027,11 +2043,17 @@ function landing(){
   <section class="lsec" id="faq"><div class="lsec-h"><span class="eyebrow">Questions</span><h2>Good to know</h2></div>
    <div class="faq">${L_FAQ.map(([qq,a],i)=>`<div class="fq${LD.faq===i?" open":""}"><button data-faq="${i}" aria-expanded="${LD.faq===i}"><span>${qq}</span><span aria-hidden="true">${LD.faq===i?"−":"+"}</span></button>${LD.faq===i?`<p>${a}</p>`:""}</div>`).join("")}</div></section>
 
+  <section class="lsec" id="tutors"><div class="tutor-band"><div><span class="eyebrow">Tutors &amp; consultants</span><h2>Help schools near you</h2>
+    <p>Are you a certified teacher, retired educator, or math coach in Mississippi? Join our network. We match tutors and consultants with nearby schools that use Path to Proficiency, so you can help students who need it most.</p>
+    <ul class="tutor-steps"><li><b>1</b> Apply online</li><li><b>2</b> Short interview</li><li><b>3</b> Background check</li><li><b>4</b> Sign the agreement online</li><li><b>5</b> Get matched with a school</li></ul></div>
+    <button data-go="tutor">Become a tutor or consultant</button></div></section>
+
   <section class="lcta"><h2>Ready to start the climb?</h2><p>Students: grab your class code. Teachers: sign in to set up your classes.</p>
    <div class="row" style="justify-content:center"><button data-go="stu">Student login</button><button class="ghost" data-go="tch">Teacher login</button><button class="ghost" data-go="demo">Try it as a student</button></div></section>
   <p class="muted" style="text-align:center;font-size:.85rem">Path to Proficiency · Made for grades 3–5 math classrooms</p>`;
   const go={stu:()=>{S.mode="student";S.code="";S.err="";S.screen=ls.get(CKEY)?"signin":"joinclass";render()},
     tch:async()=>{S.mode="teacher";S.code="";S.err="";try{const st=await api("status");S.screen=st.ready?"signin":"setup"}catch(e){S.screen="signin";S.err=e.message}render()},
+    tutor:()=>{S.tDone=false;S.screen="tutorApply";render()},
     demo:()=>{useTest(null);S.demo=true;S.role="student";db={mastery:MASTERY_DEFAULT,videos:{},goal:60};TEACHER="Demo";
       S.student=initStudent({...JSON.parse(JSON.stringify(SAMPLE[0])),name:"Amari (sample)"});S.screen="home";render()}};
   app.querySelectorAll("[data-go]").forEach(b=>b.onclick=go[b.dataset.go]);
@@ -2401,7 +2423,7 @@ async function openClass(id,tab){
 function teacher(){
   const tt=S.tt||"classes";
   if(tt!=="class"){TEACHER=TB.me.name}
-  const top=[["classes","My classes"],["compare","Compare classes"],["standards","Standards"],["tests","Tests"],["reports","Reports"],["teachers",isAdmin()?"Teachers":"My account"]];
+  const top=[["classes","My classes"],["compare","Compare classes"],["standards","Standards"],["tests","Tests"],["reports","Reports"],["teachers",isAdmin()?"Teachers":"My account"],...(isAdmin()?[["tutors","Tutors"]]:[])];
   const nav=`<div class="tabs" role="group" aria-label="Teacher pages">${top.map(([id,l])=>`<button data-tt="${id}" aria-pressed="${tt===id||(tt==="class"&&id==="classes")}">${l}</button>`).join("")}</div>`;
   let body="";
   if(tt==="class"&&CUR){
@@ -2410,15 +2432,15 @@ function teacher(){
       <button class="ghost small" id="allc">← All classes</button></div>
       <div class="tabs" role="group" aria-label="Class pages">${[["class","Class progress"],["why","Why they missed it"],["plan","Station planner"],["fluency","Fluency"],["mtss","MTSS"],["bd","Question breakdowns"],["items","Item analysis"],["setup","Students"],["settings","Class settings"]].map(([id,l])=>`<button class="small" data-tab="${id}" aria-pressed="${tab===id}">${l}</button>`).join("")}</div></div>`;
     body=tabs+({class:tClass,why:tWhy,plan:tPlanner,fluency:tFluency,mtss:tMtss,bd:tBreak,items:tItems,setup:tSetup,settings:tSettings})[tab]();
-  } else body=({classes:tClasses,compare:tCompare,standards:tStandards,tests:tTests,reports:tReports,teachers:tTeachers,class:tClasses})[tt]();
+  } else body=({classes:tClasses,compare:tCompare,standards:tStandards,tests:tTests,reports:tReports,teachers:tTeachers,tutors:tTutors,class:tClasses})[tt]();
   app.innerHTML=header(`<button class="ghost" id="out">Sign out</button>`,`${TB.school.name} · ${TB.me.name}${isAdmin()?" (admin)":""}`)+nav+(S.err?`<div class="fb oops" role="alert"><p>${esc(S.err)}</p></div>`:"")+body;
   document.getElementById("out").onclick=signOut;
-  app.querySelectorAll("[data-tt]").forEach(b=>b.onclick=()=>{S.tt=b.dataset.tt;S.err="";S.reports=null;S.backups=null;if(S.tt!=="class")useTest(null);render()});
+  app.querySelectorAll("[data-tt]").forEach(b=>b.onclick=()=>{S.tt=b.dataset.tt;S.err="";S.reports=null;S.backups=null;S.tutors=null;if(S.tt!=="class")useTest(null);render()});
   const allc=document.getElementById("allc");if(allc)allc.onclick=()=>{S.tt="classes";useTest(null);render()};
   app.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;S.err="";S.mtssId=null;render()});
   const cd=document.getElementById("csv-dl");if(cd)cd.onclick=()=>saveFile(`${CUR.cls.name.replace(/[^\w]+/g,"-")}-${new Date().toISOString().slice(0,10)}.csv`,classCSV());
   if(tt==="class"&&CUR)({class:()=>{},why:()=>{},plan:wirePlanner,fluency:wireFluency,mtss:wireMtss,bd:wireBreak,items:()=>{},setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
-  else ({classes:wireClasses,compare:wireCompare,standards:wireStandards,tests:wireTests,reports:wireReports,teachers:wireTeachers,class:wireClasses})[tt]();
+  else ({classes:wireClasses,compare:wireCompare,standards:wireStandards,tests:wireTests,reports:wireReports,teachers:wireTeachers,tutors:wireTutors,class:wireClasses})[tt]();
 }
 SCREENS.teacher=teacher;
 
@@ -3708,12 +3730,139 @@ async function giveBonus(btn){const msg=document.getElementById("gm-msg");busy(b
   try{const r=await api("gameBonus",{classId:CUR.cls.id,n:1});msg.textContent=`Gave ${r.count} student${r.count===1?"":"s"} a bonus token.`}catch(e){msg.textContent=e.message}
   btn.disabled=false;btn.textContent="Give everyone 1 bonus token"}
 
+/* ================= Tutors & consultants: public application + admin review ================= */
+const MS_COUNTIES=["Adams","Alcorn","Amite","Attala","Benton","Bolivar","Calhoun","Carroll","Chickasaw","Choctaw","Claiborne","Clarke","Clay","Coahoma","Copiah","Covington","DeSoto","Forrest","Franklin","George","Greene","Grenada","Hancock","Harrison","Hinds","Holmes","Humphreys","Issaquena","Itawamba","Jackson","Jasper","Jefferson","Jefferson Davis","Jones","Kemper","Lafayette","Lamar","Lauderdale","Lawrence","Leake","Lee","Leflore","Lincoln","Lowndes","Madison","Marion","Marshall","Monroe","Montgomery","Neshoba","Newton","Noxubee","Oktibbeha","Panola","Pearl River","Perry","Pike","Pontotoc","Prentiss","Quitman","Rankin","Scott","Sharkey","Simpson","Smith","Stone","Sunflower","Tallahatchie","Tate","Tippah","Tishomingo","Tunica","Union","Walthall","Warren","Washington","Wayne","Webster","Wilkinson","Winston","Yalobusha","Yazoo"];
+const T_TRAVEL={virtual:"Virtual only","15":"Up to 15 miles","30":"Up to 30 miles","60":"Up to 60 miles",state:"Anywhere in Mississippi"};
+const T_AREAS={OA:"Operations & algebraic thinking",NBT:"Place value & base ten",NF:"Fractions",MD:"Measurement & data",G:"Geometry"};
+const T_LIC={ms:"Mississippi educator license",other:"License from another state",working:"Working toward a license",none:"No teaching license"};
+const T_ROLE={tutor:"Tutor (works with students)",consultant:"Consultant (coaches teachers / schools)",both:"Both"};
+const T_STAT={new:"New",reviewing:"Reviewing",interview:"Interview",approved:"Approved",contract:"Contract sent",signed:"Contract signed",active:"Active",declined:"Declined"};
+const T_DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const chk=(name,val,label,on)=>`<label class="tchk"><input type="checkbox" name="${name}" value="${esc(val)}" ${on?"checked":""}> ${esc(label)}</label>`;
+
+function tutorApply(){
+  if(S.tDone){app.innerHTML=`<div class="card pop" style="text-align:center;align-items:center;margin-top:40px">${LOGO}<h2>Thank you! 🎉</h2>
+    <p>Your application was sent. We review every application and will email you about next steps, including the contractor agreement and background check.</p>
+    <button id="t-home">Back to the home page</button></div>`;document.getElementById("t-home").onclick=()=>{S.tDone=false;S.screen="landing";render()};return}
+  app.innerHTML=`<div class="top"><div class="brand">${LOGO}<div><h1>Path to Proficiency</h1><small>Tutors &amp; consultants</small></div></div><button class="ghost" id="t-back">← Home</button></div>
+  <div class="card"><span class="eyebrow">Join the team</span><h2>Help Mississippi students reach proficiency</h2>
+   <p>We match certified tutors and math consultants with schools near them. Tell us about yourself. If it’s a good fit, we’ll set up a short interview, then send a contractor agreement to sign online.</p>
+   <p class="muted" style="font-size:.9rem">What happens next: <b>1</b> Apply · <b>2</b> Short interview · <b>3</b> Background check · <b>4</b> Sign the agreement · <b>5</b> Get matched with a school</p></div>
+  <form class="card" id="tf" novalidate>
+   <h3>About you</h3>
+   <div class="grid">
+    <label class="f">Full name<input name="name" required maxlength="80" autocomplete="name"></label>
+    <label class="f">Email<input name="email" type="email" required maxlength="120" autocomplete="email"></label>
+    <label class="f">Phone (optional)<input name="phone" type="tel" maxlength="30" autocomplete="tel"></label>
+    <label class="f">I want to work as a<select name="role">${Object.entries(T_ROLE).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label>
+   </div>
+   <h3>Where you can work</h3>
+   <div class="grid">
+    <label class="f">County<select name="county" required><option value="">Choose your county</option>${MS_COUNTIES.map(c=>`<option>${c}</option>`).join("")}<option>Outside Mississippi</option></select></label>
+    <label class="f">City or town<input name="city" maxlength="60" autocomplete="address-level2"></label>
+    <label class="f">How far will you travel?<select name="travel">${Object.entries(T_TRAVEL).map(([k,v])=>`<option value="${k}" ${k==="30"?"selected":""}>${v}</option>`).join("")}</select></label>
+   </div>
+   <h3>What you teach</h3>
+   <fieldset class="tset"><legend>Grades</legend>${["3","4","5"].map(g=>chk("grades",g,`Grade ${g}`)).join("")}</fieldset>
+   <fieldset class="tset"><legend>Math areas you’re strongest in</legend>${Object.entries(T_AREAS).map(([k,v])=>chk("areas",k,v)).join("")}</fieldset>
+   <h3>License and experience</h3>
+   <div class="grid">
+    <label class="f">Teaching license<select name="license">${Object.entries(T_LIC).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label>
+    <label class="f">License type or endorsement (optional)<input name="licenseNote" maxlength="120" placeholder="e.g. Elementary K–6, Math 7–12"></label>
+    <label class="f">Years teaching or tutoring<input name="years" type="number" min="0" max="60" value="0"></label>
+    <label class="f">Résumé (PDF or Word, under 2 MB, optional)<input name="file" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></label>
+   </div>
+   <label class="f">Tell us about your experience with elementary math (optional)<textarea name="about" maxlength="1200" rows="4"></textarea></label>
+   <h3>Rate and availability</h3>
+   <div class="grid">
+    <label class="f">Your hourly rate (USD)<input name="rate" type="number" min="0" max="500" placeholder="e.g. 35"></label>
+    <label class="f">Best times (optional)<input name="times" maxlength="120" placeholder="e.g. after 3:30, or during the school day"></label>
+   </div>
+   <fieldset class="tset"><legend>Days you’re available</legend>${T_DAYS.map(d=>chk("days",d,d)).join("")}</fieldset>
+   <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+   <label class="tchk"><input type="checkbox" name="bgConsent"> I agree to a background check before working with students. (Schools require one. We’ll send the official consent form separately.)</label>
+   <label class="tchk"><input type="checkbox" name="agree"> The information above is true. I understand it is only used to review my application and match me with schools.</label>
+   <p class="muted" style="font-size:.85rem">Please don’t include your Social Security number or other ID numbers here. Those are only collected on the official background check form.</p>
+   <p class="err" id="t-err" role="alert"></p>
+   <div class="row"><button type="submit">Send my application</button></div>
+  </form>`;
+  document.getElementById("t-back").onclick=()=>{S.screen="landing";render()};
+  document.getElementById("tf").onsubmit=async e=>{e.preventDefault();const f=e.target,fd=new FormData(f),err=document.getElementById("t-err");err.textContent="";
+    const b={};for(const k of ["name","email","phone","role","county","city","travel","license","licenseNote","years","about","rate","times","website"])b[k]=fd.get(k)||"";
+    for(const k of ["grades","areas","days"])b[k]=fd.getAll(k);b.bgConsent=!!fd.get("bgConsent");b.agree=!!fd.get("agree");
+    const file=f.file.files[0];
+    if(file){if(file.size>2*1024*1024){err.textContent="Your résumé file is too big. Please keep it under 2 MB.";return}
+      const data=await new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(",")[1]||"");r.onerror=no;r.readAsDataURL(file)});
+      b.file={name:file.name,type:file.type||(/\.pdf$/i.test(file.name)?"application/pdf":"application/msword"),data}}
+    busy(e.submitter,"Sending…");
+    try{await api("tutorApply",b);S.tDone=true;render()}catch(er){err.textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Send my application"}};
+}
+SCREENS.tutorApply=tutorApply;
+
+/* ---------- admin: review applications ---------- */
+function tTutors(){
+  if(!isAdmin())return `<div class="card"><p class="muted">Only the site admin can see tutor applications.</p></div>`;
+  const D=S.tutors;if(!D){api("tutorList").then(d=>{S.tutors=d;if(S.tt==="tutors")render()}).catch(e=>{S.err=e.message;render()});return `<div class="card"><p class="muted">Loading applications…</p></div>`}
+  const F=S.tf||(S.tf={status:"open",county:"",grade:""});
+  const list=D.tutors.filter(r=>(F.status==="all"||(F.status==="open"?!["declined","active"].includes(r.status):r.status===F.status))&&(!F.county||r.county===F.county||r.travel==="state"||r.travel==="virtual")&&(!F.grade||r.grades.includes(F.grade)));
+  const counts=Object.keys(T_STAT).map(k=>[k,D.tutors.filter(r=>r.status===k).length]).filter(x=>x[1]);
+  const counties=[...new Set(D.tutors.map(r=>r.county))].sort();
+  return `<div class="card"><div class="top"><h2>Tutors &amp; consultants</h2><div class="row"><button class="ghost small" id="tu-link">Copy application link</button><button class="ghost small" id="tu-csv">Download CSV</button></div></div>
+   <p class="muted">People apply from the “Become a tutor” button on the home page. Only you (the admin) can see this page.</p>
+   <p style="font-size:.9rem">${counts.length?counts.map(([k,n])=>`<span class="pill${k==="new"?" gold":k==="active"||k==="signed"?" go":""}">${T_STAT[k]}: ${n}</span>`).join(" "):"No applications yet."}</p>
+   <div class="row">
+    <label class="f" style="min-width:150px">Show<select id="tu-st"><option value="open">Open (not active/declined)</option><option value="all">All</option>${Object.entries(T_STAT).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label>
+    <label class="f" style="min-width:150px">Near county<select id="tu-co"><option value="">Any county</option>${counties.map(c=>`<option>${esc(c)}</option>`).join("")}</select></label>
+    <label class="f" style="min-width:110px">Grade<select id="tu-gr"><option value="">Any</option><option>3</option><option>4</option><option>5</option></select></label></div></div>
+  <div class="card"><h3>Contract</h3><p class="muted" style="font-size:.9rem">When you approve someone, send them the contractor agreement from Jotform Sign, then mark them “Contract sent.” Paste the link to your agreement in Jotform here so it’s one click away.</p>
+   <form class="row" id="tu-cf"><input id="tu-cu" type="url" placeholder="https://www.jotform.com/sign/…" value="${esc(D.contractUrl||"")}" style="flex:1;min-width:220px"><button class="small" type="submit">Save link</button>${D.contractUrl?`<a class="btnlink" href="${esc(D.contractUrl)}" target="_blank" rel="noopener">Open in Jotform Sign ↗</a>`:""}</form><p class="muted" id="tu-cm" role="status"></p></div>
+  ${list.length?list.map(r=>{const open=S.tuOpen===r.id;return `<div class="card tu${open?" open":""}"><button class="tu-head" data-tu="${r.id}" aria-expanded="${open}">
+     <span><b>${esc(r.name)}</b> <span class="muted">· ${esc(T_ROLE[r.role].split(" (")[0])} · ${esc(r.county)}${r.city?`, ${esc(r.city)}`:""} · ${esc(T_TRAVEL[r.travel])}</span><br>
+     <span class="muted" style="font-size:.85rem">Grades ${r.grades.join(", ")} · ${esc(T_LIC[r.license])} · ${r.years} yr${r.years===1?"":"s"}${r.rate?` · $${r.rate}/hr`:""} · applied ${new Date(r.t).toLocaleDateString()}</span></span>
+     <span class="pill${r.status==="new"?" gold":["signed","active"].includes(r.status)?" go":r.status==="declined"?"":" purple"}">${T_STAT[r.status]}</span></button>
+    ${open?`<div class="tu-body"><div class="grid">
+      <div><span class="label">Contact</span><p><a href="mailto:${esc(r.email)}">${esc(r.email)}</a>${r.phone?`<br>${esc(r.phone)}`:""}</p></div>
+      <div><span class="label">Strongest areas</span><p>${r.areas.length?r.areas.map(a=>esc(T_AREAS[a])).join(", "):"—"}</p></div>
+      <div><span class="label">License</span><p>${esc(T_LIC[r.license])}${r.licenseNote?` (${esc(r.licenseNote)})`:""}</p></div>
+      <div><span class="label">Availability</span><p>${r.days.length?r.days.join(", "):"—"}${r.times?`<br>${esc(r.times)}`:""}</p></div></div>
+      ${r.about?`<div><span class="label">About</span><p style="white-space:pre-wrap">${esc(r.about)}</p></div>`:""}
+      <p style="font-size:.9rem">✅ Agreed to a background check${r.file?` · <button class="link" data-tfile="${r.id}">Download résumé (${esc(r.file.name)})</button>`:" · No résumé uploaded"}</p>
+      <div class="row"><label class="f" style="min-width:180px">Status<select data-tst="${r.id}">${Object.entries(T_STAT).map(([k,v])=>`<option value="${k}" ${r.status===k?"selected":""}>${v}</option>`).join("")}</select></label>
+       ${D.contractUrl&&["approved","interview"].includes(r.status)?`<a class="btnlink" href="${esc(D.contractUrl)}" target="_blank" rel="noopener">Send contract in Jotform ↗</a>`:""}</div>
+      <label class="f">Your private notes<textarea data-tnote="${r.id}" rows="3" maxlength="2000">${esc(r.note||"")}</textarea></label>
+      <div class="row"><button class="small" data-tsave="${r.id}">Save notes</button><button class="ghost small" data-tdel="${r.id}">Delete application</button><span class="muted" id="tm-${r.id}" role="status"></span></div>
+      ${(r.log||[]).length?`<p class="muted" style="font-size:.8rem">History: ${r.log.map(x=>`${T_STAT[x.s]} ${new Date(x.t).toLocaleDateString()}`).join(" → ")}</p>`:""}
+     </div>`:""}</div>`}).join(""):`<div class="card"><p class="muted">No applications match these filters.</p></div>`}`;
+}
+function wireTutors(){
+  if(!isAdmin()||!S.tutors)return;const D=S.tutors,F=S.tf;
+  const st=document.getElementById("tu-st");st.value=F.status;st.onchange=()=>{F.status=st.value;render()};
+  const co=document.getElementById("tu-co");co.value=F.county;co.onchange=()=>{F.county=co.value;render()};
+  const gr=document.getElementById("tu-gr");gr.value=F.grade;gr.onchange=()=>{F.grade=gr.value;render()};
+  document.getElementById("tu-link").onclick=async e=>{const u=location.origin+"/#tutor";try{await navigator.clipboard.writeText(u);e.target.textContent="Link copied!"}catch(er){e.target.textContent=u}};
+  document.getElementById("tu-csv").onclick=()=>{const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+    const rows=[["Applied","Status","Name","Email","Phone","Role","County","City","Travel","Grades","Areas","License","License note","Years","Rate","Days","Times","Résumé","Notes"],...D.tutors.map(r=>[new Date(r.t).toLocaleDateString(),T_STAT[r.status],r.name,r.email,r.phone,r.role,r.county,r.city,T_TRAVEL[r.travel],r.grades.join(" "),r.areas.join(" "),T_LIC[r.license],r.licenseNote,r.years,r.rate,r.days.join(" "),r.times,r.file?"yes":"no",r.note])];
+    saveFile(`tutor-applications-${new Date().toISOString().slice(0,10)}.csv`,rows.map(r=>r.map(q).join(",")).join("\n"))};
+  document.getElementById("tu-cf").onsubmit=async e=>{e.preventDefault();const u=document.getElementById("tu-cu").value.trim();busy(e.submitter,"Saving…");
+    try{await api("contractSave",{url:u});D.contractUrl=u;flash("tu-cm","Saved.");render()}catch(er){document.getElementById("tu-cm").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save link"}};
+  app.querySelectorAll("[data-tu]").forEach(b=>b.onclick=()=>{S.tuOpen=S.tuOpen===b.dataset.tu?null:b.dataset.tu;render()});
+  const upd=async(id,patch)=>{const d=await api("tutorUpdate",{id,...patch});Object.assign(D.tutors.find(x=>x.id===id),d.tutor);return d};
+  app.querySelectorAll("[data-tst]").forEach(s=>s.onchange=async()=>{try{await upd(s.dataset.tst,{status:s.value});render()}catch(e){S.err=e.message;render()}});
+  app.querySelectorAll("[data-tsave]").forEach(b=>b.onclick=async()=>{const id=b.dataset.tsave,m=document.getElementById("tm-"+id);busy(b,"Saving…");
+    try{await upd(id,{note:app.querySelector(`[data-tnote="${id}"]`).value});m.textContent="Saved."}catch(e){m.textContent=e.message}b.disabled=false;b.textContent="Save notes"});
+  app.querySelectorAll("[data-tdel]").forEach(b=>b.onclick=async()=>{const r=D.tutors.find(x=>x.id===b.dataset.tdel);if(!confirm(`Delete ${r.name}’s application and résumé? This can’t be undone.`))return;
+    try{await api("tutorDelete",{id:r.id});D.tutors=D.tutors.filter(x=>x.id!==r.id);S.tuOpen=null;render()}catch(e){S.err=e.message;render()}});
+  app.querySelectorAll("[data-tfile]").forEach(b=>b.onclick=async()=>{try{const {file}=await api("tutorFile",{id:b.dataset.tfile});const bin=atob(file.data),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([u],{type:file.type}));a.download=file.name||"resume";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},800)}catch(e){S.err=e.message;render()}});
+}
+
 /* ---------- start ---------- */
 (async()=>{
   const sess=ls.get(SKEY,sessionStorage);
   if(sess&&sess.token){TOKEN=sess.token;
     try{if(sess.role==="teacher"){startTeacher({token:TOKEN,...await api("boot")});return}
       else{startStudent({...await api("studentBoot"),token:TOKEN});return}}catch(e){TOKEN=null;ls.set(SKEY,null,sessionStorage)}}
+  if(location.hash==="#tutor"){S.screen="tutorApply"}
   render();
 })();
 
