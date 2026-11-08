@@ -371,6 +371,71 @@ How you teach:
     return { ok: true, count: roster.students.length };
   };
 
+
+  /* ---------- tutors & consultants: public application, reviewed by the site admin ---------- */
+  const T_STATUS = ["new", "reviewing", "interview", "approved", "contract", "signed", "active", "declined"];
+  const T_TRAVEL = ["virtual", "15", "30", "60", "state"];
+  const pick = (v, ok) => (Array.isArray(v) ? v : []).map(x => String(x)).filter(x => ok.includes(x));
+  A.tutorApply = async (b, ip) => {
+    if (str(b.website)) return { ok: true }; // honeypot: bots fill hidden fields
+    const name = str(b.name, 80), email = str(b.email, 120).toLowerCase(), phone = str(b.phone, 30);
+    if (name.length < 2) bad("Please enter your full name.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) bad("Please enter a valid email address.");
+    const county = str(b.county, 40), city = str(b.city, 60);
+    if (!county) bad("Please choose your county.");
+    const grades = pick(b.grades, ["3", "4", "5"]), areas = pick(b.areas, ["OA", "NBT", "NF", "MD", "G"]);
+    if (!grades.length) bad("Please choose at least one grade.");
+    if (!b.bgConsent) bad("Please agree to a background check. Schools require one before you work with students.");
+    if (!b.agree) bad("Please confirm the information is true.");
+    const k = "tapply/" + sha("tap" + (ip || "unknown")).slice(0, 24), f = (await getJ(k)) || { n: 0, t: Date.now() };
+    const fresh = Date.now() - f.t > 864e5; if (!fresh && f.n >= 5) bad("You have sent several applications today. Please try again tomorrow.", 429);
+    await setJ(k, { n: fresh ? 1 : f.n + 1, t: fresh ? Date.now() : f.t });
+    const id = "tu" + rid(8);
+    let file = null;
+    if (b.file && typeof b.file === "object" && b.file.data) {
+      const data = String(b.file.data), type = str(b.file.type, 100), fname = str(b.file.name, 120);
+      if (data.length > 3_000_000) bad("Your résumé file is too big. Please keep it under 2 MB.");
+      if (!/pdf|msword|officedocument|text\/plain/.test(type)) bad("Please upload your résumé as a PDF or Word file.");
+      if (!/^[A-Za-z0-9+/=]+$/.test(data)) bad("That résumé file could not be read.");
+      await setJ("tutorfile/" + id, { name: fname, type, data });
+      file = { name: fname, type, size: Math.round(data.length * 0.75) };
+    }
+    const rec = {
+      id, t: Date.now(), status: "new", note: "",
+      name, email, phone, city, county, travel: T_TRAVEL.includes(String(b.travel)) ? String(b.travel) : "virtual",
+      role: ["tutor", "consultant", "both"].includes(b.role) ? b.role : "tutor",
+      grades, areas, license: ["ms", "other", "working", "none"].includes(b.license) ? b.license : "none",
+      licenseNote: str(b.licenseNote, 120), years: Math.max(0, Math.min(60, Math.round(+b.years || 0))),
+      rate: Math.max(0, Math.min(500, Math.round(+b.rate || 0))), days: pick(b.days, ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]),
+      times: str(b.times, 120), about: str(b.about, 1200), bgConsent: true, file,
+    };
+    await mutJ("tutors", list => { list = list || []; list.unshift(rec); return list.slice(0, 2000) });
+    return { ok: true };
+  };
+  const adminOnly = async b => { const ctx = await teacherCtx(b.token); if (!ctx.admin) bad("Only the site admin can see tutor applications.", 403); return ctx };
+  A.tutorList = async b => { await adminOnly(b); return { tutors: (await getJ("tutors")) || [], contractUrl: ((await loadSchool()).contractUrl) || "" } };
+  A.tutorUpdate = async b => {
+    await adminOnly(b);
+    let hit = null;
+    await mutJ("tutors", list => { list = list || []; const r = list.find(x => x.id === b.id); if (!r) bad("That application was not found.", 404);
+      if (T_STATUS.includes(b.status)) { if (r.status !== b.status) (r.log = r.log || []).push({ t: Date.now(), s: b.status }); r.status = b.status }
+      if (b.note !== undefined) r.note = str(b.note, 2000);
+      hit = r; return list });
+    return { tutor: hit };
+  };
+  A.tutorFile = async b => { await adminOnly(b); const f = await getJ("tutorfile/" + str(b.id, 20)); if (!f) bad("No résumé was uploaded.", 404); return { file: f } };
+  A.tutorDelete = async b => {
+    await adminOnly(b); const id = str(b.id, 20);
+    await mutJ("tutors", list => (list || []).filter(x => x.id !== id));
+    await del("tutorfile/" + id).catch(() => {});
+    return { ok: true };
+  };
+  A.contractSave = async b => {
+    await adminOnly(b); const u = str(b.url, 500);
+    if (u && !/^https:\/\//i.test(u)) bad("Please paste a link that starts with https://");
+    const school = await loadSchool(); school.contractUrl = u; await saveSchool(school); return { ok: true };
+  };
+
   /* station plans: one saved plan per class */
   A.planGet = async b => { const ctx = await teacherCtx(b.token); const c = myClass(ctx, b.classId); return { plan: await getJ("plan/" + c.id) } };
   A.planSave = async b => {
@@ -503,13 +568,13 @@ How you teach:
     if (!d || !d.data || !d.data.school) bad("That backup could not be read.");
     await snapshot("before-restore");
     const keep = new Set(Object.keys(d.data));
-    for (const k of await listKeys("")) if (!k.startsWith("backup/") && !k.startsWith("fail/") && !keep.has(k)) await del(k);
+    for (const k of await listKeys("")) if (!/^(backup|fail|tutorfile|tapply)\//.test(k) && !keep.has(k)) await del(k);
     for (const [k, v] of Object.entries(d.data)) await setJ(k, v);
     return { ok: true, restored: keep.size };
   };
   async function collect() {
     const data = {};
-    for (const k of await listKeys("")) if (!k.startsWith("backup/") && !k.startsWith("fail/")) data[k] = await getJ(k);
+    for (const k of await listKeys("")) if (!/^(backup|fail|tutorfile|tapply)\//.test(k)) data[k] = await getJ(k); // résumé files are kept out of backups
     return { v: 1, made: Date.now(), data };
   }
   async function snapshot(tag) {
