@@ -80,7 +80,7 @@ export function makeApi({ store, env }) {
     ip: { on: c.ip?.on !== false, cut: c.ip?.cut || 60 } });
   const testMeta = t => ({ id: t.id, name: t.name, grade: t.grade || "", ownerId: t.ownerId || null, created: t.created || 0, nq: Object.keys(t.qs || {}).length, skills: (t.skills || []).length });
   const BUILTIN = { id: "a1", name: "Grade 3 benchmark (8 standards, enter missed question numbers)", builtIn: true, grade: "3", nq: 0, skills: 8 };
-  const STDTESTS = [["std3", "3", 33], ["std4", "4", 34], ["std5", "5", 34]].map(([id, g, n]) => ({ id, name: `Grade ${g}: all standards (no test)`, builtIn: true, grade: g, nq: 0, skills: n }));
+  const STDTESTS = [["std3", "3", 33], ["std4", "4", 34], ["std5", "5", 34], ["std6", "6", 50], ["std7", "7", 37], ["std8", "8", 33], ["std9", "9", 52]].map(([id, g, n]) => ({ id, name: g === "9" ? "Algebra I: all standards (no test)" : `Grade ${g}: all standards (no test)`, builtIn: true, grade: g === "9" ? "Algebra I" : g, nq: 0, skills: n }));
   const builtinIds = new Set(["a1", ...STDTESTS.map(t => t.id)]);
 
   async function teacherCtx(token) {
@@ -108,6 +108,15 @@ export function makeApi({ store, env }) {
     if (!c || !canSee(ctx, c)) bad("That class was not found.", 404);
     return c;
   }
+  /* ---------- school license: seat caps set only by the site owner (OWNER_CODE in Netlify) ---------- */
+  const TRIAL = { plan: "Trial", teachers: 2, students: 60 };
+  const license = school => env.OWNER_CODE ? { ...TRIAL, ...(school.license || {}) } : null; // no OWNER_CODE yet = caps not turned on
+  async function seatsUsed(school, skipClassId) {
+    let n = 0;
+    for (const c of school.classes) { if (c.id === skipClassId) continue; const r = await getJ("roster/" + c.id); n += (r?.students || []).filter(x => !x.sample).length }
+    return n;
+  }
+  const capMsg = (what, L) => `Your school’s ${L.plan} license covers ${L[what]} ${what}. To add more, contact Path to Proficiency to upgrade your license.`;
   function boot(ctx) {
     const { school, me, admin } = ctx;
     return {
@@ -117,6 +126,7 @@ export function makeApi({ store, env }) {
       allClassCount: school.classes.length,
       tests: [BUILTIN, ...STDTESTS, ...(school.tests || [])], hidden: school.hidden || [],
       ai: !!env.ANTHROPIC_API_KEY,
+      license: license(school) ? { ...license(school), usedT: school.teachers.length } : null,
     };
   }
   async function loadTest(id) {
@@ -250,7 +260,7 @@ How you teach:
       if (t && t.admin && !b.admin && school.teachers.filter(x => x.admin).length === 1) bad("The school needs at least one admin.");
       rec.admin = !!b.admin;
     }
-    if (!t) school.teachers.push(rec);
+    if (!t) { const L = license(school); if (L && school.teachers.length >= L.teachers) bad(capMsg("teachers", L), 402); school.teachers.push(rec) }
     await saveSchool(school);
     return boot({ school, me: ctx.me, admin: ctx.admin });
   };
@@ -340,9 +350,9 @@ How you teach:
       seen.add(code);
       const missed = {};
       if (s.missed && typeof s.missed === "object") for (const [t, m] of Object.entries(s.missed)) missed[str(t, 40)] = m == null ? null : [...new Set((Array.isArray(m) ? m : []).map(Number).filter(n => n >= 1 && n <= 200))].sort((x, y) => x - y);
-      const assigned = Array.isArray(s.assigned) ? [...new Set(s.assigned.map(x => str(x, 12)).filter(x => /^[0-9K]{1,2}\.[A-Z]{1,4}\.\d{1,2}[a-e]?$/.test(x)))].slice(0, 40) : [];
+      const assigned = Array.isArray(s.assigned) ? [...new Set(s.assigned.map(x => str(x, 12)).filter(x => /^(?:[0-9K]{1,2}\.[A-Z]{1,4}|[A-Z]-[A-Z]{1,4})\.\d{1,2}[a-e]?$/.test(x)))].slice(0, 40) : [];
       const m = s.mtss && typeof s.mtss === "object" ? { tier: ["", "2", "3"].includes(String(s.mtss.tier)) ? String(s.mtss.tier) : "", goal: str(s.mtss.goal, 300), notes: str(s.mtss.notes, 2000), start: str(s.mtss.start, 10) } : null;
-      const STD = /^[0-9K]{1,2}\.[A-Z]{1,4}\.\d{1,2}[a-e]?$/, day = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? String(v) : "";
+      const STD = /^(?:[0-9K]{1,2}\.[A-Z]{1,4}|[A-Z]-[A-Z]{1,4})\.\d{1,2}[a-e]?$/, day = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? String(v) : "";
       const ip = s.ip && typeof s.ip === "object" && Array.isArray(s.ip.steps) ? { // individualized program
         start: day(s.ip.start), end: day(s.ip.end), testId: str(s.ip.testId, 40), score: Math.max(0, Math.min(100, Math.round(+s.ip.score || 0))), cut: Math.max(1, Math.min(100, Math.round(+s.ip.cut || 60))),
         status: ["active", "met", "exited", "stopped"].includes(s.ip.status) ? s.ip.status : "active", round: Math.max(1, Math.min(9, Math.round(+s.ip.round || 1))), note: str(s.ip.note, 500),
@@ -353,6 +363,9 @@ How you teach:
       if (s.scores && typeof s.scores === "object") for (const [t, v] of Object.entries(s.scores).slice(0, 20)) if (v !== null && v !== "" && isFinite(+v)) scores[str(t, 40)] = Math.max(0, Math.min(100, Math.round(+v)));
       students.push({ id: s.id && /^[A-Za-z0-9]{4,20}$/.test(s.id) ? s.id : "s" + rid(8), name, code, missed, assigned, ...(m ? { mtss: m } : {}), ...(ip ? { ip } : {}), ...(Object.keys(scores).length ? { scores } : {}), sample: !!s.sample });
     }
+    if (students.filter(x => x.sample).length > 3) bad("A class can have up to 3 sample students.");
+    const L = license(ctx.school), realNew = students.filter(x => !x.sample).length, realOld = old.students.filter(x => !x.sample).length;
+    if (L && realNew > realOld) { const other = await seatsUsed(ctx.school, c.id); if (other + realNew > L.students) bad(`${capMsg("students", L)} (${other + realOld} of ${L.students} used.)`, 402) }
     const keep = new Set(students.map(s => s.id));
     for (const s of old.students) if (!keep.has(s.id)) await del(`prog/${c.id}/${s.id}`);
     const w = await store.setJSON("roster/" + c.id, { students }, etag ? { onlyIfMatch: etag } : {});
@@ -383,6 +396,24 @@ How you teach:
   };
 
 
+  A.licenseInfo = async b => { const ctx = await teacherCtx(b.token); const L = license(ctx.school); if (!L) return { license: null };
+    return { license: { ...L, usedT: ctx.school.teachers.length, usedS: await seatsUsed(ctx.school) } } };
+  /* site owner only: set this school's license. Needs OWNER_CODE in Netlify. */
+  async function ownerCheck(b, ip) {
+    if (!env.OWNER_CODE) bad("Add OWNER_CODE in Netlify first, then redeploy.", 403);
+    await checkLock(ip);
+    const a = Buffer.from(sha("own" + str(b.code, 200))), w = Buffer.from(sha("own" + env.OWNER_CODE));
+    if (!crypto.timingSafeEqual(a, w)) { await noteFail(ip); bad("That owner code did not match.", 401) }
+    await clearFail(ip);
+  }
+  A.ownerGet = async (b, ip) => { await ownerCheck(b, ip); const school = await loadSchool(); if (!school) bad("This site is not set up yet.", 404);
+    const per = []; for (const c of school.classes) { const r = await getJ("roster/" + c.id); per.push({ name: c.name, teacher: school.teachers.find(t => t.id === c.teacherId)?.name || "", n: (r?.students || []).filter(x => !x.sample).length }) }
+    return { school: school.name, license: license(school), usedT: school.teachers.length, usedS: per.reduce((a, x) => a + x.n, 0), classes: per } };
+  A.ownerSet = async (b, ip) => { await ownerCheck(b, ip); const school = await loadSchool(); if (!school) bad("This site is not set up yet.", 404);
+    const x = b.license || {};
+    school.license = { plan: str(x.plan, 40) || "School", teachers: Math.max(1, Math.min(500, Math.round(+x.teachers || 1))), students: Math.max(1, Math.min(20000, Math.round(+x.students || 1))), expires: /^\d{4}-\d{2}-\d{2}$/.test(String(x.expires || "")) ? String(x.expires) : "", note: str(x.note, 300), updated: Date.now() };
+    await saveSchool(school); return { ok: true, license: school.license } };
+
   /* ---------- tutors & consultants: public application, reviewed by the site admin ---------- */
   const T_STATUS = ["new", "reviewing", "interview", "approved", "contract", "signed", "active", "declined"];
   const T_TRAVEL = ["virtual", "15", "30", "60", "state"];
@@ -394,7 +425,7 @@ How you teach:
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) bad("Please enter a valid email address.");
     const county = str(b.county, 40), city = str(b.city, 60);
     if (!county) bad("Please choose your county.");
-    const grades = pick(b.grades, ["3", "4", "5"]), areas = pick(b.areas, ["OA", "NBT", "NF", "MD", "G"]);
+    const grades = pick(b.grades, ["3", "4", "5", "6", "7", "8", "9"]), areas = pick(b.areas, ["OA", "NBT", "NF", "MD", "G", "RP", "NS", "EE", "F", "SP", "ALG"]);
     if (!grades.length) bad("Please choose at least one grade.");
     if (!b.bgConsent) bad("Please agree to a background check. Schools require one before you work with students.");
     if (!b.agree) bad("Please confirm the information is true.");
