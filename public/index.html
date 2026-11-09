@@ -419,6 +419,37 @@ details.card>summary{cursor:pointer}
 .tu-head:focus-visible{outline:3px solid var(--gold);border-radius:8px}
 .tu-body{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--rule);padding-top:12px}
 .tu-body p{margin:2px 0}
+/* ---------- Individual plans ---------- */
+.ipbar{height:10px;border-radius:5px;background:var(--rule);overflow:hidden}.ipbar span{display:block;height:100%;background:var(--go)}
+.ipsteps{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+.ipsteps li{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:12px;border:1px solid var(--rule)}
+.ipsteps li>span:nth-child(2){flex:1}
+.ipsteps li.now{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 10%,var(--card))}
+.ipsteps li.done{opacity:.75}
+.ipn{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--rule);font-weight:800;flex:none}
+.ipsteps li.done .ipn{background:var(--go);color:#fff}
+/* printed lesson packets */
+.lp-wrap{max-width:780px;margin:0 auto;font-size:15px;color:#111}
+.lesson{page-break-after:always;break-after:page;padding:18px 6px}
+.lp-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:3px solid #176B45;padding-bottom:8px;margin-bottom:10px}
+.lp-head h2{margin:4px 0}.lp-head .mark{width:40px;height:40px}
+.lp-sub{margin:0;color:#555;font-size:.85rem}
+.lp-tag{display:inline-block;font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:999px;background:#DDF3E8;color:#176B45}
+.lp-tag.back{background:#FFE9C7;color:#8a4b00}.lp-tag.build{background:#E6E0FF;color:#4b2fa6}
+.lp-why{font-style:italic}
+.lp-box{border:2px solid #176B45;border-radius:12px;padding:6px 14px;margin:8px 0}.lp-box.soft{border-color:#ccc;background:#fafafa}
+.lp-box h3,.lesson h3{margin:10px 0 4px;font-size:1.05rem}
+.lp-q{display:flex;gap:10px;margin:8px 0 12px;page-break-inside:avoid;break-inside:avoid}
+.lp-q .qtext{margin:2px 0}.lp-q .tok{background:none!important;border:0!important;padding:0!important}
+.lp-num{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid #176B45;display:grid;place-items:center;font-weight:800;font-size:.85rem}
+.lp-ch{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 16px;margin-top:4px}.lp-ch>div{display:flex;gap:6px;align-items:center}
+.lp-ans{margin:6px 0 0}.lp-note{font-size:.8rem;color:#555;margin:2px 0}
+.lp-hint{margin:-6px 0 12px 36px;font-size:.85rem;color:#444}
+.lp-steps{margin:6px 0;padding-left:20px}.lp-steps li{margin:3px 0}
+.lp-exit{border:2px dashed #176B45;border-radius:12px;padding:4px 14px;margin-top:10px}
+.lp-plan{width:100%;border-collapse:collapse;margin:10px 0}.lp-plan th,.lp-plan td{border:1px solid #ccc;padding:6px 8px;text-align:left;font-size:.9rem}
+.lp-keyl{margin:8px 0;font-size:.9rem}
+@media print{.lesson{padding:0}}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1827,9 +1858,11 @@ function addExtras(codes){
   [...new Set(codes||[])].forEach(c=>{const L0=LIBC[c];if(!L0||base.some(k=>k.std===c)||extra.some(k=>k.std===c))return;extra.push({id:L0.gen,std:c,name:L0.name,qs:[],twins:[],extra:true,gen:L0.gen})});
   SKILLS=[...base,...extra];
 }
-const allAssigned=list=>list.flatMap(s=>s.assigned||[]);
+const allAssigned=list=>list.flatMap(s=>[...(s.assigned||[]),...ipCodes(s)]);
 /* a student's trail: assigned standards first, then the rest; "off" = not on this student's trail */
-const trailFor=s=>{const on=SKILLS.filter(k=>s.prog.skills[k.id]&&s.prog.skills[k.id].status!=="off"),a=new Set(s.assigned||[]);return [...on.filter(k=>a.has(k.std)),...on.filter(k=>!a.has(k.std))]};
+const trailFor=s=>{const on=SKILLS.filter(k=>s.prog.skills[k.id]&&s.prog.skills[k.id].status!=="off"),ipc=ipCodes(s),a=new Set(s.assigned||[]);
+  /* an individual plan goes first, in its building-block order; then assigned standards; then the rest */
+  const first=ipc.map(c=>on.find(k=>k.std===c)).filter(Boolean),rest=on.filter(k=>!first.includes(k));return [...first,...rest.filter(k=>a.has(k.std)),...rest.filter(k=>!a.has(k.std))]};
 let TESTID="a1",NQ=30,ACT=null;
 /* switch the whole app to one test: the built-in Assessment 1, or a test a teacher imported */
 function useTest(t){
@@ -1884,7 +1917,7 @@ function initStudent(s){
 }
 /* a student as one test sees them */
 function viewStudent(raw){const s={...raw,missed:raw.missed?.[TESTID]??null,prog:raw.prog?.[TESTID]?JSON.parse(JSON.stringify(raw.prog[TESTID])):null,raw};initStudent(s);
-  const a=new Set(s.assigned||[]);
+  const a=new Set([...(s.assigned||[]),...ipCodes(s)]);
   SKILLS.forEach(k=>{const sk=s.prog.skills[k.id];if(!sk)return;
     if(a.has(k.std)){if(sk.status==="off"||sk.status==="skip"){sk.was=sk.status;sk.status="todo"}sk.asg=true}
     else if(sk.asg){if(sk.status==="todo")sk.status=sk.was||(k.extra?"off":"todo");delete sk.asg;delete sk.was}
@@ -2037,7 +2070,7 @@ function landing(){
   <section class="lsec" id="data"><div class="lsec-h"><span class="eyebrow">For teachers and schools</span><h2>The data you get, updated as students practice</h2><p class="muted">Sample data shown.</p></div>
    <div class="tabs" role="tablist" aria-label="Teacher views">${[["class","Class progress"],["why","Why they missed it"],["student","Every student"],["items","Item analysis"],["compare","Compare classes"]].map(([id,l])=>`<button class="small" role="tab" aria-pressed="${LD.dtab===id}" data-dt="${id}">${l}</button>`).join("")}</div>
    <div class="dprev pop">${lPreview[LD.dtab]()}</div>
-   <div class="feat">${[["Path to your goal","See how many students finished their trail, and how many more you need to reach your class goal."],["Who needs help now","Students who miss 3 of their last 5 on a standard are flagged, with the question to review together."],["Ready-made small groups","Students working on the same standard are grouped for you."],["Why they missed it","The mistakes behind wrong answers, grouped and ranked, with the students who make each one."],["What to reteach","Every test question ranked from hardest to easiest, with a step-by-step breakdown for the board."],["Assign standards","Give any of the 101 grade 3–5 standards to one student, a group, or the whole class, including lower-grade standards to fill gaps."],["Station planner","Groups built from data, a rotation schedule, and printable group cards."],["Fluency tracking","Levels, best scores, passes, and the facts your class misses most."],["MTSS intervention reports","One-click, printable Tier 2 and 3 records: minutes, standards, accuracy growth, and mistakes."],["Benchmark readiness","An on-track, close, or needs-support estimate for every student, weighted toward the major work of grade 3."],["Growth over time","Weekly accuracy and practice charts for the class and each student."],["Spanish support","Students can switch directions, Chirp, and Scout’s help to Spanish."],["Compare classes","Side-by-side by teacher and standard, for grade-level teams and school leaders."],["Import tests and scores","Bring in a test from a PDF or spreadsheet, and scores from a CSV."]].map(([t,d])=>`<div><b>${t}</b><p class="muted">${d}</p></div>`).join("")}</div>
+   <div class="feat">${[["Path to your goal","See how many students finished their trail, and how many more you need to reach your class goal."],["Who needs help now","Students who miss 3 of their last 5 on a standard are flagged, with the question to review together."],["Ready-made small groups","Students working on the same standard are grouped for you."],["Why they missed it","The mistakes behind wrong answers, grouped and ranked, with the students who make each one."],["What to reteach","Every test question ranked from hardest to easiest, with a step-by-step breakdown for the board."],["Assign standards","Give any of the 101 grade 3–5 standards to one student, a group, or the whole class, including lower-grade standards to fill gaps."],["Station planner","Groups built from data, a rotation schedule, and printable group cards."],["Fluency tracking","Levels, best scores, passes, and the facts your class misses most."],["Automatic individual plans","Students who score below your cut score get a 6-week plan that steps back to the prerequisite standards they need, with printable, scaffolded lesson packets."],["MTSS intervention reports","One-click, printable Tier 2 and 3 records: minutes, standards, accuracy growth, and mistakes."],["Benchmark readiness","An on-track, close, or needs-support estimate for every student, weighted toward the major work of grade 3."],["Growth over time","Weekly accuracy and practice charts for the class and each student."],["Spanish support","Students can switch directions, Chirp, and Scout’s help to Spanish."],["Compare classes","Side-by-side by teacher and standard, for grade-level teams and school leaders."],["Import tests and scores","Bring in a test from a PDF or spreadsheet, and scores from a CSV."]].map(([t,d])=>`<div><b>${t}</b><p class="muted">${d}</p></div>`).join("")}</div>
   </section>
 
   <section class="lsec" id="faq"><div class="lsec-h"><span class="eyebrow">Questions</span><h2>Good to know</h2></div>
@@ -2157,7 +2190,7 @@ SCREENS.recover=recover;
 /* ---------- student ---------- */
 function startStudent(d){
   TOKEN=d.token;ls.set(SKEY,{token:d.token,role:"student"},sessionStorage);SB=d;S.role="student";S.demo=false;
-  if(d.test)TESTS[d.test.id]=d.test;useTest(d.test||(/^std\d$/.test(d.cls.testId)?{id:d.cls.testId}:null));addExtras(d.student.assigned);
+  if(d.test)TESTS[d.test.id]=d.test;useTest(d.test||(/^std\d$/.test(d.cls.testId)?{id:d.cls.testId}:null));addExtras([...(d.student.assigned||[]),...ipCodes(d.student)]);
   db={mastery:d.cls.mastery,videos:d.cls.videos||{},goal:d.cls.goal};TEACHER=d.teacher||"Your teacher";
   S.student=viewStudent({...d.student,prog:d.prog});S.lang=(d.prog&&d.prog._pref&&d.prog._pref.lang)||"en";S.screen="home";S.err="";render();
 }
@@ -2180,6 +2213,7 @@ function home(){
   app.innerHTML=header(`${langToggle()}<button class="ghost" id="out">${t("Sign out")}</button>`)+mission+fluCard()+gameCard()+`
   <div class="card">
    <div class="top"><h2>${t("My trail")}</h2><span class="pill gold">${done} of ${TR.length} checkpoints</span></div>
+   ${ipActive(s)?`<p class="fb info">📘 ${t("Your teacher made you a personal math plan. Your trail starts with the building blocks you need.")}</p>`:""}
    ${s.missed&&s.missed.length?`<p class="muted">On the test you missed ${missedText(s.missed)}. Your trail starts with those.</p>`:""}
    <ol class="trail">${TR.map((k,i)=>{const st=p.skills[k.id].status,cls=st==="todo"?(k===cur?"now":"later"):"done";
      const pill=st==="skip"?`<span class="pill go">${t("Got it on the test")}</span>`:st==="done"?`<span class="pill go">${t("Mastered")}</span>`:k===cur?`<span class="pill now">${t("You are here")}</span>`:p.skills[k.id].reopen?'<span class="pill gold">Refresh</span>':asg.has(k.std)?`<span class="pill purple">${t("From your teacher")}</span>`:`<span class="pill">${t("Coming up")}</span>`;
@@ -2419,6 +2453,7 @@ async function openClass(id,tab){
     S.cid=id;S.tt="class";S.tab=tab||S.tab||"class";S.edit=0;
   }catch(e){S.err=e.message}
   S.loading=false;render();
+  if(CUR&&!S.err)autoPrograms();
 }
 function teacher(){
   const tt=S.tt||"classes";
@@ -2430,8 +2465,9 @@ function teacher(){
     const tab=S.tab||"class";
     const tabs=`<div class="card" style="gap:10px;padding:14px 16px"><div class="top"><div><span class="label">Class</span><h2>${esc(CUR.cls.name)}</h2><span class="muted" style="font-size:.85rem">${esc(tName(CUR.cls.teacherId))} · ${esc(TEST_NAME)} · class code <b style="letter-spacing:.1em">${esc(CUR.cls.join)}</b></span></div>
       <button class="ghost small" id="allc">← All classes</button></div>
-      <div class="tabs" role="group" aria-label="Class pages">${[["class","Class progress"],["why","Why they missed it"],["plan","Station planner"],["fluency","Fluency"],["mtss","MTSS"],["bd","Question breakdowns"],["items","Item analysis"],["setup","Students"],["settings","Class settings"]].map(([id,l])=>`<button class="small" data-tab="${id}" aria-pressed="${tab===id}">${l}</button>`).join("")}</div></div>`;
-    body=tabs+({class:tClass,why:tWhy,plan:tPlanner,fluency:tFluency,mtss:tMtss,bd:tBreak,items:tItems,setup:tSetup,settings:tSettings})[tab]();
+      <div class="tabs" role="group" aria-label="Class pages">${[["class","Class progress"],["why","Why they missed it"],["plan","Station planner"],["fluency","Fluency"],["mtss","MTSS"],["bd","Question breakdowns"],["items","Item analysis"],["ip","Individual plans"],["setup","Students"],["settings","Class settings"]].map(([id,l])=>`<button class="small" data-tab="${id}" aria-pressed="${tab===id}">${l}</button>`).join("")}</div></div>`;
+    const ipn=S.ipNew&&S.ipNew.length&&tab!=="ip"?`<div class="fb go" role="status"><p>📘 New individual plan${S.ipNew.length>1?"s":""} started for ${S.ipNew.map(esc).join(", ")} (scored below ${ipCfg().cut}%). <button class="link" data-tab="ip">See plans and print lessons</button></p></div>`:"";
+    body=tabs+ipn+({class:tClass,why:tWhy,plan:tPlanner,fluency:tFluency,mtss:tMtss,ip:tIP,bd:tBreak,items:tItems,setup:tSetup,settings:tSettings})[tab]();
   } else body=({classes:tClasses,compare:tCompare,standards:tStandards,tests:tTests,reports:tReports,teachers:tTeachers,tutors:tTutors,class:tClasses})[tt]();
   app.innerHTML=header(`<button class="ghost" id="out">Sign out</button>`,`${TB.school.name} · ${TB.me.name}${isAdmin()?" (admin)":""}`)+nav+(S.err?`<div class="fb oops" role="alert"><p>${esc(S.err)}</p></div>`:"")+body;
   document.getElementById("out").onclick=signOut;
@@ -2439,7 +2475,7 @@ function teacher(){
   const allc=document.getElementById("allc");if(allc)allc.onclick=()=>{S.tt="classes";useTest(null);render()};
   app.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;S.err="";S.mtssId=null;render()});
   const cd=document.getElementById("csv-dl");if(cd)cd.onclick=()=>saveFile(`${CUR.cls.name.replace(/[^\w]+/g,"-")}-${new Date().toISOString().slice(0,10)}.csv`,classCSV());
-  if(tt==="class"&&CUR)({class:()=>{},why:()=>{},plan:wirePlanner,fluency:wireFluency,mtss:wireMtss,bd:wireBreak,items:()=>{},setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
+  if(tt==="class"&&CUR)({class:()=>{},why:()=>{},plan:wirePlanner,fluency:wireFluency,mtss:wireMtss,ip:wireIP,bd:wireBreak,items:()=>{},setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
   else ({classes:wireClasses,compare:wireCompare,standards:wireStandards,tests:wireTests,reports:wireReports,teachers:wireTeachers,tutors:wireTutors,class:wireClasses})[tt]();
 }
 SCREENS.teacher=teacher;
@@ -2566,7 +2602,7 @@ function tItems(){
 document.addEventListener("click",e=>{const b=e.target.closest("[data-goq]");if(b){S.tab="bd";S.bdq=+b.dataset.goq;render()}});
 
 /* ---------- students ---------- */
-const rosterOut=list=>list.map(s=>({id:s.id,name:s.name,code:s.code,missed:s.missed||{},assigned:s.assigned||[],...(s.mtss?{mtss:s.mtss}:{}),sample:!!s.sample}));
+const rosterOut=list=>list.map(s=>({id:s.id,name:s.name,code:s.code,missed:s.missed||{},assigned:s.assigned||[],...(s.mtss?{mtss:s.mtss}:{}),...(s.ip?{ip:s.ip}:{}),...(s.scores?{scores:s.scores}:{}),sample:!!s.sample}));
 async function saveRoster(list,extra={}){
   let d;try{d=await api("rosterSave",{classId:CUR.cls.id,rev:CUR.rev,students:rosterOut(list),...extra})}
   catch(e){if(/Someone else changed/.test(e.message)){const tab=S.tab;await openClass(CUR.cls.id,tab);alert(e.message+" Please make your change again.")}throw e}
@@ -2575,6 +2611,7 @@ async function saveRoster(list,extra={}){
   list.forEach(s=>{if(s.id&&s.prog)progById[s.id]=s.prog});
   if(extra.progs)Object.assign(progById,extra.progs);
   CUR.raw=d.students.map(s=>({...s,prog:progById[s.id]||{}}));addExtras(allAssigned(CUR.raw));CUR.students=CUR.raw.map(viewStudent);
+  if(!S.ipRunning)setTimeout(autoPrograms,0);
 }
 const newCode=(taken)=>{for(let i=0;i<500;i++){const c=String(1000+Math.floor(Math.random()*9000));if(!taken.has(c))return c}return ""};
 function tSetup(){
@@ -2722,6 +2759,8 @@ function tSettings(){
     <label class="f">Fluency: right to pass<input id="c-fp" type="number" min="1" max="60" value="${c.flu?.pass||28}"></label>
     <label class="f">Fluency: time (minutes)<input id="c-fs" type="number" min="0.5" max="15" step="0.5" value="${(c.flu?.secs||180)/60}"></label>
     <label class="f chk"><span><input type="checkbox" id="c-games" ${c.games?.on!==false?"checked":""}> Game Arcade on (students earn tokens)</span></label>
+    <label class="f chk"><span><input type="checkbox" id="c-ip" ${c.ip?.on!==false?"checked":""}> Automatic individual plans for low scores</span></label>
+    <label class="f">Individual plan cut score (%)<input id="c-ipc" type="number" min="1" max="100" value="${c.ip?.cut||60}"></label>
     <label class="f">Arcade: minutes per game<input id="c-gm" type="number" min="1" max="10" value="${c.games?.mins||3}"></label>
     <button type="submit">Save settings</button></form>
    <div class="row"><button type="button" class="ghost small" id="gm-bonus">Give everyone 1 bonus token</button><span class="muted" id="gm-msg" role="status"></span></div>
@@ -2733,12 +2772,12 @@ function tSettings(){
    <div class="row">${dev&&dev.join===c.join?`<button class="ghost" id="dev-off">Forget this class on this device</button>`:`<button class="ghost" id="dev-on">Use this device for ${esc(c.name)}</button>`}</div></div>
   <div class="card"><h2>Delete class</h2><p class="muted">This removes the class, its students, and all of their progress.</p><div class="row" id="del-box"><button class="ghost" id="del">Delete ${esc(c.name)}</button></div><p class="err" id="del-err" role="alert"></p></div>`;
 }
-async function saveClass(patch){const c=CUR.cls;const d=await api("classSave",{id:c.id,name:c.name,teacherId:c.teacherId,testId:c.testId,goal:c.goal,mastery:c.mastery,tutor:c.tutor,chirp:c.chirp,flu:c.flu,games:c.games,videos:c.videos,...patch});Object.assign(TB,d);return d.cls}
+async function saveClass(patch){const c=CUR.cls;const d=await api("classSave",{id:c.id,name:c.name,teacherId:c.teacherId,testId:c.testId,goal:c.goal,mastery:c.mastery,tutor:c.tutor,chirp:c.chirp,flu:c.flu,games:c.games,ip:c.ip,videos:c.videos,...patch});Object.assign(TB,d);return d.cls}
 function wireSettings(){
   const c=CUR.cls;
   document.getElementById("cs").onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Saving…");
     const patch={name:document.getElementById("c-name").value,testId:document.getElementById("c-test").value,goal:+document.getElementById("c-goal").value,mastery:+document.getElementById("c-mast").value,tutor:document.getElementById("c-tutor").checked,chirp:document.getElementById("c-chirp").checked,
-      flu:{on:document.getElementById("c-flu").checked,n:+document.getElementById("c-fn").value,pass:+document.getElementById("c-fp").value,secs:Math.round(+document.getElementById("c-fs").value*60)},games:{on:document.getElementById("c-games").checked,mins:+document.getElementById("c-gm").value}};
+      flu:{on:document.getElementById("c-flu").checked,n:+document.getElementById("c-fn").value,pass:+document.getElementById("c-fp").value,secs:Math.round(+document.getElementById("c-fs").value*60)},games:{on:document.getElementById("c-games").checked,mins:+document.getElementById("c-gm").value},ip:{on:document.getElementById("c-ip").checked,cut:+document.getElementById("c-ipc").value}};
     const ct=document.getElementById("c-t");if(ct)patch.teacherId=ct.value;
     try{const testChanged=patch.testId!==c.testId;await saveClass(patch);await openClass(c.id,"settings");flash("cs-msg",testChanged?`Saved. Students now practice ${testName(patch.testId)}.`:"Saved.");render()}
     catch(er){document.getElementById("cs-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save settings"}};
@@ -3855,6 +3894,151 @@ function wireTutors(){
   app.querySelectorAll("[data-tfile]").forEach(b=>b.onclick=async()=>{try{const {file}=await api("tutorFile",{id:b.dataset.tfile});const bin=atob(file.data),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
     const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([u],{type:file.type}));a.download=file.name||"resume";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},800)}catch(e){S.err=e.message;render()}});
 }
+
+/* ================= Individualized math programs =================
+   A student who scores below the class cut score gets a 6-week plan, built automatically:
+   for each standard they missed most, we step back through its prerequisite standards
+   (skipping ones they already showed they know) so lessons build up to grade level. */
+const PREQ={
+ "3.OA.2":["3.OA.1"],"3.OA.3":["3.OA.1","3.OA.2"],"3.OA.4":["3.OA.6"],"3.OA.5":["3.OA.1"],"3.OA.6":["3.OA.2"],"3.OA.7":["3.OA.5","3.OA.6"],"3.OA.8":["3.OA.3","3.NBT.2"],"3.OA.9":["3.OA.7"],
+ "3.NBT.3":["3.OA.7"],"3.NF.1":["3.G.2"],"3.NF.2a":["3.NF.1"],"3.NF.2b":["3.NF.2a"],"3.NF.3a":["3.NF.2b"],"3.NF.3b":["3.NF.3a"],"3.NF.3c":["3.NF.1"],"3.NF.3d":["3.NF.1","3.NF.2b"],
+ "3.MD.2":["3.NBT.2"],"3.MD.3":["3.OA.3"],"3.MD.4":["3.NF.2b"],"3.MD.5b":["3.MD.5a"],"3.MD.6":["3.MD.5b"],"3.MD.7a":["3.MD.6","3.OA.1"],"3.MD.7b":["3.MD.7a","3.OA.7"],"3.MD.7c":["3.MD.7b","3.OA.5"],"3.MD.7d":["3.MD.7b"],"3.MD.8":["3.MD.7b","3.NBT.2"],"3.G.2":["3.G.1"],
+ "4.OA.1":["3.OA.1"],"4.OA.2":["4.OA.1","3.OA.3"],"4.OA.3":["3.OA.8","4.NBT.5"],"4.OA.4":["3.OA.7"],"4.OA.5":["3.OA.9"],
+ "4.NBT.1":["3.NBT.3"],"4.NBT.2":["4.NBT.1"],"4.NBT.3":["3.NBT.1","4.NBT.2"],"4.NBT.4":["3.NBT.2","4.NBT.2"],"4.NBT.5":["3.NBT.3","3.MD.7c"],"4.NBT.6":["3.OA.6","3.OA.7"],
+ "4.NF.1":["3.NF.3b"],"4.NF.2":["3.NF.3d","4.NF.1"],"4.NF.3a":["3.NF.1"],"4.NF.3b":["4.NF.3a"],"4.NF.3c":["4.NF.3b","3.NF.3c"],"4.NF.3d":["4.NF.3a"],"4.NF.4a":["3.NF.1","3.OA.1"],"4.NF.4b":["4.NF.4a"],"4.NF.4c":["4.NF.4b"],"4.NF.5":["4.NF.1"],"4.NF.6":["4.NF.5"],"4.NF.7":["4.NF.6"],
+ "4.MD.1":["3.MD.2","3.OA.7"],"4.MD.2":["4.MD.1","3.MD.1"],"4.MD.3":["3.MD.7b","3.MD.8"],"4.MD.4":["3.MD.4","4.NF.3a"],"4.MD.5a":["4.G.1"],"4.MD.5b":["4.MD.5a"],"4.MD.6":["4.MD.5b"],"4.MD.7":["4.MD.6"],
+ "4.G.1":["3.G.1"],"4.G.2":["4.G.1"],"4.G.3":["3.G.1"],
+ "5.OA.1":["4.OA.3"],"5.OA.2":["5.OA.1"],"5.OA.3":["4.OA.5"],"5.NBT.1":["4.NBT.1","4.NF.6"],"5.NBT.2":["5.NBT.1"],"5.NBT.3a":["4.NF.6"],"5.NBT.3b":["5.NBT.3a","4.NF.7"],"5.NBT.4":["5.NBT.3a","4.NBT.3"],"5.NBT.5":["4.NBT.5"],"5.NBT.6":["4.NBT.6"],"5.NBT.7":["5.NBT.3a","4.NBT.4"],
+ "5.NF.1":["4.NF.1","4.NF.3a"],"5.NF.2":["5.NF.1"],"5.NF.3":["4.NBT.6","3.NF.1"],"5.NF.4a":["4.NF.4b"],"5.NF.4b":["5.NF.4a","4.MD.3"],"5.NF.5a":["5.NF.4a"],"5.NF.5b":["5.NF.5a"],"5.NF.6":["5.NF.4a"],"5.NF.7a":["5.NF.3"],"5.NF.7b":["5.NF.3"],"5.NF.7c":["5.NF.7a","5.NF.7b"],
+ "5.MD.1":["4.MD.1","5.NBT.2"],"5.MD.2":["4.MD.4","5.NF.1"],"5.MD.3a":["3.MD.5a"],"5.MD.3b":["5.MD.3a"],"5.MD.4":["5.MD.3b"],"5.MD.5a":["5.MD.4","3.MD.7b"],"5.MD.5b":["5.MD.5a"],"5.MD.5c":["5.MD.5b"],
+ "5.G.1":["4.G.1"],"5.G.2":["5.G.1"],"5.G.3":["4.G.2"],"5.G.4":["5.G.3"]};
+const ipWk=(i,n)=>{const a=Math.floor(i*IP_WEEKS/n)+1,b=Math.max(a,Math.floor((i+1)*IP_WEEKS/n));return a===b?`${a}`:`${a}–${b}`};
+const IP_WEEKS=6,IP_LVL={back:"Step back",build:"Building block",grade:"On grade level"};
+const ipCfg=()=>(CUR&&CUR.cls.ip)||{on:true,cut:60};
+const ipActive=s=>!!(s&&s.ip&&s.ip.status==="active"&&s.ip.steps&&s.ip.steps.length);
+const ipCodes=s=>ipActive(s)?s.ip.steps.map(x=>x.std):[];
+const isoDay=d=>{const x=new Date(d);return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`};
+const niceDay=v=>v?new Date(v+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):"—";
+/* a test score: from missed questions when the test has numbered questions, otherwise one the teacher typed in */
+function testScore(s){if(NQ>0&&Array.isArray(s.missed))return Math.round((NQ-s.missed.length)/NQ*100);const v=s.scores&&s.scores[TESTID];return v==null?null:+v}
+const skOf=(s,code)=>{const k=SKILLS.find(x=>x.std===code);return k&&s.prog.skills[k.id]?{k,sk:s.prog.skills[k.id]}:null};
+const ipKnown=(s,code)=>{const o=skOf(s,code);return !!o&&(o.sk.status==="done"||o.sk.status==="skip")};
+const ipDone=(s,code)=>{const o=skOf(s,code);return !!o&&o.sk.status==="done"};
+function buildProgram(s,score,cut){
+  let targets=[];
+  if(NQ>0&&Array.isArray(s.missed)&&s.missed.length){
+    targets=SKILLS.filter(k=>k.qs&&k.qs.length).map(k=>({c:k.std,n:k.qs.filter(n=>s.missed.includes(n)).length,w:STD_W(k.std)})).filter(x=>x.n).sort((a,b)=>b.n-a.n||b.w-a.w).map(x=>x.c);
+  }
+  if(!targets.length){const tr=trailFor(s).filter(k=>!ipKnown(s,k.std)&&!k.extra);
+    targets=tr.map((k,i)=>({c:k.std,sc:stdScore(s,k)??.25,w:STD_W(k.std),i})).sort((x,y)=>x.sc-y.sc||y.w-x.w||x.i-y.i).map(x=>x.c)}
+  targets=[...new Set(targets)].filter(c=>LIBC[c]).slice(0,3);
+  const g=gradeOf(),steps=[],tset=new Set(targets);
+  const chain=(code,depth,target,out)=>{if(steps.some(x=>x.std===code)||out.some(x=>x.std===code))return;
+    if(depth<2)(PREQ[code]||[]).forEach(p=>{if(LIBC[p]&&!ipKnown(s,p)&&+p[0]<=+code[0])chain(p,depth+1,target,out)});
+    out.push({std:code,lvl:tset.has(code)?"grade":(+code[0]<g?"back":"build"),for:target})};
+  /* add whole chains while they fit in 6 weeks (about 8 lessons); the first target always goes in */
+  targets.forEach((t,i)=>{const out=[];chain(t,0,t,out);if(i===0||steps.length+out.length<=8)steps.push(...out)});
+  while(steps.length>8){const i=steps.findIndex(x=>x.lvl!=="grade");if(i<0)break;steps.splice(i,1)}
+  const now=Date.now();
+  return {start:isoDay(now),end:isoDay(now+IP_WEEKS*7*864e5),testId:TESTID,score,cut,status:"active",round:1,note:"",steps,hist:[]};
+}
+/* runs whenever a class opens or scores are saved: new low scores get a plan right away */
+async function autoPrograms(){
+  const c=ipCfg();if(!CUR||c.on===false||S.ipRunning)return;
+  const made=[];
+  CUR.raw.forEach((raw,i)=>{const s=CUR.students[i];if(raw.sample||raw.ip)return;const sc=testScore(s);if(sc==null||sc>=c.cut)return;
+    const p=buildProgram(s,sc,c.cut);if(!p.steps.length)return;raw.ip=p;made.push(raw.name)});
+  if(!made.length)return;
+  S.ipRunning=true;
+  try{await saveRoster(CUR.raw);S.ipNew=made;const keep=[...app.querySelectorAll('[role=status][id]')].map(e=>[e.id,e.textContent]);render();keep.forEach(([id,tx])=>{const e=document.getElementById(id);if(e&&!e.textContent)e.textContent=tx})}catch(e){S.err="Could not save the new individual plans: "+e.message;render()}
+  S.ipRunning=false;
+}
+function ipWeek(ip){const d=Math.floor((Date.now()-new Date(ip.start+"T00:00:00"))/864e5);return Math.max(1,Math.min(IP_WEEKS,Math.floor(d/7)+1))}
+const ipDue=ip=>Date.now()>=new Date(ip.end+"T00:00:00").getTime();
+const ipStdLabel=c=>`${esc(c)} · ${esc((LIBC[c]||{}).name||"")}`;
+
+/* ---------- teacher tab ---------- */
+function tIP(){
+  const c=ipCfg(),real=CUR.students.filter(s=>!s.sample),withIP=real.filter(s=>s.ip),needScore=NQ>0?[]:real;
+  const notice=S.ipNew&&S.ipNew.length?`<div class="fb go" role="status"><p>📘 New individual plans started for ${S.ipNew.map(esc).join(", ")}. Their trails now start with the building blocks they need, and their lesson packets are ready to print.</p></div>`:"";
+  return `${notice}<div class="card"><div class="top"><h2>Individual plans</h2>${withIP.some(ipActive)?`<button class="ghost small" id="ip-all">🖨 Print all lesson packets</button>`:""}</div>
+   <p class="muted">${c.on===false?"Automatic plans are off for this class. Turn them on in Class settings.":`Any student who scores below <b>${c.cut}%</b> on ${esc(TEST_NAME)} gets a ${IP_WEEKS}-week plan automatically. The plan steps back to the prerequisite standards they still need, so each lesson builds on the last one up to grade level. Their online trail follows the same order, and you get a printable, scaffolded lesson packet for each student.`}</p>
+   <p class="muted" style="font-size:.85rem">Change the cut score in Class settings.</p></div>
+  ${needScore.length?`<div class="card"><h3>Benchmark scores</h3><p class="muted">${esc(TEST_NAME)} has no numbered test questions, so type each student’s score (%) from your benchmark or screener. Students below ${c.cut}% get a plan when you save.</p>
+   <form id="ip-sc" class="grid">${needScore.map(s=>`<label class="f">${esc(s.name)}<input type="number" min="0" max="100" data-sc="${s.id}" value="${s.scores&&s.scores[TESTID]!=null?s.scores[TESTID]:""}" placeholder="%"></label>`).join("")}
+   <div style="grid-column:1/-1"><button type="submit">Save scores</button> <span class="muted" id="ip-scm" role="status"></span></div></form></div>`:""}
+  ${withIP.length?withIP.map(ipCard).join(""):`<div class="card"><p class="muted">${real.length?"No students are below the cut score right now.":"Add students and their scores to get started."}</p></div>`}`;
+}
+function ipCard(s){
+  const ip=s.ip,act=ipActive(s),got=ip.steps.filter(x=>ipDone(s,x.std)).length,n=ip.steps.length,due=act&&(ipDue(ip)||got===n);
+  const cur=act?ip.steps.find(x=>!ipDone(s,x.std)):null;
+  return `<div class="card ipc"><div class="top"><div><h3 style="margin:0">${esc(s.name)}</h3><span class="muted" style="font-size:.85rem">Scored ${ip.score}% (cut ${ip.cut}%) · ${niceDay(ip.start)} – ${niceDay(ip.end)}${ip.round>1?` · round ${ip.round}`:""}</span></div>
+    <span class="pill ${act?(due?"gold":"purple"):ip.status==="met"?"go":""}">${act?(due?"Re-check due":`Week ${ipWeek(ip)} of ${IP_WEEKS}`):ip.status==="met"?"Goal met":ip.status==="exited"?"Exited":"Stopped"}</span></div>
+   <div class="ipbar" aria-label="${got} of ${n} lessons mastered"><span style="width:${n?got/n*100:0}%"></span></div>
+   <ol class="ipsteps">${ip.steps.map((x,i)=>{const d=ipDone(s,x.std);return `<li class="${d?"done":cur===x?"now":""}"><span class="ipn">${d?"✓":i+1}</span><span>${ipStdLabel(x.std)}<br><span class="muted" style="font-size:.8rem">${IP_LVL[x.lvl]}${x.lvl!=="grade"?` → builds toward ${esc(x.for)}`:""}</span></span>${d?`<span class="pill go">Mastered</span>`:cur===x?`<span class="pill now">Working on</span>`:""}</li>`}).join("")}</ol>
+   ${due?`<div class="fb info"><p><b>${IP_WEEKS}-week re-check:</b> ${got} of ${n} lessons mastered${got===n?". The goal is met.":"."} What next?</p></div>`:""}
+   ${(ip.hist||[]).length?`<p class="muted" style="font-size:.8rem">Past rounds: ${ip.hist.map(h=>`${h.got}/${h.of} mastered, ended ${niceDay(h.end)} (${h.status})`).join(" · ")}</p>`:""}
+   <div class="row">${act?`<button class="small" data-ipprint="${s.id}">🖨 Print lesson packet</button>`:""}
+    ${act&&due?`<button class="small" data-ipact="met" data-id="${s.id}">Goal met: exit plan</button><button class="ghost small" data-ipact="again" data-id="${s.id}">Run ${IP_WEEKS} more weeks</button>`:""}
+    ${act&&!due?`<button class="ghost small" data-ipact="stop" data-id="${s.id}">Stop plan</button>`:""}
+    <button class="ghost small" data-ipact="rebuild" data-id="${s.id}">${act?"Rebuild plan":"Start a new plan"}</button></div></div>`;
+}
+function wireIP(){
+  const raw=id=>CUR.raw.find(x=>x.id===id),view=id=>CUR.students.find(x=>x.id===id);
+  const f=document.getElementById("ip-sc");if(f)f.onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Saving…");
+    f.querySelectorAll("[data-sc]").forEach(i=>{const r=raw(i.dataset.sc);r.scores={...(r.scores||{})};if(i.value==="")delete r.scores[TESTID];else r.scores[TESTID]=Math.max(0,Math.min(100,+i.value))});
+    try{await saveRoster(CUR.raw);await autoPrograms();flash("ip-scm","Saved.");render()}catch(er){document.getElementById("ip-scm").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save scores"}};
+  app.querySelectorAll("[data-ipprint]").forEach(b=>b.onclick=()=>printLessons([view(b.dataset.ipprint)]));
+  const all=document.getElementById("ip-all");if(all)all.onclick=()=>printLessons(CUR.students.filter(ipActive));
+  app.querySelectorAll("[data-ipact]").forEach(b=>b.onclick=async()=>{const r=raw(b.dataset.id),s=view(b.dataset.id),a=b.dataset.ipact,ip={...r.ip};
+    const got=ip.steps.filter(x=>ipDone(s,x.std)).length,hist=[...(ip.hist||[]),{end:isoDay(Date.now()),status:a==="met"?"met":a==="again"?"continued":a==="stop"?"stopped":"rebuilt",got,of:ip.steps.length}];
+    if(a==="met")r.ip={...ip,status:"met",hist};
+    else if(a==="stop"){if(!confirm(`Stop ${r.name}’s plan? Their trail goes back to the normal order.`))return;r.ip={...ip,status:"stopped",hist}}
+    else if(a==="again"){const now=Date.now();r.ip={...ip,start:isoDay(now),end:isoDay(now+IP_WEEKS*7*864e5),round:(ip.round||1)+1,hist,steps:ip.steps}}
+    else{const sc=testScore(s)??ip.score;const p=buildProgram(s,sc,ipCfg().cut);if(!p.steps.length){alert(`${r.name} has no standards left to build a plan from.`);return}r.ip={...p,round:(ip.round||1)+1,hist}}
+    busy(b,"Saving…");try{await saveRoster(CUR.raw);S.ipNew=null;render()}catch(e){S.err=e.message;render()}});
+}
+
+/* ---------- printable, scaffolded lesson packets ---------- */
+function ipHash(str){let h=2166136261;for(const ch of str){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function ipQs(code,seed,n){const L0=LIBC[code],g=L0&&L0.gen,out=[],seen=new Set();if(!g)return out;
+  for(let i=0;out.length<n&&i<n*6;i++){try{const q=GG.make(g,seed+i*7919);const key=JSON.stringify(q.parts);if(seen.has(key))continue;seen.add(key);if(q.type==="matrix")continue;out.push(q)}catch(e){}}return out}
+function ipQHTML(q,num){const body=bodyHTML(q,null,"plain");
+  const ch=q.type==="mc"||q.type==="multi"?`<div class="lp-ch">${q.choices.map((c,i)=>`<div><b>${L[i]}</b> ${choiceInner(c)}</div>`).join("")}</div>${q.type==="multi"?`<p class="lp-note">Choose two.</p>`:""}`:`<p class="lp-ans">Answer: ______________</p>`;
+  return `<div class="lp-q"><span class="lp-num">${num}</span><div>${body}${ch}</div></div>`}
+const ICAN=t=>"I can "+t.replace(/\.$/,"").replace(/^./,c=>c.toLowerCase())+".";
+function lessonHTML(s,step,i,n,key){
+  const L0=LIBC[step.std]||{},seed=ipHash(s.id+step.std+(s.ip.round||1));
+  const qs=ipQs(step.std,seed,9),ex=qs[0],guided=qs.slice(1,3),own=qs.slice(3,7),exit=qs.slice(7,9);
+  let k=0;const keyRows=[];const num=q=>{k++;keyRows.push(`${k}. ${esc(ansText(q))}`);return k};
+  const html=`<section class="lesson"><div class="lp-head"><div><span class="lp-tag ${step.lvl}">${IP_LVL[step.lvl]}</span><h2>Lesson ${i+1} of ${n}: ${esc(L0.name||step.std)}</h2>
+     <p class="lp-sub">${esc(step.std)} · ${esc(s.name)} · Week ${ipWk(i,n)}</p></div>${LOGO}</div>
+    <p class="lp-why">${step.lvl==="grade"?`This is a grade-level standard. It’s one of your goals for this plan.`:`This lesson builds the skill you need for <b>${esc(step.for)} ${esc((LIBC[step.for]||{}).name||"")}</b>.`}</p>
+    <div class="lp-box"><h3>Today I will learn</h3><ul>${(L0.do||[L0.desc||""]).slice(0,2).map(t=>`<li>${esc(ICAN(t))}</li>`).join("")}</ul></div>
+    ${(L0.und||[]).length?`<div class="lp-box soft"><h3>Remember</h3><ul>${L0.und.slice(0,3).map(t=>`<li>${esc(t)}</li>`).join("")}</ul></div>`:""}
+    ${ex?`<h3>1. Watch me (worked example)</h3><div class="lp-q"><span class="lp-num">★</span><div>${bodyHTML(ex,null,"plain")}${ex.type==="mc"||ex.type==="multi"?`<div class="lp-ch">${ex.choices.map((c,j)=>`<div><b>${L[j]}</b> ${choiceInner(c)}</div>`).join("")}</div>`:""}
+      <ol class="lp-steps">${(ex.steps||[]).map(st=>`<li>${fmt(st.say)}${st.show?`<div>${showHTML(st.show)}</div>`:""}</li>`).join("")}</ol><p><b>Answer:</b> ${fmt(ansText(ex))}</p></div></div>`:""}
+    ${guided.length?`<h3>2. Try it with help</h3>${guided.map(q=>`${ipQHTML(q,num(q))}${q.steps&&q.steps[0]?`<p class="lp-hint">💡 Hint: ${fmt(q.steps[0].say)}</p>`:""}`).join("")}`:""}
+    ${own.length?`<h3>3. On your own</h3>${own.map(q=>ipQHTML(q,num(q))).join("")}`:""}
+    ${exit.length?`<div class="lp-exit"><h3>Exit ticket</h3>${exit.map(q=>ipQHTML(q,num(q))).join("")}<p>How did it go? &nbsp; 😀 I’ve got it &nbsp;&nbsp; 🙂 Almost &nbsp;&nbsp; 😕 I need help</p></div>`:""}
+  </section>`;
+  key.push(`<div class="lp-keyl"><b>Lesson ${i+1}: ${esc(step.std)}</b><br>${keyRows.join(" &nbsp; ")}</div>`);
+  return html}
+function packetHTML(s){
+  const ip=s.ip,n=ip.steps.length,key=[];
+  const cover=`<section class="lesson"><div class="lp-head"><div><span class="lp-tag grade">Individual math plan</span><h2>${esc(s.name)}’s ${IP_WEEKS}-week math plan</h2>
+     <p class="lp-sub">${esc(TEACHER)} · ${esc(CUR.cls.name)} · ${niceDay(ip.start)} – ${niceDay(ip.end)}</p></div>${LOGO}</div>
+    <p>Starting score on ${esc(TEST_NAME)}: <b>${ip.score}%</b>. Goal: master every lesson below and score at least <b>${ip.cut}%</b> at the re-check.</p>
+    <p class="muted">Each lesson builds on the one before it. Lessons marked “Step back” or “Building block” are the skills this student needs first.</p>
+    <table class="lp-plan"><thead><tr><th>Week</th><th>Lesson</th><th>Standard</th><th>Level</th><th>Done</th></tr></thead><tbody>${ip.steps.map((x,i)=>`<tr><td>${ipWk(i,n)}</td><td>${i+1}. ${esc((LIBC[x.std]||{}).name||"")}</td><td>${esc(x.std)}</td><td>${IP_LVL[x.lvl]}</td><td>☐</td></tr>`).join("")}</tbody></table>
+    <p class="muted" style="font-size:.85rem">Each lesson: worked example → practice with hints → on your own → exit ticket. Online, the student’s trail follows the same order and marks each lesson mastered after ${db.mastery||10} right in a row.</p></section>`;
+  const lessons=ip.steps.map((x,i)=>lessonHTML(s,x,i,n,key)).join("");
+  return cover+lessons+`<section class="lesson lp-key"><h2>Answer key: ${esc(s.name)}</h2><p class="muted">For the teacher. Numbers match each lesson’s practice problems.</p>${key.join("")}</section>`}
+function printLessons(list){list=list.filter(ipActive);if(!list.length)return;const w=window.open("","_blank");if(!w){alert("Allow pop-ups to print.");return}
+  const css=[...document.querySelectorAll("style")].map(s=>s.outerHTML).join("");
+  w.document.write(`<!doctype html><meta charset="utf-8"><title>Lesson packets · ${esc(CUR.cls.name)}</title>${css}<style>body{background:#fff;color:#111;padding:0}</style><div class="lp-wrap">${list.map(packetHTML).join("")}</div><script>setTimeout(()=>print(),500)<\/script>`);w.document.close()}
+
+Object.assign(ES,{"Your teacher made you a personal math plan. Your trail starts with the building blocks you need.":"Tu maestro te hizo un plan de matemáticas personal. Tu camino empieza con las bases que necesitas."});
 
 /* ---------- start ---------- */
 (async()=>{
