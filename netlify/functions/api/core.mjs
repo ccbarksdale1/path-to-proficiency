@@ -76,7 +76,8 @@ export function makeApi({ store, env }) {
   const pubTeacher = t => ({ id: t.id, name: t.name, admin: !!t.admin });
   const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false,
     flu: { on: c.flu?.on !== false, secs: c.flu?.secs || 180, pass: c.flu?.pass || 28, n: c.flu?.n || 30 },
-    games: { on: c.games?.on !== false, mins: c.games?.mins || 3 } });
+    games: { on: c.games?.on !== false, mins: c.games?.mins || 3 },
+    ip: { on: c.ip?.on !== false, cut: c.ip?.cut || 60 } });
   const testMeta = t => ({ id: t.id, name: t.name, grade: t.grade || "", ownerId: t.ownerId || null, created: t.created || 0, nq: Object.keys(t.qs || {}).length, skills: (t.skills || []).length });
   const BUILTIN = { id: "a1", name: "Grade 3 benchmark (8 standards, enter missed question numbers)", builtIn: true, grade: "3", nq: 0, skills: 8 };
   const STDTESTS = [["std3", "3", 33], ["std4", "4", 34], ["std5", "5", 34]].map(([id, g, n]) => ({ id, name: `Grade ${g}: all standards (no test)`, builtIn: true, grade: g, nq: 0, skills: n }));
@@ -293,6 +294,7 @@ How you teach:
       const n = Math.max(10, Math.min(60, Math.round(+b.flu.n || 30)));
       c.flu = { on: b.flu.on !== false, n, secs: Math.max(30, Math.min(900, Math.round(+b.flu.secs || 180))), pass: Math.max(1, Math.min(n, Math.round(+b.flu.pass || 28))) };
     }
+    if (b.ip && typeof b.ip === "object") c.ip = { on: b.ip.on !== false, cut: Math.max(1, Math.min(100, Math.round(+b.ip.cut || 60))) };
     if (b.games && typeof b.games === "object") c.games = { on: b.games.on !== false, mins: Math.max(1, Math.min(10, Math.round(+b.games.mins || 3))) };
     if (b.videos && typeof b.videos === "object") c.videos = Object.fromEntries(Object.entries(b.videos).filter(([, v]) => /^https?:\/\//i.test(String(v))).map(([k, v]) => [str(k, 40), str(v, 500)]));
     await saveSchool(school);
@@ -340,7 +342,16 @@ How you teach:
       if (s.missed && typeof s.missed === "object") for (const [t, m] of Object.entries(s.missed)) missed[str(t, 40)] = m == null ? null : [...new Set((Array.isArray(m) ? m : []).map(Number).filter(n => n >= 1 && n <= 200))].sort((x, y) => x - y);
       const assigned = Array.isArray(s.assigned) ? [...new Set(s.assigned.map(x => str(x, 12)).filter(x => /^[0-9K]{1,2}\.[A-Z]{1,4}\.\d{1,2}[a-e]?$/.test(x)))].slice(0, 40) : [];
       const m = s.mtss && typeof s.mtss === "object" ? { tier: ["", "2", "3"].includes(String(s.mtss.tier)) ? String(s.mtss.tier) : "", goal: str(s.mtss.goal, 300), notes: str(s.mtss.notes, 2000), start: str(s.mtss.start, 10) } : null;
-      students.push({ id: s.id && /^[A-Za-z0-9]{4,20}$/.test(s.id) ? s.id : "s" + rid(8), name, code, missed, assigned, ...(m ? { mtss: m } : {}), sample: !!s.sample });
+      const STD = /^[0-9K]{1,2}\.[A-Z]{1,4}\.\d{1,2}[a-e]?$/, day = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? String(v) : "";
+      const ip = s.ip && typeof s.ip === "object" && Array.isArray(s.ip.steps) ? { // individualized program
+        start: day(s.ip.start), end: day(s.ip.end), testId: str(s.ip.testId, 40), score: Math.max(0, Math.min(100, Math.round(+s.ip.score || 0))), cut: Math.max(1, Math.min(100, Math.round(+s.ip.cut || 60))),
+        status: ["active", "met", "exited", "stopped"].includes(s.ip.status) ? s.ip.status : "active", round: Math.max(1, Math.min(9, Math.round(+s.ip.round || 1))), note: str(s.ip.note, 500),
+        steps: s.ip.steps.slice(0, 10).map(x => ({ std: str(x && x.std, 12), lvl: ["back", "build", "grade"].includes(x && x.lvl) ? x.lvl : "grade", for: str(x && x.for, 12) })).filter(x => STD.test(x.std)),
+        hist: Array.isArray(s.ip.hist) ? s.ip.hist.slice(-10).map(h => ({ end: day(h && h.end), status: str(h && h.status, 12), got: Math.max(0, Math.min(10, +(h && h.got) || 0)), of: Math.max(0, Math.min(10, +(h && h.of) || 0)) })) : [],
+      } : null;
+      const scores = {};
+      if (s.scores && typeof s.scores === "object") for (const [t, v] of Object.entries(s.scores).slice(0, 20)) if (v !== null && v !== "" && isFinite(+v)) scores[str(t, 40)] = Math.max(0, Math.min(100, Math.round(+v)));
+      students.push({ id: s.id && /^[A-Za-z0-9]{4,20}$/.test(s.id) ? s.id : "s" + rid(8), name, code, missed, assigned, ...(m ? { mtss: m } : {}), ...(ip ? { ip } : {}), ...(Object.keys(scores).length ? { scores } : {}), sample: !!s.sample });
     }
     const keep = new Set(students.map(s => s.id));
     for (const s of old.students) if (!keep.has(s.id)) await del(`prog/${c.id}/${s.id}`);
