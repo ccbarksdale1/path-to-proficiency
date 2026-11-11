@@ -480,12 +480,12 @@ How you teach:
     const name = str(b.name, 80), email = str(b.email, 120).toLowerCase();
     if (name.length < 2) bad("Please enter your name.");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) bad("Please enter a valid email address.");
-    const org = str(b.org, 120); if (!org) bad("Please enter your school or district.");
+    const family = b.type === "family", org = str(b.org, 120) || (family ? "Family" : ""); if (!org) bad("Please enter your school or district.");
     const k = "tapply/" + sha("lead" + (ip || "unknown")).slice(0, 24), f = (await getJ(k)) || { n: 0, t: Date.now() };
     const fresh = Date.now() - f.t > 864e5; if (!fresh && f.n >= 6) bad("You have sent several requests today. Please try again tomorrow.", 429);
     await setJ(k, { n: fresh ? 1 : f.n + 1, t: fresh ? Date.now() : f.t });
-    const rec = { id: "ld" + rid(8), t: Date.now(), status: "new", note: "", type: b.type === "founding" ? "founding" : "demo", name, email, phone: str(b.phone, 30),
-      role: ["teacher", "principal", "assistant", "coach", "district", "other"].includes(b.role) ? b.role : "other", org, county: str(b.county, 40),
+    const rec = { id: "ld" + rid(8), t: Date.now(), status: "new", note: "", type: ["founding", "family"].includes(b.type) ? b.type : "demo", name, email, phone: str(b.phone, 30),
+      role: ["teacher", "principal", "assistant", "coach", "district", "parent", "homeschool", "other"].includes(b.role) ? b.role : "other", org, county: str(b.county, 40),
       students: Math.max(0, Math.min(100000, Math.round(+b.students || 0))), grades: (Array.isArray(b.grades) ? b.grades : []).map(String).filter(x => ["3", "4", "5", "6", "7", "8", "9"].includes(x)),
       times: str(b.times, 160), message: str(b.message, 1500) };
     await mutJ("leads", list => { list = list || []; list.unshift(rec); return list.slice(0, 2000) });
