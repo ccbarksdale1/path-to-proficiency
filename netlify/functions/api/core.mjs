@@ -362,7 +362,10 @@ How you teach:
       } : null;
       const scores = {};
       if (s.scores && typeof s.scores === "object") for (const [t, v] of Object.entries(s.scores).slice(0, 20)) if (v !== null && v !== "" && isFinite(+v)) scores[str(t, 40)] = Math.max(0, Math.min(100, Math.round(+v)));
-      students.push({ id: s.id && /^[A-Za-z0-9]{4,20}$/.test(s.id) ? s.id : "s" + rid(8), name, code, missed, assigned, ...(m ? { mtss: m } : {}), ...(ip ? { ip } : {}), ...(Object.keys(scores).length ? { scores } : {}), sample: !!s.sample });
+      const bm = {}; // benchmark windows by school year: {"2026-27": {Fall: 52, Winter: 61}}
+      if (s.bm && typeof s.bm === "object") for (const [yr, w] of Object.entries(s.bm).slice(-6)) if (/^\d{4}-\d{2}$/.test(yr) && w && typeof w === "object") {
+        const o = {}; for (const k of ["Fall", "Winter", "Spring"]) if (w[k] !== null && w[k] !== undefined && w[k] !== "" && isFinite(+w[k])) o[k] = Math.max(0, Math.min(100, Math.round(+w[k]))); if (Object.keys(o).length) bm[yr] = o }
+      students.push({ id: s.id && /^[A-Za-z0-9]{4,20}$/.test(s.id) ? s.id : "s" + rid(8), name, code, missed, assigned, ...(m ? { mtss: m } : {}), ...(ip ? { ip } : {}), ...(Object.keys(scores).length ? { scores } : {}), ...(Object.keys(bm).length ? { bm } : {}), sample: !!s.sample });
     }
     if (students.filter(x => x.sample).length > 3) bad("A class can have up to 3 sample students.");
     const L = license(ctx.school), realNew = students.filter(x => !x.sample).length, realOld = old.students.filter(x => !x.sample).length;
