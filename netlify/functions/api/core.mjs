@@ -356,6 +356,7 @@ How you teach:
       const ip = s.ip && typeof s.ip === "object" && Array.isArray(s.ip.steps) ? { // individualized program
         start: day(s.ip.start), end: day(s.ip.end), testId: str(s.ip.testId, 40), score: Math.max(0, Math.min(100, Math.round(+s.ip.score || 0))), cut: Math.max(1, Math.min(100, Math.round(+s.ip.cut || 60))),
         status: ["active", "met", "exited", "stopped"].includes(s.ip.status) ? s.ip.status : "active", round: Math.max(1, Math.min(9, Math.round(+s.ip.round || 1))), note: str(s.ip.note, 500),
+        sessions: Math.max(1, Math.min(7, Math.round(+s.ip.sessions || 3))), minutes: Math.max(5, Math.min(90, Math.round(+s.ip.minutes || 20))), exit: str(s.ip.exit, 400),
         steps: s.ip.steps.slice(0, 10).map(x => ({ std: str(x && x.std, 12), lvl: ["back", "build", "grade"].includes(x && x.lvl) ? x.lvl : "grade", for: str(x && x.for, 12) })).filter(x => STD.test(x.std)),
         hist: Array.isArray(s.ip.hist) ? s.ip.hist.slice(-10).map(h => ({ end: day(h && h.end), status: str(h && h.status, 12), got: Math.max(0, Math.min(10, +(h && h.got) || 0)), of: Math.max(0, Math.min(10, +(h && h.of) || 0)) })) : [],
       } : null;
@@ -472,6 +473,30 @@ How you teach:
     await del("tutorfile/" + id).catch(() => {});
     return { ok: true };
   };
+
+  /* ---------- school leads: demo requests and Founding Schools applications (public form, admin review) ---------- */
+  A.leadAdd = async (b, ip) => {
+    if (str(b.website)) return { ok: true }; // honeypot
+    const name = str(b.name, 80), email = str(b.email, 120).toLowerCase();
+    if (name.length < 2) bad("Please enter your name.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) bad("Please enter a valid email address.");
+    const org = str(b.org, 120); if (!org) bad("Please enter your school or district.");
+    const k = "tapply/" + sha("lead" + (ip || "unknown")).slice(0, 24), f = (await getJ(k)) || { n: 0, t: Date.now() };
+    const fresh = Date.now() - f.t > 864e5; if (!fresh && f.n >= 6) bad("You have sent several requests today. Please try again tomorrow.", 429);
+    await setJ(k, { n: fresh ? 1 : f.n + 1, t: fresh ? Date.now() : f.t });
+    const rec = { id: "ld" + rid(8), t: Date.now(), status: "new", note: "", type: b.type === "founding" ? "founding" : "demo", name, email, phone: str(b.phone, 30),
+      role: ["teacher", "principal", "assistant", "coach", "district", "other"].includes(b.role) ? b.role : "other", org, county: str(b.county, 40),
+      students: Math.max(0, Math.min(100000, Math.round(+b.students || 0))), grades: (Array.isArray(b.grades) ? b.grades : []).map(String).filter(x => ["3", "4", "5", "6", "7", "8", "9"].includes(x)),
+      times: str(b.times, 160), message: str(b.message, 1500) };
+    await mutJ("leads", list => { list = list || []; list.unshift(rec); return list.slice(0, 2000) });
+    return { ok: true };
+  };
+  A.leadList = async b => { await adminOnly(b); return { leads: (await getJ("leads")) || [] } };
+  A.leadUpdate = async b => { await adminOnly(b); let hit = null;
+    await mutJ("leads", list => { list = list || []; const r = list.find(x => x.id === b.id); if (!r) bad("That request was not found.", 404);
+      if (["new", "contacted", "demo", "pilot", "customer", "closed"].includes(b.status)) r.status = b.status; if (b.note !== undefined) r.note = str(b.note, 2000); hit = r; return list });
+    return { lead: hit } };
+  A.leadDelete = async b => { await adminOnly(b); const id = str(b.id, 20); await mutJ("leads", list => (list || []).filter(x => x.id !== id)); return { ok: true } };
   A.contractSave = async b => {
     await adminOnly(b); const u = str(b.url, 500);
     if (u && !/^https:\/\//i.test(u)) bad("Please paste a link that starts with https://");
