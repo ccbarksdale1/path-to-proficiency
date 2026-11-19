@@ -3945,7 +3945,14 @@ function addExtras(codes){
   [...new Set(codes||[])].forEach(c=>{const L0=LIBC[c];if(!L0||base.some(k=>k.std===c)||extra.some(k=>k.std===c))return;extra.push({id:L0.gen,std:c,name:L0.name,qs:[],twins:[],extra:true,gen:L0.gen})});
   SKILLS=[...base,...extra];
 }
-const allAssigned=list=>list.flatMap(s=>[...(s.assigned||[]),...ipCodes(s),...goListRaw(s)]);
+/* standards on a class's exit tickets and built tests count too, so any grade standard can be tested */
+const genCode=g=>{const gr=gradeOf(),L=LIB.find(x=>x.gen===g&&x.grade===gr)||LIB.find(x=>x.gen===g);return L?L.code:null};
+const xtCodes=s=>xtOf(s).flatMap(x=>[x.std,...(x.qs||[]).map(id=>{const m=String(id).match(/~([A-Za-z0-9_]+)~/);return m?genCode(m[1]):null})]).filter(Boolean);
+/* every standard a teacher can pick for a ticket or test: the class's own, then the rest of the grade */
+function pickSkills(){const base=SKILLS.filter(k=>genOf(k)),g=gradeOf(),ord=c=>{const i=LIB.findIndex(x=>x.code===c);return i<0?1e6:i};
+  const more=LIB.filter(x=>x.grade===g&&x.gen&&!base.some(k=>k.std===x.code)).map(x=>({id:x.gen,std:x.code,name:x.name,qs:[],twins:[],extra:true,gen:x.gen}));
+  return [...base,...more].sort((a,b)=>ord(a.std)-ord(b.std))}
+const allAssigned=list=>list.flatMap(s=>[...(s.assigned||[]),...ipCodes(s),...goListRaw(s),...xtCodes(s)]);
 /* a student's trail: assigned standards first, then the rest; "off" = not on this student's trail */
 const trailFor=s=>{const on=SKILLS.filter(k=>s.prog.skills[k.id]&&s.prog.skills[k.id].status!=="off"),ipc=ipCodes(s),a=new Set(s.assigned||[]);
   /* an individual plan goes first, in its building-block order; then assigned standards; then the rest */
@@ -4347,7 +4354,7 @@ SCREENS.recover=recover;
 /* ---------- student ---------- */
 function startStudent(d){
   TOKEN=d.token;ls.set(SKEY,{token:d.token,role:"student"},sessionStorage);SB=d;S.role="student";S.demo=false;
-  if(d.test)TESTS[d.test.id]=d.test;useTest(d.test||(isStdT(d.cls.testId)?{id:d.cls.testId}:null));addExtras([...(d.student.assigned||[]),...ipCodes(d.student),...goList(d.prog&&d.prog[TESTID])]);
+  if(d.test)TESTS[d.test.id]=d.test;useTest(d.test||(isStdT(d.cls.testId)?{id:d.cls.testId}:null));addExtras([...(d.student.assigned||[]),...ipCodes(d.student),...goList(d.prog&&d.prog[TESTID]),...xtCodes(d.student)]);
   db={mastery:d.cls.mastery,videos:d.cls.videos||{},goal:d.cls.goal};TEACHER=d.teacher||"Your teacher";
   S.student=viewStudent({...d.student,prog:d.prog});S.lang=(d.prog&&d.prog._pref&&d.prog._pref.lang)||"en";S.screen="home";S.err="";render();
 }
@@ -5104,7 +5111,11 @@ function wireTeachers(){
 function tTests(){
   if(S.draft)return tDraft();
   const used=id=>TB.classes.filter(c=>c.testId===id);
-  return `<div class="card"><h2>Tests</h2><p class="muted">Each class practices one test. Import a new test, then pick it in a class’s settings.</p>
+  const mineT=(m=>m.length?m:isAdmin()?TB.classes:[])(TB.classes.filter(c=>c.teacherId===TB.me.id));
+  const build=mineT.length?`<div class="card"><div class="top"><h2>Build a test</h2><span class="muted small">Your own test from any grade standard</span></div>
+   <p class="muted">Pick standards and how many questions each gets, preview and swap questions, then assign it to a class or group. Pick the class:</p>
+   <div class="row">${mineT.map(c=>`<button class="ghost" data-tbopen="${esc(c.id)}">＋ ${esc(c.name)}</button>`).join("")}</div></div>`:"";
+  return build+`<div class="card"><h2>Tests</h2><p class="muted">Each class practices one test. Import a new test, then pick it in a class’s settings.</p>
    <div class="tablewrap"><table class="roster"><thead><tr><th>Test</th><th>Questions</th><th>Standards</th><th>Used by</th><th></th></tr></thead><tbody>
    ${TB.tests.map(t=>`<tr><td><b>${esc(t.name)}</b>${t.ownerId?`<br><span class="muted">by ${esc(tName(t.ownerId))}</span>`:""}</td><td>${t.nq}</td><td>${t.skills}</td><td>${used(t.id).map(c=>esc(c.name)).join(", ")||'<span class="muted">—</span>'}</td>
      <td>${t.builtIn?"":`<div class="row">${TB.ai?`<button class="ghost small" data-more="${t.id}">More practice</button>`:""}${(isAdmin()||t.ownerId===TB.me.id)?`<button class="ghost small" data-edt="${t.id}">Edit</button><button class="ghost small" data-delt="${t.id}">Delete</button>`:""}</div>`}</td></tr>`).join("")}</tbody></table></div>
@@ -5124,6 +5135,7 @@ function tTests(){
 }
 const progressHTML=(done,total,label)=>`<div class="fb info"><p><b>${esc(label)}</b> ${done} of ${total}</p><div class="meter"><span style="width:${total?Math.round(done/total*100):0}%"></span></div></div>`;
 function wireTests(){
+  app.querySelectorAll("[data-tbopen]").forEach(b=>b.onclick=async()=>{busy(b,"Opening…");await openClass(b.dataset.tbopen,"plan");if(CUR){S.tbld={n:{},ea:{}};S.tbSaved=false;render();const el=document.getElementById("tb");if(el)el.scrollIntoView({block:"start"})}});
   if(S.draft)return wireDraft();
   app.querySelectorAll("[data-delt]").forEach(b=>b.onclick=async()=>{const t=TB.tests.find(x=>x.id===b.dataset.delt);if(!confirm(`Delete ${t.name}? This can’t be undone.`))return;
     try{Object.assign(TB,await api("testDelete",{id:t.id}));delete TESTS[t.id];S.terr="";render()}catch(e){S.terr=e.message;render()}});
@@ -7721,7 +7733,7 @@ function classTickets(){const by={};CUR.students.filter(s=>!isSample(s)).forEach
 function xtCard(){if(!SKILLS.some(k=>genOf(k)))return "";const L=classTickets(),P=S.plan,focus=(()=>{const c={};realStudents().forEach(s=>{const k=curSkill(s);if(k)c[k.id]=(c[k.id]||0)+1});const id=Object.entries(c).sort((a,b)=>b[1]-a[1])[0]?.[0];return SKILLS.find(k=>k.id===id)})();
   return `<div class="card"><div class="top"><h2>Exit tickets</h2><span class="muted small">Results update tomorrow’s groups</span></div>
    <p class="muted">A short check at the end of a lesson: ${3} or ${5} questions on one standard, on their own, no hints. Students see it on their home page. When you press <b>Make groups</b>, anyone who got under two thirds right in the last ${XT_DAYS} days is grouped by that standard.</p>
-   ${S.xtNew?`<form class="grid" id="xt-f"><label class="f">Standard<select name="k">${SKILLS.filter(k=>genOf(k)).map(k=>`<option value="${esc(k.id)}" ${focus&&k.id===focus.id?"selected":""}>${esc(k.std)} · ${esc(k.name)}</option>`).join("")}</select></label>
+   ${S.xtNew?`<form class="grid" id="xt-f"><label class="f">Standard<select name="k">${pickSkills().map(k=>`<option value="${esc(k.id)}" ${focus&&k.id===focus.id?"selected":""}>${esc(k.std)} · ${esc(k.name)}</option>`).join("")}</select></label>
      <label class="f">Questions<select name="n"><option value="3">3</option><option value="5">5</option></select></label>
      <label class="f">Who<select name="who"><option value="all">Whole class</option>${P&&P.groups?P.groups.map((g,i)=>`<option value="${i}">${esc(g.name)} (${g.ids.length})</option>`).join(""):""}</select></label>
      <div class="row" style="grid-column:1/-1"><button type="submit">Give exit ticket</button><button type="button" class="ghost" id="xt-x">Cancel</button><span class="muted" id="xt-msg" role="status"></span></div></form>`
@@ -7733,7 +7745,7 @@ function xtCard(){if(!SKILLS.some(k=>genOf(k)))return "";const L=classTickets(),
 function wireXt(){const nw=document.getElementById("xt-new");if(nw)nw.onclick=()=>{S.xtNew=true;S.xtSaved=false;render()};
   const x=document.getElementById("xt-x");if(x)x.onclick=()=>{S.xtNew=false;render()};
   const all=document.getElementById("xt-all");if(all)all.onclick=()=>{S.xtAll=true;render()};
-  const f=document.getElementById("xt-f");if(f)f.onsubmit=async e=>{e.preventDefault();const fd=new FormData(f),k=SKILLS.find(k=>k.id===fd.get("k")),who=String(fd.get("who"));if(!k)return;
+  const f=document.getElementById("xt-f");if(f)f.onsubmit=async e=>{e.preventDefault();const fd=new FormData(f),k=pickSkills().find(k=>k.id===fd.get("k")),who=String(fd.get("who"));if(!k)return;
     const ids=new Set(who==="all"?realStudents().map(s=>s.id):(S.plan.groups[+who]||{ids:[]}).ids);
     const rec={id:"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),d:isoDay(Date.now()),k:k.id,std:k.std,n:+fd.get("n")===5?5:3};busy(e.submitter,"Sending…");
     try{await saveRoster(CUR.raw.map(s=>ids.has(s.id)?{...s,xt:[...xtOf(s),rec].slice(-XT_MAX)}:s));S.xtNew=false;S.xtSaved=true;render()}catch(er){document.getElementById("xt-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Give exit ticket"}};
@@ -8187,7 +8199,7 @@ Object.assign(ES,{"Think deeper":"Piensa más","Think deeper: find the mistake":
    saved on the exit-ticket record (x.qs, x.name), so every student gets the same test. Results are kept
    per question and per standard (prog.xtr[id].q, .by) and feed groups and Next steps like exit tickets. */
 const TB_MAX=40;
-const tbSkills=()=>SKILLS.filter(k=>genOf(k));
+const tbSkills=()=>pickSkills();
 function tbNewQ(k,ea,avoid){for(let i=0;i<30;i++){let id=ea?eaIdFor(k):`~${genOf(k)}~${Math.floor(Math.random()*1e9)}`;if(!id)return null;let q=null;try{q=getQ(id)}catch(e){}
     if(!q||!["mc","multi","input"].includes(q.type))continue;const key=JSON.stringify(q.parts);if(avoid.has(key))continue;avoid.add(key);return {id,k:k.id,ea:!!ea}}return null}
 function tbMake(){const B=S.tbld,avoid=new Set(),qs=[];
@@ -8206,7 +8218,7 @@ function tbCard(){const B=S.tbld;
   const P=S.plan;
   return `<div class="card" id="tb"><div class="top"><h2>Build a test: preview</h2><button class="ghost small" id="tb-x">Cancel</button></div>
    <p class="muted">${B.qs.length} question${B.qs.length===1?"":"s"}. Tap <b>Swap</b> for a different question on the same standard, or <b>Remove</b>. The answer is marked on each one.</p>
-   <ol class="tb-list">${B.qs.map((x,i)=>{let q=null;try{q=viewQ(getQ(x.id))}catch(e){}const k=SKILLS.find(s=>s.id===x.k)||{};if(!q)return "";
+   <ol class="tb-list">${B.qs.map((x,i)=>{let q=null;try{q=viewQ(getQ(x.id))}catch(e){}const k=tbSkills().find(s=>s.id===x.k)||{};if(!q)return "";
      return `<li class="tb-q"><div class="row" style="justify-content:space-between"><span class="label">${esc(k.std||"")}${x.ea?` · <span class="pill purple">Think deeper</span>`:""}</span><span class="row" style="gap:6px"><button class="ghost small" data-tbs="${i}">Swap</button><button class="ghost small" data-tbr="${i}">Remove</button></span></div>${(h=>{const m='<div class="card"><h3>Key words to highlight</h3>',j=h.indexOf(m);return j<0?h:h.slice(0,j)+`<details class="tb-steps"><summary class="small">See the steps and why other answers are wrong</summary>${h.slice(j)}</details>`})(reviewHTML(q,"Question "+(i+1)))}</li>`}).join("")}</ol>
    <form class="grid" id="tb-f"><label class="f">Test name<input name="name" required maxlength="60" value="${esc(B.name||"")}" placeholder="Unit 3 check"></label>
     <label class="f">Who<select name="who"><option value="all">Whole class</option>${P&&P.groups?P.groups.map((g,i)=>`<option value="${i}">${esc(g.name)} (${g.ids.length})</option>`).join(""):""}</select></label>
@@ -8218,18 +8230,18 @@ function wireTb(){const keep=fn=>()=>{const y=window.scrollY;fn();render();windo
   app.querySelectorAll("[data-tbe]").forEach(i=>i.onchange=keep(()=>{S.tbld.ea[i.dataset.tbe]=i.checked}));
   const mk=document.getElementById("tb-make");if(mk)mk.onclick=keep(()=>tbMake());
   const bk=document.getElementById("tb-back");if(bk)bk.onclick=keep(()=>{S.tbld.qs=null});
-  app.querySelectorAll("[data-tbs]").forEach(b=>b.onclick=keep(()=>{const i=+b.dataset.tbs,old=S.tbld.qs[i],k=SKILLS.find(s=>s.id===old.k);
+  app.querySelectorAll("[data-tbs]").forEach(b=>b.onclick=keep(()=>{const i=+b.dataset.tbs,old=S.tbld.qs[i],k=tbSkills().find(s=>s.id===old.k);
     const avoid=new Set(S.tbld.qs.map(y=>{try{return JSON.stringify(getQ(y.id).parts)}catch(e){return ""}}));const n=tbNewQ(k,old.ea,avoid);if(n)S.tbld.qs[i]=n}));
   app.querySelectorAll("[data-tbr]").forEach(b=>b.onclick=keep(()=>{S.tbld.qs.splice(+b.dataset.tbr,1)}));
   const f=document.getElementById("tb-f");if(f){f.querySelector("[name=name]").oninput=e=>{S.tbld.name=e.target.value};
     f.onsubmit=async e=>{e.preventDefault();const fd=new FormData(f),who=String(fd.get("who")),B=S.tbld,name=String(fd.get("name")||"").trim().slice(0,60);if(!name||!B.qs.length)return;
-      const ids=new Set(who==="all"?realStudents().map(s=>s.id):(S.plan.groups[+who]||{ids:[]}).ids),k0=SKILLS.find(s=>s.id===B.qs[0].k);
+      const ids=new Set(who==="all"?realStudents().map(s=>s.id):(S.plan.groups[+who]||{ids:[]}).ids),k0=tbSkills().find(s=>s.id===B.qs[0].k);
       const rec={id:"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),d:isoDay(Date.now()),k:k0.id,std:k0.std,n:B.qs.length,name,qs:B.qs.map(y=>y.id)};
       busy(e.submitter,"Assigning…");
       try{await saveRoster(CUR.raw.map(s=>ids.has(s.id)?{...s,xt:[...xtOf(s),rec].slice(-XT_MAX)}:s));S.tbld=null;S.tbSaved=true;render()}catch(er){document.getElementById("tb-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Assign test"}}}}
 /* per-standard and per-question results for a custom test, across the students who took it */
 function tbResults(x){const by={},q=x.qs.map(()=>[0,0]);x.who.forEach(w=>{const r=w.r;if(!r)return;(r.q||[]).forEach((v,i)=>{if(q[i]){q[i][1]++;if(v)q[i][0]++}});Object.entries(r.by||{}).forEach(([kid,[o,n]])=>{const y=by[kid]||(by[kid]=[0,0]);y[0]+=o;y[1]+=n})});
-  const std=kid=>(SKILLS.find(s=>s.id===kid)||{}).std||kid;
+  const std=kid=>(tbSkills().find(s=>s.id===kid)||{}).std||kid;
   return `<details><summary class="small">By standard and by question</summary><div class="row" style="gap:10px;flex-wrap:wrap;margin:6px 0">${Object.entries(by).map(([kid,[o,n]])=>`<span class="pill ${n&&o/n<.6?"oops":n&&o/n<.8?"gold":"go"}">${esc(std(kid))}: ${n?Math.round(o/n*100):0}%</span>`).join("")||'<span class="muted small">No results yet.</span>'}</div>
    <div class="row" style="gap:6px;flex-wrap:wrap">${q.map(([o,n],i)=>`<span class="small">#${i+1}: ${n?Math.round(o/n*100)+"%":"—"}</span>`).join(" · ")}</div></details>`}
 Object.assign(ES,{"Test":"Prueba","Start my test":"Empezar mi prueba"});
