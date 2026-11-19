@@ -712,6 +712,7 @@ h3.bgrp{margin:14px 0 8px;font-size:1rem}
 /* trail on phones: no zigzag indent, long standard names wrap instead of running under the tag */
 .stop>span{min-width:0;overflow-wrap:break-word;hyphens:auto}
 @media (max-width:480px){.stop:nth-child(n){margin-left:0}.stop{grid-template-columns:44px minmax(0,1fr) auto;gap:8px;padding:8px 10px}.stop .num{width:44px;height:44px;font-size:1.15rem}.stop::after{left:31px}.stop .pill{font-size:.7rem;padding:3px 7px}}
+.tb-list{padding-left:1.2em;display:flex;flex-direction:column;gap:14px}.tb-steps summary{cursor:pointer;margin:6px 0}
 </style>
 
 <form name="school-request" data-netlify="true" netlify-honeypot="bot-field" hidden><input name="bot-field"><input name="type"><input name="name"><input name="email"><input name="role"><input name="org"><input name="county"><input name="students"><input name="grades"><input name="times"><textarea name="message"></textarea></form><div class="wrap" id="app"></div>
@@ -5689,7 +5690,7 @@ function tPlanner(){
     <label class="f" style="grid-column:1/-1">Stations, in order (comma between)<input id="pl-sta" value="${esc(o.stations)}"></label>
     ${absentFS(o)}
     <button type="submit">${P?"Make new groups":"Make groups"}</button></form>`}
-   ${S.planSaved?`<p class="muted" style="font-size:.85rem">Last saved ${new Date(S.planSaved.saved).toLocaleString()}.</p>`:""}</div>${body}${xtCard()}${paperCard()}${readyCard()}${weekCard()}${sesLogCard()}`;
+   ${S.planSaved?`<p class="muted" style="font-size:.85rem">Last saved ${new Date(S.planSaved.saved).toLocaleString()}.</p>`:""}</div>${body}${tbCard()}${xtCard()}${paperCard()}${readyCard()}${weekCard()}${sesLogCard()}`;
 }
 function planOpts(){const v=id=>document.getElementById(id);const o=S.planO;
   o.mode=v("pl-mode").value;if(v("pl-n"))o.groups=Math.max(1,Math.min(10,+v("pl-n").value||4));if(v("pl-s"))o.size=Math.max(1,Math.min(15,+v("pl-s").value||5));
@@ -5710,7 +5711,7 @@ function wirePlanner(){
     try{await saveRoster(CUR.raw.map(s=>ids.has(s.id)?{...s,assigned:[...new Set([...(s.assigned||[]),I.focus.std])]}:s));b.textContent=`Assigned ${I.focus.std}`}catch(e){b.textContent=e.message}});
   const sv=document.getElementById("pl-save");if(sv)sv.onclick=async()=>{busy(sv,"Saving…");try{await api("planSave",{classId:CUR.cls.id,plan:{o:S.planO,groups:S.plan.groups}});S.planSaved={o:S.planO,groups:S.plan.groups,saved:Date.now()};sv.textContent="Saved ✓";sv.disabled=false}catch(e){document.getElementById("pl-msg").textContent=e.message;sv.disabled=false;sv.textContent="Save plan"}};
   const pr=document.getElementById("pl-print");if(pr)pr.onclick=printPlan;
-  wireSessions();wireXt();wireWeek();wireReady();wirePaper();
+  wireSessions();wireXt();wireWeek();wireReady();wirePaper();wireTb();
 }
 function printPlan(){
   const o=S.planO,stations=planStations(o),w=window.open("","_blank");if(!w){alert("Allow pop-ups to print.");return}
@@ -7708,7 +7709,11 @@ const xtRes=(s,id)=>(s.prog&&s.prog.xtr&&s.prog.xtr[id])||null;
 function xtLatest(s,days=XT_DAYS){const since=Date.now()-days*864e5,raw=s.raw||s;
   /* exit tickets the student answered, plus paper practice the teacher scored (S11) */
   const L=[...xtOf(raw).map(x=>({x,r:xtRes(s,x.id)})),...ppOf(raw).map(x=>({x,r:{t:new Date(x.d+"T15:00:00").getTime(),ok:x.ok,n:x.n},paper:true}))].filter(e=>e.r&&e.r.n&&e.r.t>=since);
-  if(!L.length)return null;const e=L.sort((a,b)=>b.r.t-a.r.t)[0],k=SKILLS.find(k=>k.id===e.x.k)||SKILLS.find(k=>k.std===e.x.std);
+  if(!L.length)return null;const e=L.sort((a,b)=>b.r.t-a.r.t)[0];
+  /* a custom test covers several standards: use the student's weakest one */
+  if(e.x.qs&&e.r.by){const w=Object.entries(e.r.by).filter(([,v])=>v[1]).sort((a,b)=>a[1][0]/a[1][1]-b[1][0]/b[1][1])[0],k=w&&SKILLS.find(s=>s.id===w[0]);
+    return k?{x:e.x,r:{...e.r,ok:w[1][0],n:w[1][1]},k,custom:true,pass:w[1][0]/w[1][1]>=XT_PASS-1e-9}:null}
+  const k=SKILLS.find(k=>k.id===e.x.k)||SKILLS.find(k=>k.std===e.x.std);
   return k?{x:e.x,r:e.r,k,paper:!!e.paper,pass:e.r.ok/e.r.n>=XT_PASS-1e-9}:null}
 /* every ticket in the class, rebuilt from the students' copies */
 function classTickets(){const by={};CUR.students.filter(s=>!isSample(s)).forEach(s=>xtOf(s.raw||s).forEach(x=>{const o=by[x.id]||(by[x.id]={...x,who:[]});o.who.push({s,r:xtRes(s,x.id)})}));
@@ -7723,7 +7728,7 @@ function xtCard(){if(!SKILLS.some(k=>genOf(k)))return "";const L=classTickets(),
     :`<div class="row"><button id="xt-new">＋ Give an exit ticket</button>${S.xtSaved?`<span class="fb ok" role="status" style="padding:6px 10px">Exit ticket sent. Students see it when they sign in.</span>`:""}</div>`}
    ${L.length?`<div class="tablewrap"><table class="roster"><thead><tr><th>Date</th><th>Standard</th><th>Taken</th><th>Average</th><th>Under ⅔ (regroup)</th><th>Not taken yet</th><th></th></tr></thead><tbody>
     ${L.slice(0,S.xtAll?40:5).map(x=>{const done=x.who.filter(w=>w.r),avg=done.length?Math.round(done.reduce((a,w)=>a+w.r.ok/w.r.n,0)/done.length*100):null,low=done.filter(w=>w.r.ok/w.r.n<XT_PASS-1e-9);
-      return `<tr><td>${niceDay(x.d)}</td><td><b>${esc(x.std)}</b> · ${x.n} q${x.mis?`<br><span class="pill purple">Mistake check</span> <span class="muted small">“${esc(x.mx||"")}”</span>`:""}</td><td>${done.length} of ${x.who.length}</td><td>${avg==null?"—":avg+"%"}</td><td>${x.mis?done.map(w=>{const v=misVerdict(w.r);return `${esc(w.s.name)} <span class="pill ${v[0]}">${v[1]}</span>`}).join(" ")||"—":low.map(w=>`${esc(w.s.name)} <span class="muted">${w.r.ok}/${w.r.n}</span>`).join(", ")||(done.length?'<span class="muted">none</span>':"—")}</td><td>${x.who.filter(w=>!w.r).map(w=>esc(w.s.name)).join(", ")||'<span class="muted">none</span>'}</td><td><button class="ghost small" data-xtdel="${x.id}" aria-label="Delete the ${niceDay(x.d)} exit ticket">Delete</button></td></tr>`}).join("")}</tbody></table></div>
+      return `<tr><td>${niceDay(x.d)}</td><td>${x.qs?`<b>📝 ${esc(x.name||"Test")}</b> · ${x.qs.length} q${tbResults(x)}`:`<b>${esc(x.std)}</b> · ${x.n} q`}${x.mis?`<br><span class="pill purple">Mistake check</span> <span class="muted small">“${esc(x.mx||"")}”</span>`:""}</td><td>${done.length} of ${x.who.length}</td><td>${avg==null?"—":avg+"%"}</td><td>${x.mis?done.map(w=>{const v=misVerdict(w.r);return `${esc(w.s.name)} <span class="pill ${v[0]}">${v[1]}</span>`}).join(" ")||"—":low.map(w=>`${esc(w.s.name)} <span class="muted">${w.r.ok}/${w.r.n}</span>`).join(", ")||(done.length?'<span class="muted">none</span>':"—")}</td><td>${x.who.filter(w=>!w.r).map(w=>esc(w.s.name)).join(", ")||'<span class="muted">none</span>'}</td><td><button class="ghost small" data-xtdel="${x.id}" aria-label="Delete the ${niceDay(x.d)} exit ticket">Delete</button></td></tr>`}).join("")}</tbody></table></div>
     ${L.length>5&&!S.xtAll?`<button class="ghost small" id="xt-all">Show all ${L.length}</button>`:""}`:""}</div>`}
 function wireXt(){const nw=document.getElementById("xt-new");if(nw)nw.onclick=()=>{S.xtNew=true;S.xtSaved=false;render()};
   const x=document.getElementById("xt-x");if(x)x.onclick=()=>{S.xtNew=false;render()};
@@ -7736,13 +7741,19 @@ function wireXt(){const nw=document.getElementById("xt-new");if(nw)nw.onclick=()
     try{await saveRoster(CUR.raw.map(s=>xtOf(s).some(x=>x.id===id)?{...s,xt:xtOf(s).filter(x=>x.id!==id)}:s));render()}catch(er){alert(er.message)}})}
 
 /* ---------- student side ---------- */
-function xtOpen(s){const since=Date.now()-2*864e5;return xtOf(s).filter(x=>!xtRes(s,x.id)&&new Date(x.d+"T23:59:00").getTime()>=since&&SKILLS.some(k=>k.id===x.k&&genOf(k)))}
+function xtOpen(s){return xtOf(s).filter(x=>!xtRes(s,x.id)&&new Date(x.d+"T23:59:00").getTime()>=Date.now()-(x.qs?7:2)*864e5&&SKILLS.some(k=>k.id===x.k&&genOf(k)))}
 function xtHomeCard(s){const L=xtOpen(s);if(!L.length)return "";const x=L[L.length-1],k=SKILLS.find(k=>k.id===x.k);
-  return `<div class="card xt-card"><div class="top"><h2>🎟️ ${t(x.mis?"Quick check":"Exit ticket")}</h2><span class="pill gold">${x.n} ${t("questions")}</span></div>
+  if(x.qs)return `<div class="card xt-card"><div class="top"><h2>📝 ${t("Test")}: ${esc(x.name||"")}</h2><span class="pill gold">${x.qs.length} ${t("questions")}</span></div>
+   <p class="muted">${t("Your teacher wants to see what you know. Do it on your own: no Scout, no hints. You’ll see your score at the end.")}</p>
+   <div class="row"><button id="xt-go" data-xt="${x.id}">${t("Start my test")}</button></div></div>`;
+return `<div class="card xt-card"><div class="top"><h2>🎟️ ${t(x.mis?"Quick check":"Exit ticket")}</h2><span class="pill gold">${x.n} ${t("questions")}</span></div>
    <p><b>${esc(k.name)}</b> <span class="muted">· ${esc(k.std)}</span></p>
    <p class="muted">${t("Your teacher wants to see what you know. Do it on your own: no Scout, no hints. You’ll see your score at the end.")}</p>
    <div class="row"><button id="xt-go" data-xt="${x.id}">${t("Start my exit ticket")}</button></div></div>`}
 function wireXtHome(){const b=document.getElementById("xt-go");if(!b)return;b.onclick=()=>{const s=S.student,x=xtOf(s).find(y=>y.id===b.dataset.xt),k=SKILLS.find(k=>k.id===x.k),g=genOf(k);
+  if(x.qs){const qs=x.qs.map(id=>{let q=null;try{q=getQ(id)}catch(e){}return q&&["mc","multi","input"].includes(q.type)?{id,q:viewQ(q),k:(SKILLS.find(s=>s.id===q.skill)||k).id}:null}).filter(Boolean);
+    if(!qs.length){alert("This test could not load. Tell your teacher.");return}
+    S.xt={x,k:{id:k.id,std:x.name||k.std,name:x.name||""},custom:true,qs,i:0,sel:{},t0:Date.now(),done:false};S.screen="xt";stopPlay&&stopPlay();render();window.scrollTo(0,0);return}
   const qs=[];let tries=0;
   if(dokMixOn()&&!x.mis&&x.n>=5){const ea=eaIdFor(k);if(ea)qs.push({id:ea,q:viewQ(getQ(ea))})} // one Think deeper question when the class matches the state test mix
   while(qs.length<x.n&&tries++<40){const id=genId(g),q=getQ(id);if(q&&["mc","multi","input"].includes(q.type)&&!qs.some(y=>JSON.stringify(y.q.parts)===JSON.stringify(q.parts)))qs.push({id,q:viewQ(q)})}
@@ -7751,7 +7762,7 @@ function wireXtHome(){const b=document.getElementById("xt-go");if(!b)return;b.on
 function xtScreen(){const X=S.xt;if(!X){S.screen="home";render();return}if(X.done)return xtResults();
   const it=X.qs[X.i],q=it.q,n=X.qs.length,cur=X.sel[X.i]||[];
   app.innerHTML=header(`${langToggle()}<button class="ghost" id="xt-back">${t("Leave")}</button>`)+`
-   <div class="card xt-q"><div class="row" style="justify-content:space-between"><span class="label"><span class="pill ${X.chal?"purple":"gold"}">${t(X.chal?"Challenge":"Exit ticket")}</span>${q._ea?` <span class="pill purple">${t("Think deeper")}</span>`:""} ${esc(X.k.std)} · ${t("Question")} ${X.i+1} ${t("of")} ${n}</span>${sayBtn("xt-say",t("🔊 Read to me"))}</div>
+   <div class="card xt-q"><div class="row" style="justify-content:space-between"><span class="label"><span class="pill ${X.chal?"purple":"gold"}">${t(X.chal?"Challenge":X.custom?"Test":"Exit ticket")}</span>${q._ea?` <span class="pill purple">${t("Think deeper")}</span>`:""} ${esc(X.k.std)} · ${t("Question")} ${X.i+1} ${t("of")} ${n}</span>${sayBtn("xt-say",t("🔊 Read to me"))}</div>
     <div class="notebook">${bodyHTML(q,null,"")}</div>
     ${q.type==="input"?`<label class="f">${t("Your answer")}<input id="xt-num" inputmode="decimal" autocomplete="off" value="${esc(cur[0]||"")}" style="max-width:220px"></label>`
      :`<div class="choices${q.choices.some(c=>typeof c==="string"&&c.length>40)||q.choices.some(c=>c.table)?" one":""}">${q.choices.map((c,j)=>{const l=L[j],on=cur.includes(l);return `<button class="choice${on?" sel":""}" data-l="${l}" aria-pressed="${on}"><b class="l">${l}</b><div>${choiceInner(c)}</div></button>`}).join("")}</div>${q.type==="multi"?`<p class="muted small">${t("Pick two answers.")}</p>`:""}`}
@@ -7767,16 +7778,17 @@ function xtScreen(){const X=S.xt;if(!X){S.screen="home";render();return}if(X.don
   const sy=document.getElementById("xt-say");if(sy)sy.onclick=()=>{stopPlay();speak(qSpeech(q))}}
 function xtRight(q,v){v=v||[];if(q.type==="mc")return v[0]===q.ans;if(q.type==="multi")return v.length===2&&q.ans.every(a=>v.includes(a));return Number(String(v[0]).replace(/,/g,""))===Number(q.ans)}
 function xtFinish(){const X=S.xt,p=S.student.prog,ms=(Date.now()-X.t0)/X.qs.length;let ok=0,same=0;const miss=[];
-  X.qs.forEach((it,j)=>{const r=xtRight(it.q,X.sel[j]);if(r)ok++;track(p,X.k.id,r,ms);dokRecord(p,it.q,r);
+  const by={},qr=[];
+  X.qs.forEach((it,j)=>{const r=xtRight(it.q,X.sel[j]),kid=it.k||X.k.id;if(r)ok++;track(p,kid,r,ms);dokRecord(p,it.q,r);qr.push(r?1:0);const y=by[kid]||(by[kid]=[0,0]);y[1]++;if(r)y[0]++;
     const lg=p.log[it.id]||(p.log[it.id]={tries:0,right:0,first:null});lg.tries++;if(r)lg.right++;if(lg.first===null)lg.first=r;
     if(!r){const q=it.q,v=X.sel[j]||[],from=q._from||{},pick=q.type==="mc"?from[v[0]]||v[0]:q.type==="multi"?v.filter(l=>!q.ans.includes(l)).map(l=>from[l]||l).sort().join(""):String(Number(String(v[0]).replace(/,/g,"")));
-      (p.miss=p.miss||[]).push({q:it.id,k:X.k.id,p:pick,t:Date.now()});miss.push(it.id);if(misSame(it.id,X.k.id,pick,X.x.mis))same++}});
+      (p.miss=p.miss||[]).push({q:it.id,k:kid,p:pick,t:Date.now()});miss.push(it.id);if(misSame(it.id,kid,pick,X.x.mis))same++}});
   if(p.miss&&p.miss.length>80)p.miss.splice(0,p.miss.length-80);
-  (p.xtr=p.xtr||{})[X.x.id]={t:Date.now(),ok,n:X.qs.length,k:X.k.id,...(X.x.mis?{same}:{})};
+  (p.xtr=p.xtr||{})[X.x.id]={t:Date.now(),ok,n:X.qs.length,k:X.k.id,...(X.x.mis?{same}:{}),...(X.custom?{by,q:qr}:{})};
   const ks=Object.keys(p.xtr);if(ks.length>XT_MAX)ks.sort((a,b)=>p.xtr[a].t-p.xtr[b].t).slice(0,ks.length-XT_MAX).forEach(id=>delete p.xtr[id]);
   p.stars=(p.stars||0)+ok;p.last=Date.now();X.done=true;X.ok=ok;save();render();window.scrollTo(0,0)}
 function xtResults(){const X=S.xt,n=X.qs.length;
-  app.innerHTML=header(`${langToggle()}`)+`<div class="card pop" style="text-align:center;align-items:center"><span class="label">${t(X.chal?"Challenge done!":"Exit ticket")} · ${esc(X.k.std)}</span>
+  app.innerHTML=header(`${langToggle()}`)+`<div class="card pop" style="text-align:center;align-items:center"><span class="label">${t(X.chal?"Challenge done!":X.custom?"Test":"Exit ticket")} · ${esc(X.k.std)}</span>
     <p class="ps-big"><b>${X.ok}</b> ${t("of")} ${n} ${t("correct")}</p><p>${X.chal?(X.ok===n?t("Every one right! You’re ready for more."):t("Good stretch. This is next year’s math, so missing some is normal.")):X.ok===n?t("Every one right! Great work."):X.ok/n>=XT_PASS?t("Nice work. Look at the one you missed below."):t("Thanks for showing what you know. Your teacher will help with this tomorrow.")} +${X.chal?X.ok*2:X.ok} ★</p>
     <button id="xt-home">${t("Back to my trail")}</button></div>
    <div class="card"><h2>${t("Review")}</h2>${X.qs.map((it,j)=>{const r=xtRight(it.q,X.sel[j]);return `<div class="xt-rev ${r?"ok":"no"}"><p><span class="lb-mk ${r?"ok":"no"}">${r?"✓":"✗"}</span> <b>${t("Question")} ${j+1}</b> · ${t("Your answer")}: ${esc((X.sel[j]||[]).join(", ")||"—")}${r?"":` · ${t("Right answer")}: <b>${esc(ansText(it.q))}</b>`}</p>${r?"":reviewHTML(it.q,t("Question")+" "+(j+1))+(X.chal?"":countBox("x"+j))}</div>`}).join("")}</div>`;
@@ -8169,6 +8181,58 @@ const dokPct=(p,d)=>{const y=p&&p.dok&&p.dok[d];return y&&y.n?Math.round(y.ok/y.
 function dokCell(s){const p=s.prog,c=[1,2,3].map(d=>{const v=dokPct(p,d),y=p.dok&&p.dok[d];return v==null?"—":`${v}%<span class="muted small">/${y.n}</span>`});return c.join(" · ")}
 function dokClass(){const D={1:{n:0,ok:0},2:{n:0,ok:0},3:{n:0,ok:0}};realStudents().forEach(s=>[1,2,3].forEach(d=>{const y=s.prog.dok&&s.prog.dok[d];if(y){D[d].n+=y.n;D[d].ok+=y.ok}}));return D}
 Object.assign(ES,{"Think deeper":"Piensa más","Think deeper: find the mistake":"Piensa más: encuentra el error"});
+/* ================= Test builder: the teacher's own test from standards =================
+   Pick standards and how many questions each gets (plus an optional Think deeper question), preview,
+   swap or remove questions, name it, and assign it to the class or a group. The chosen question ids are
+   saved on the exit-ticket record (x.qs, x.name), so every student gets the same test. Results are kept
+   per question and per standard (prog.xtr[id].q, .by) and feed groups and Next steps like exit tickets. */
+const TB_MAX=40;
+const tbSkills=()=>SKILLS.filter(k=>genOf(k));
+function tbNewQ(k,ea,avoid){for(let i=0;i<30;i++){let id=ea?eaIdFor(k):`~${genOf(k)}~${Math.floor(Math.random()*1e9)}`;if(!id)return null;let q=null;try{q=getQ(id)}catch(e){}
+    if(!q||!["mc","multi","input"].includes(q.type))continue;const key=JSON.stringify(q.parts);if(avoid.has(key))continue;avoid.add(key);return {id,k:k.id,ea:!!ea}}return null}
+function tbMake(){const B=S.tbld,avoid=new Set(),qs=[];
+  tbSkills().forEach(k=>{const n=+(B.n[k.id]||0);for(let i=0;i<n;i++){const x=tbNewQ(k,false,avoid);if(x)qs.push(x)}if(B.ea[k.id]&&n){const x=tbNewQ(k,true,avoid);if(x)qs.push(x)}});
+  B.qs=qs.slice(0,TB_MAX)}
+function tbCard(){const B=S.tbld;
+  if(!B)return `<div class="card"><div class="top"><h2>Build a test</h2><span class="muted small">Your own test from the standards</span></div>
+    <p class="muted">Choose standards and how many questions each gets, preview every question, swap any you don’t like, then assign it. Everyone gets the same questions. Results show by standard and by question.</p>
+    <div class="row"><button id="tb-new">＋ Build a test</button>${S.tbSaved?`<span class="fb ok" role="status" style="padding:6px 10px">Test assigned. Students see it on their home page.</span>`:""}</div></div>`;
+  const total=tbSkills().reduce((a,k)=>a+(+(B.n[k.id]||0))+(B.ea[k.id]&&+(B.n[k.id]||0)?1:0),0);
+  if(!B.qs)return `<div class="card" id="tb"><div class="top"><h2>Build a test: choose standards</h2><button class="ghost small" id="tb-x">Cancel</button></div>
+   <p class="muted">Type how many questions each standard gets (0 to skip). Check “+ Think deeper” to add one DOK 3 question for that standard. Up to ${TB_MAX} questions.</p>
+   <div class="tablewrap"><table class="roster"><thead><tr><th>Standard</th><th>Questions</th><th>+ Think deeper</th></tr></thead><tbody>
+   ${tbSkills().map(k=>`<tr><td><b>${esc(k.std)}</b> <span class="muted small">${esc(k.name)}</span></td><td><input type="number" min="0" max="10" value="${B.n[k.id]||0}" data-tbn="${esc(k.id)}" style="width:4.5em" aria-label="Questions for ${esc(k.std)}"></td><td><input type="checkbox" data-tbe="${esc(k.id)}" ${B.ea[k.id]?"checked":""} aria-label="Add a Think deeper question for ${esc(k.std)}"></td></tr>`).join("")}</tbody></table></div>
+   <div class="row"><button id="tb-make" ${total?"":"disabled"}>Preview ${total||""} question${total===1?"":"s"}</button><span class="muted small">${total>TB_MAX?`Only the first ${TB_MAX} are used.`:""}</span></div></div>`;
+  const P=S.plan;
+  return `<div class="card" id="tb"><div class="top"><h2>Build a test: preview</h2><button class="ghost small" id="tb-x">Cancel</button></div>
+   <p class="muted">${B.qs.length} question${B.qs.length===1?"":"s"}. Tap <b>Swap</b> for a different question on the same standard, or <b>Remove</b>. The answer is marked on each one.</p>
+   <ol class="tb-list">${B.qs.map((x,i)=>{let q=null;try{q=viewQ(getQ(x.id))}catch(e){}const k=SKILLS.find(s=>s.id===x.k)||{};if(!q)return "";
+     return `<li class="tb-q"><div class="row" style="justify-content:space-between"><span class="label">${esc(k.std||"")}${x.ea?` · <span class="pill purple">Think deeper</span>`:""}</span><span class="row" style="gap:6px"><button class="ghost small" data-tbs="${i}">Swap</button><button class="ghost small" data-tbr="${i}">Remove</button></span></div>${(h=>{const m='<div class="card"><h3>Key words to highlight</h3>',j=h.indexOf(m);return j<0?h:h.slice(0,j)+`<details class="tb-steps"><summary class="small">See the steps and why other answers are wrong</summary>${h.slice(j)}</details>`})(reviewHTML(q,"Question "+(i+1)))}</li>`}).join("")}</ol>
+   <form class="grid" id="tb-f"><label class="f">Test name<input name="name" required maxlength="60" value="${esc(B.name||"")}" placeholder="Unit 3 check"></label>
+    <label class="f">Who<select name="who"><option value="all">Whole class</option>${P&&P.groups?P.groups.map((g,i)=>`<option value="${i}">${esc(g.name)} (${g.ids.length})</option>`).join(""):""}</select></label>
+    <div class="row" style="grid-column:1/-1"><button type="button" class="ghost" id="tb-back">← Change standards</button><button type="submit" ${B.qs.length?"":"disabled"}>Assign test</button><span class="muted small" id="tb-msg" role="status"></span></div></form></div>`}
+function wireTb(){const keep=fn=>()=>{const y=window.scrollY;fn();render();window.scrollTo(0,y)};
+  const nw=document.getElementById("tb-new");if(nw)nw.onclick=keep(()=>{S.tbld={n:{},ea:{}};S.tbSaved=false});
+  const x=document.getElementById("tb-x");if(x)x.onclick=keep(()=>{S.tbld=null});
+  app.querySelectorAll("[data-tbn]").forEach(i=>i.onchange=keep(()=>{S.tbld.n[i.dataset.tbn]=Math.max(0,Math.min(10,Math.round(+i.value||0)))}));
+  app.querySelectorAll("[data-tbe]").forEach(i=>i.onchange=keep(()=>{S.tbld.ea[i.dataset.tbe]=i.checked}));
+  const mk=document.getElementById("tb-make");if(mk)mk.onclick=keep(()=>tbMake());
+  const bk=document.getElementById("tb-back");if(bk)bk.onclick=keep(()=>{S.tbld.qs=null});
+  app.querySelectorAll("[data-tbs]").forEach(b=>b.onclick=keep(()=>{const i=+b.dataset.tbs,old=S.tbld.qs[i],k=SKILLS.find(s=>s.id===old.k);
+    const avoid=new Set(S.tbld.qs.map(y=>{try{return JSON.stringify(getQ(y.id).parts)}catch(e){return ""}}));const n=tbNewQ(k,old.ea,avoid);if(n)S.tbld.qs[i]=n}));
+  app.querySelectorAll("[data-tbr]").forEach(b=>b.onclick=keep(()=>{S.tbld.qs.splice(+b.dataset.tbr,1)}));
+  const f=document.getElementById("tb-f");if(f){f.querySelector("[name=name]").oninput=e=>{S.tbld.name=e.target.value};
+    f.onsubmit=async e=>{e.preventDefault();const fd=new FormData(f),who=String(fd.get("who")),B=S.tbld,name=String(fd.get("name")||"").trim().slice(0,60);if(!name||!B.qs.length)return;
+      const ids=new Set(who==="all"?realStudents().map(s=>s.id):(S.plan.groups[+who]||{ids:[]}).ids),k0=SKILLS.find(s=>s.id===B.qs[0].k);
+      const rec={id:"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),d:isoDay(Date.now()),k:k0.id,std:k0.std,n:B.qs.length,name,qs:B.qs.map(y=>y.id)};
+      busy(e.submitter,"Assigning…");
+      try{await saveRoster(CUR.raw.map(s=>ids.has(s.id)?{...s,xt:[...xtOf(s),rec].slice(-XT_MAX)}:s));S.tbld=null;S.tbSaved=true;render()}catch(er){document.getElementById("tb-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Assign test"}}}}
+/* per-standard and per-question results for a custom test, across the students who took it */
+function tbResults(x){const by={},q=x.qs.map(()=>[0,0]);x.who.forEach(w=>{const r=w.r;if(!r)return;(r.q||[]).forEach((v,i)=>{if(q[i]){q[i][1]++;if(v)q[i][0]++}});Object.entries(r.by||{}).forEach(([kid,[o,n]])=>{const y=by[kid]||(by[kid]=[0,0]);y[0]+=o;y[1]+=n})});
+  const std=kid=>(SKILLS.find(s=>s.id===kid)||{}).std||kid;
+  return `<details><summary class="small">By standard and by question</summary><div class="row" style="gap:10px;flex-wrap:wrap;margin:6px 0">${Object.entries(by).map(([kid,[o,n]])=>`<span class="pill ${n&&o/n<.6?"oops":n&&o/n<.8?"gold":"go"}">${esc(std(kid))}: ${n?Math.round(o/n*100):0}%</span>`).join("")||'<span class="muted small">No results yet.</span>'}</div>
+   <div class="row" style="gap:6px;flex-wrap:wrap">${q.map(([o,n],i)=>`<span class="small">#${i+1}: ${n?Math.round(o/n*100)+"%":"—"}</span>`).join(" · ")}</div></details>`}
+Object.assign(ES,{"Test":"Prueba","Start my test":"Empezar mi prueba"});
 /* ================= Science: Mississippi CCRS for Science (2026), grades 4, 5, 7, 8 and Biology =================
    Course keys: 14 = Science Grade 4, 15 = Science Grade 5, 17 = Science Grade 7, 18 = Science Grade 8, 19 = Biology.
    Objective text comes from the 2026 MS CCRS for Science. Every practice question is original. */
