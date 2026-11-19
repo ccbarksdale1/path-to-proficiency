@@ -59,28 +59,34 @@ export function makeApi({ store, env }) {
   };
 
   /* ---------- sign-in lockout: 10 wrong codes in 15 minutes locks that connection for 15 minutes ---------- */
-  const failKey = ip => "fail/" + sha("p2p" + (ip || "unknown")).slice(0, 24);
-  async function checkLock(ip) {
-    const f = await getJ(failKey(ip));
+  const failKey = (ip, scope = "") => "fail/" + sha("p2p" + (ip || "unknown") + "|" + scope).slice(0, 24);
+  async function checkLock(ip, scope) {
+    const f = await getJ(failKey(ip, scope));
     if (f && f.n >= 10 && Date.now() - f.t < 15 * 60 * 1000) bad("Too many wrong codes. Wait 15 minutes and try again.", 429);
   }
-  async function noteFail(ip) {
-    const k = failKey(ip), f = await getJ(k);
+  async function noteFail(ip, scope) {
+    const k = failKey(ip, scope), f = await getJ(k);
     const fresh = !f || Date.now() - f.t > 15 * 60 * 1000;
     await setJ(k, { n: fresh ? 1 : f.n + 1, t: fresh ? Date.now() : f.t });
   }
-  const clearFail = ip => del(failKey(ip)).catch(() => {});
+  const clearFail = (ip, scope) => del(failKey(ip, scope)).catch(() => {});
+  /* backstop for guessing student codes from many networks: 60 wrong codes on one class in 15 minutes pauses sign-in for that class */
+  async function classLock(cid) { const f = await getJ("fail/c-" + cid); if (f && f.n >= 60 && Date.now() - f.t < 15 * 60 * 1000) bad("Too many wrong codes for this class. Wait 15 minutes, or ask your teacher.", 429) }
+  async function classFail(cid) { await mutJ("fail/c-" + cid, f => { const fresh = !f || Date.now() - f.t > 15 * 60 * 1000; return { n: fresh ? 1 : f.n + 1, t: fresh ? Date.now() : f.t } }) }
+  /* AI cost guard: each teacher gets a daily number of AI requests (AI_DAILY_LIMIT in Netlify, default 150) */
+  async function aiBudget(ctx) { const LIM = +env.AI_DAILY_LIMIT || 150;
+    await mutJ("aiuse/" + ctx.me.id, u => { u = u && u.day === today() ? u : { day: today(), n: 0 }; if (u.n >= LIM) bad(`You have used today's ${LIM} AI requests. They reset tomorrow.`, 429); u.n++; return u }) }
 
   /* ---------- helpers ---------- */
   const codeHash = (school, code) => sha(school.salt + ":" + code);
   const pubTeacher = t => ({ id: t.id, name: t.name, admin: !!t.admin });
-  const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false,
+  const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false, music: c.music !== false, chal: c.chal !== false, gofur: c.gofur !== false, dokmix: c.dokmix !== false, kw: ["on", "optional", "off"].includes(c.kw) ? c.kw : "auto",
     flu: { on: c.flu?.on !== false, secs: c.flu?.secs || 180, pass: c.flu?.pass || 28, n: c.flu?.n || 30 },
     games: { on: c.games?.on !== false, mins: c.games?.mins || 3 },
     ip: { on: c.ip?.on !== false, cut: c.ip?.cut || 60 } });
   const testMeta = t => ({ id: t.id, name: t.name, grade: t.grade || "", ownerId: t.ownerId || null, created: t.created || 0, nq: Object.keys(t.qs || {}).length, skills: (t.skills || []).length });
   const BUILTIN = { id: "a1", name: "Grade 3 benchmark (8 standards, enter missed question numbers)", builtIn: true, grade: "3", nq: 0, skills: 8 };
-  const STDTESTS = [["std3", "3", 33], ["std4", "4", 34], ["std5", "5", 34], ["std6", "6", 50], ["std7", "7", 37], ["std8", "8", 33], ["std9", "9", 52]].map(([id, g, n]) => ({ id, name: g === "9" ? "Algebra I: all standards (no test)" : `Grade ${g}: all standards (no test)`, builtIn: true, grade: g === "9" ? "Algebra I" : g, nq: 0, skills: n }));
+  const STDTESTS = [["std3", "3", 33], ["std4", "4", 34], ["std5", "5", 34], ["std6", "6", 50], ["std7", "7", 37], ["std8", "8", 33], ["std9", "9", 52], ["std10", "10", 36], ["std11", "11", 28], ["std14", "14", 31], ["std15", "15", 34], ["std17", "17", 36], ["std18", "18", 41], ["std19", "19", 48], ["std23", "23", 17], ["std24", "24", 17], ["std25", "25", 17], ["std26", "26", 17], ["std27", "27", 17], ["std28", "28", 17]].map(([id, g, n]) => ({ id, name: +g >= 23 ? `ELA Grade ${g - 20}: reading and language standards (no test)` : +g >= 14 ? (g === "19" ? "Biology: all objectives (no test)" : `Science Grade ${g - 10}: all objectives (no test)`) : g === "10" ? "ACT® Math prep: all skills (no test)" : g === "11" ? "WorkKeys® Applied Math: Levels 3–7 (no test)" : g === "9" ? "Algebra I: all standards (no test)" : `Grade ${g}: all standards (no test)`, builtIn: true, grade: g === "9" ? "Algebra I" : g === "10" ? "ACT Math" : g === "11" ? "WorkKeys" : +g >= 23 ? "ELA " + (g - 20) : g === "19" ? "Biology" : +g >= 14 ? "Science " + (g - 10) : g, nq: 0, skills: n }));
   const builtinIds = new Set(["a1", ...STDTESTS.map(t => t.id)]);
 
   async function teacherCtx(token) {
@@ -176,15 +182,21 @@ export function makeApi({ store, env }) {
  "whyIn": {"783": "why a student might write 783"} (input only, common wrong answers) }
 Use plain words a 3rd grader can read. Fractions are written [1/4]. Use × and ÷ signs.`;
 
-  const TUTOR_SYS = (grade, name) => `You are Scout, a warm, patient math tutor star for ${grade ? "grade " + grade : "elementary"} students using the Path to Proficiency app. You are talking with ${name || "a student"}.
+  const TUTOR_SYS = (grade, name) => {
+    const ela = +grade >= 23, sci = !ela && +grade >= 14, subject = ela ? "reading and language" : sci ? "science" : "math";
+    const who = ela ? `a warm, patient reading and language tutor star for grade ${grade - 20} students` : sci ? `a warm, patient science tutor star for ${grade === "19" ? "high school Biology" : "grade " + (grade - 10) + " science"} students` : `a warm, patient math tutor star for ${grade === "10" ? "high school" : grade === "11" ? "high school and adult" : grade ? "grade " + grade : "elementary"} students`;
+    const extra = grade === "10" ? " The student is preparing for the ACT math test: a calculator is allowed, and there is no formula sheet." : grade === "11" ? " The student is preparing for the WorkKeys Applied Math test: workplace word problems, with a calculator and a formula sheet allowed." : "";
+    const stuck = ela ? "send them back to one paragraph or one sentence and ask what it says, or remind them of the grammar or word-part rule in plain words" : sci ? "break the idea into a smaller step, or connect it to an everyday example" : "break the problem into a smaller step, or use a picture idea (groups, arrays, number lines, place value)";
+    return `You are Scout, ${who} using the Path to Proficiency app.${extra} You are talking with ${name || "a student"}.
 How you teach:
 - Use very short sentences and simple words (1 to 3 sentences per reply, under 60 words). One idea at a time.
 - Guide with questions and hints. Do not give the final answer until the student has answered the question in the app. After they answer, you may explain the right answer step by step.
-- If they are stuck, break the problem into a smaller step, or use a picture idea (groups, arrays, number lines, place value).
-- Praise effort and good thinking, not just right answers. Never say they are bad at math.
-- Stay on math and this question. If they ask about something else, kindly bring them back.
+- If they are stuck, ${stuck}.
+- Praise effort and good thinking, not just right answers. Never say they are bad at ${subject}.
+- Stay on ${subject} and this question. If they ask about something else, kindly bring them back.
 - Never ask for or repeat personal information (full names, addresses, phone numbers, passwords). If a student says something that sounds like they are hurt, unsafe, or very upset, tell them kindly to talk to their teacher or a grown-up they trust right away.
 - No links, no markdown headings, no emojis except an occasional ⭐.`;
+  };
 
   /* ---------- actions ---------- */
   const A = {};
@@ -210,11 +222,11 @@ How you teach:
   A.login = async (b, ip) => {
     const school = await loadSchool();
     if (!school) bad("This school is not set up yet.");
-    await checkLock(ip);
+    await checkLock(ip, "t");
     const code = str(b.code, 6);
     const t = school.teachers.find(x => x.hash === codeHash(school, code));
-    if (!t) { await noteFail(ip); bad("That teacher code did not match.", 401) }
-    await clearFail(ip);
+    if (!t) { await noteFail(ip, "t"); bad("That teacher code did not match.", 401) }
+    await clearFail(ip, "t");
     return { token: sign(school, { r: "t", id: t.id }), ...boot({ school, me: t, admin: !!t.admin }) };
   };
 
@@ -223,9 +235,9 @@ How you teach:
     const school = await loadSchool();
     if (!school) bad("This school is not set up yet.");
     if (!env.RESET_CODE || String(env.RESET_CODE).length < 6) bad("Code reset is not turned on. In Netlify, add an environment variable named RESET_CODE (at least 6 characters), redeploy, and try again.", 403);
-    await checkLock(ip);
+    await checkLock(ip, "r");
     const a = Buffer.from(sha(str(b.reset, 200))), w = Buffer.from(sha(String(env.RESET_CODE)));
-    if (!crypto.timingSafeEqual(a, w)) { await noteFail(ip); bad("That reset code did not match the one in Netlify.", 401) }
+    if (!crypto.timingSafeEqual(a, w)) { await noteFail(ip, "r"); bad("That reset code did not match the one in Netlify.", 401) }
     const code = str(b.code, 6);
     if (!/^\d{4,6}$/.test(code)) bad("Pick a new teacher code with 4 to 6 digits.");
     const t = school.teachers.find(x => x.admin) || school.teachers[0];
@@ -233,7 +245,7 @@ How you teach:
     if (school.teachers.some(x => x.hash === h && x !== t)) bad("Another teacher already uses that code. Pick another.");
     t.hash = h;
     await saveSchool(school);
-    await clearFail(ip);
+    await clearFail(ip, "r");
     return { token: sign(school, { r: "t", id: t.id }), ...boot({ school, me: t, admin: !!t.admin }) };
   };
 
@@ -299,6 +311,11 @@ How you teach:
       mastery: Math.max(3, Math.min(20, Math.round(+b.mastery || c.mastery || 10))),
       tutor: b.tutor === undefined ? c.tutor !== false : !!b.tutor,
       chirp: b.chirp === undefined ? c.chirp !== false : !!b.chirp,
+      music: b.music === undefined ? c.music !== false : !!b.music,
+      chal: b.chal === undefined ? c.chal !== false : !!b.chal, // next-grade challenges after a standard is verified
+      gofur: b.gofur === undefined ? c.gofur !== false : !!b.gofur, // Go Further: next grade after the summit
+      dokmix: b.dokmix === undefined ? c.dokmix !== false : !!b.dokmix, // match the state test DOK mix
+      kw: ["auto", "on", "optional", "off"].includes(b.kw) ? b.kw : (c.kw || "auto"),
     });
     if (b.flu && typeof b.flu === "object") {
       const n = Math.max(10, Math.min(60, Math.round(+b.flu.n || 30)));
@@ -350,9 +367,9 @@ How you teach:
       seen.add(code);
       const missed = {};
       if (s.missed && typeof s.missed === "object") for (const [t, m] of Object.entries(s.missed)) missed[str(t, 40)] = m == null ? null : [...new Set((Array.isArray(m) ? m : []).map(Number).filter(n => n >= 1 && n <= 200))].sort((x, y) => x - y);
-      const assigned = Array.isArray(s.assigned) ? [...new Set(s.assigned.map(x => str(x, 12)).filter(x => /^(?:[0-9K]{1,2}\.[A-Z]{1,4}|[A-Z]-[A-Z]{1,4})\.\d{1,2}[a-e]?$/.test(x)))].slice(0, 40) : [];
+      const assigned = Array.isArray(s.assigned) ? [...new Set(s.assigned.map(x => str(x, 12)).filter(x => /^(?:(?:[0-9K]{1,2}\.[A-Z]{1,4}|[A-Z]-[A-Z]{1,4})\.\d{1,2}[a-e]?|ACT\.[A-Z]{2,3}\.\d|WK\.L[3-7]\.\d|[LPE]\.\d\.\d{1,2}[A-F]?\.\d{1,2}|BIO\.\d[A-F]?\.\d{1,2}|(?:RL|RI|L)\.[3-8]\.\d)$/.test(x)))].slice(0, 40) : [];
       const m = s.mtss && typeof s.mtss === "object" ? { tier: ["", "2", "3"].includes(String(s.mtss.tier)) ? String(s.mtss.tier) : "", goal: str(s.mtss.goal, 300), notes: str(s.mtss.notes, 2000), start: str(s.mtss.start, 10) } : null;
-      const STD = /^(?:[0-9K]{1,2}\.[A-Z]{1,4}|[A-Z]-[A-Z]{1,4})\.\d{1,2}[a-e]?$/, day = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? String(v) : "";
+      const STD = /^(?:(?:[0-9K]{1,2}\.[A-Z]{1,4}|[A-Z]-[A-Z]{1,4})\.\d{1,2}[a-e]?|ACT\.[A-Z]{2,3}\.\d|WK\.L[3-7]\.\d|[LPE]\.\d\.\d{1,2}[A-F]?\.\d{1,2}|BIO\.\d[A-F]?\.\d{1,2}|(?:RL|RI|L)\.[3-8]\.\d)$/, day = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? String(v) : "";
       const ip = s.ip && typeof s.ip === "object" && Array.isArray(s.ip.steps) ? { // individualized program
         start: day(s.ip.start), end: day(s.ip.end), testId: str(s.ip.testId, 40), score: Math.max(0, Math.min(100, Math.round(+s.ip.score || 0))), cut: Math.max(1, Math.min(100, Math.round(+s.ip.cut || 60))),
         status: ["active", "met", "exited", "stopped"].includes(s.ip.status) ? s.ip.status : "active", round: Math.max(1, Math.min(9, Math.round(+s.ip.round || 1))), note: str(s.ip.note, 500),
@@ -365,7 +382,10 @@ How you teach:
       const bm = {}; // benchmark windows by school year: {"2026-27": {Fall: 52, Winter: 61}}
       if (s.bm && typeof s.bm === "object") for (const [yr, w] of Object.entries(s.bm).slice(-6)) if (/^\d{4}-\d{2}$/.test(yr) && w && typeof w === "object") {
         const o = {}; for (const k of ["Fall", "Winter", "Spring"]) if (w[k] !== null && w[k] !== undefined && w[k] !== "" && isFinite(+w[k])) o[k] = Math.max(0, Math.min(100, Math.round(+w[k]))); if (Object.keys(o).length) bm[yr] = o }
-      students.push({ id: s.id && /^[A-Za-z0-9]{4,20}$/.test(s.id) ? s.id : "s" + rid(8), name, code, missed, assigned, ...(m ? { mtss: m } : {}), ...(ip ? { ip } : {}), ...(Object.keys(scores).length ? { scores } : {}), ...(Object.keys(bm).length ? { bm } : {}), sample: !!s.sample });
+      const ses = Array.isArray(s.ses) ? s.ses.slice(-80).map(x => x && typeof x === "object" ? { id: str(x.id, 20), d: day(x.d), std: STD.test(str(x.std, 12)) ? str(x.std, 12) : "", m: Math.max(0, Math.min(180, Math.round(+x.m || 0))), a: x.a ? 1 : 0, n: str(x.n, 200), nx: day(x.nx), by: str(x.by, 60), ...(x.g === 1 || x.g === 0 ? { g: x.g } : {}) } : null).filter(x => x && x.id && x.d) : []; // teacher-logged sessions
+      const xt = Array.isArray(s.xt) ? s.xt.slice(-20).map(x => x && typeof x === "object" ? { id: str(x.id, 20), d: day(x.d), k: /^[\w-]{1,40}$/.test(String(x.k)) ? String(x.k) : "", std: STD.test(str(x.std, 12)) ? str(x.std, 12) : "", n: +x.n === 5 ? 5 : 3, ...(x.mis ? { mis: str(x.mis, 160), mx: str(x.mx, 160) } : {}) } : null).filter(x => x && x.id && x.d && x.k) : []; // exit tickets the teacher gave (mis = a mistake check)
+      const pp = Array.isArray(s.pp) ? s.pp.slice(-20).map(x => x && typeof x === "object" ? { id: str(x.id, 20), d: day(x.d), k: /^[\w-]{1,40}$/.test(String(x.k)) ? String(x.k) : "", std: STD.test(str(x.std, 12)) ? str(x.std, 12) : "", n: Math.max(1, Math.min(20, Math.round(+x.n || 6))), ok: Math.max(0, Math.round(+x.ok || 0)) } : null).filter(x => x && x.id && x.d && x.k).map(x => ({ ...x, ok: Math.min(x.n, x.ok) })) : []; // paper practice scores
+      students.push({ id: s.id && /^[A-Za-z0-9]{4,20}$/.test(s.id) ? s.id : "s" + rid(8), name, code, missed, assigned, ...(m ? { mtss: m } : {}), ...(ip ? { ip } : {}), ...(ses.length ? { ses } : {}), ...(xt.length ? { xt } : {}), ...(pp.length ? { pp } : {}), ...(Object.keys(scores).length ? { scores } : {}), ...(Object.keys(bm).length ? { bm } : {}), sample: !!s.sample });
     }
     if (students.filter(x => x.sample).length > 3) bad("A class can have up to 3 sample students.");
     const L = license(ctx.school), realNew = students.filter(x => !x.sample).length, realOld = old.students.filter(x => !x.sample).length;
@@ -389,6 +409,29 @@ How you teach:
     return { ok: true };
   };
 
+  /* badges a teacher gives (with an optional note); kept apart from the student's own progress */
+  const TBADGE_IDS = ["work", "kind", "question", "leader", "grit", "improve", "careful", "star"];
+  A.badgeGive = async b => {
+    const ctx = await teacherCtx(b.token);
+    const c = myClass(ctx, b.classId);
+    if (!TBADGE_IDS.includes(b.badge)) bad("Pick a badge to give.");
+    const ids = Array.isArray(b.studentIds) ? [...new Set(b.studentIds.map(x => str(x, 40)))].slice(0, 200) : [];
+    if (!ids.length) bad("Pick at least one student.");
+    const roster = (await getJ("roster/" + c.id)) || { students: [] }, ok = new Set(roster.students.map(s => s.id));
+    const note = str(b.note, 80), by = ctx.me?.name || "", now = Date.now();
+    let n = 0;
+    for (const [i, sid] of ids.entries()) { if (!ok.has(sid)) continue; n++;
+      await mutJ(`prog/${c.id}/${sid}`, all => { all = all || {}; const list = Array.isArray(all._tb) ? all._tb : []; list.push({ id: b.badge, note, by, at: now + i }); all._tb = list.slice(-50); return all }) }
+    return { ok: true, count: n };
+  };
+  A.badgeTake = async b => {
+    const ctx = await teacherCtx(b.token);
+    const c = myClass(ctx, b.classId);
+    const sid = str(b.studentId, 40), at = +b.at;
+    await mutJ(`prog/${c.id}/${sid}`, all => { all = all || {}; all._tb = (Array.isArray(all._tb) ? all._tb : []).filter(x => x.at !== at); return all });
+    return { ok: true };
+  };
+
   /* arcade: teacher gives every student in a class bonus game tokens */
   A.gameBonus = async b => {
     const ctx = await teacherCtx(b.token);
@@ -405,10 +448,10 @@ How you teach:
   /* site owner only: set this school's license. Needs OWNER_CODE in Netlify. */
   async function ownerCheck(b, ip) {
     if (!env.OWNER_CODE) bad("Add OWNER_CODE in Netlify first, then redeploy.", 403);
-    await checkLock(ip);
+    await checkLock(ip, "o");
     const a = Buffer.from(sha("own" + str(b.code, 200))), w = Buffer.from(sha("own" + env.OWNER_CODE));
-    if (!crypto.timingSafeEqual(a, w)) { await noteFail(ip); bad("That owner code did not match.", 401) }
-    await clearFail(ip);
+    if (!crypto.timingSafeEqual(a, w)) { await noteFail(ip, "o"); bad("That owner code did not match.", 401) }
+    await clearFail(ip, "o");
   }
   A.ownerGet = async (b, ip) => { await ownerCheck(b, ip); const school = await loadSchool(); if (!school) bad("This site is not set up yet.", 404);
     const per = []; for (const c of school.classes) { const r = await getJ("roster/" + c.id); per.push({ name: c.name, teacher: school.teachers.find(t => t.id === c.teacherId)?.name || "", n: (r?.students || []).filter(x => !x.sample).length }) }
@@ -515,10 +558,11 @@ How you teach:
     return { ok: true };
   };
 
-  A.join = async b => {
+  A.join = async (b, ip) => {
     const school = await loadSchool();
+    await checkLock(ip, "j");
     const c = school?.classes.find(x => x.join === str(b.join, 8).toUpperCase());
-    if (!c) bad("That class code did not match. Ask your teacher for it.", 404);
+    if (!c) { await noteFail(ip, "j"); bad("That class code did not match. Ask your teacher for it.", 404) }
     const t = school.teachers.find(x => x.id === c.teacherId);
     return { join: c.join, name: c.name, teacher: t?.name || "" };
   };
@@ -526,29 +570,35 @@ How you teach:
   A.studentLogin = async (b, ip) => {
     const school = await loadSchool();
     if (!school) bad("This school is not set up yet.");
-    await checkLock(ip);
+    await checkLock(ip, "j");
     const c = school.classes.find(x => x.join === str(b.join, 8).toUpperCase());
-    if (!c) bad("That class code did not match. Ask your teacher for it.", 404);
+    if (!c) { await noteFail(ip, "j"); bad("That class code did not match. Ask your teacher for it.", 404) }
+    await checkLock(ip, "s" + c.id); await classLock(c.id);
     const roster = (await getJ("roster/" + c.id)) || { students: [] };
     const st = roster.students.find(s => s.code === str(b.code, 4));
-    if (!st) { await noteFail(ip); bad("That code did not match. Try again.", 401) }
-    await clearFail(ip);
+    if (!st) { await noteFail(ip, "s" + c.id); await classFail(c.id); bad("That code did not match. Try again.", 401) }
+    await clearFail(ip, "s" + c.id);
     return studentPayload(school, c, st, sign(school, { r: "s", id: st.id, c: c.id }));
   };
   async function studentPayload(school, c, st, token) {
     const prog = (await getJ(`prog/${c.id}/${st.id}`)) || {};
     const t = school.teachers.find(x => x.id === c.teacherId);
-    return { token, cls: pubClass(c), teacher: t?.name || "", student: st, prog, test: await loadTest(c.testId), ai: !!env.ANTHROPIC_API_KEY, hidden: school.hidden || [] };
+    const { mtss, ses, ...me } = st; if (me.ip) me.ip = { ...me.ip, note: "" };
+    return { token, cls: pubClass(c), teacher: t?.name || "", student: me, prog, test: await loadTest(c.testId), ai: !!env.ANTHROPIC_API_KEY, hidden: school.hidden || [] };
   }
   A.studentBoot = async b => { const { school, cls, st } = await studentCtx(b.token); return studentPayload(school, cls, st, b.token) };
 
   A.progSave = async b => {
     const { cls, st } = await studentCtx(b.token);
     const tid = str(b.testId, 40);
+    if (tid === "_tb") bad("That can't be saved here.", 403); // teacher-given badges are written only by teachers
+    if (tid !== (cls.testId || "a1") && !["_flu", "_game", "_pref"].includes(tid)) { const cur = (await getJ(`prog/${cls.id}/${st.id}`)) || {}; if (!(tid in cur)) bad("That can't be saved here.", 403) }
     if (!b.prog || typeof b.prog !== "object") bad("Nothing to save.");
     if (JSON.stringify(b.prog).length > 400000) bad("Progress is too big to save.");
     await mutJ(`prog/${cls.id}/${st.id}`, all => { all = all || {}; const old = all[tid] || {};
       all[tid] = { ...b.prog, tutor: old.tutor || b.prog.tutor };
+      { const had = new Set((Array.isArray(b.prog.credit) ? b.prog.credit : []).map(c => c && c.id)); all[tid].credit = Array.isArray(b.prog.credit) ? b.prog.credit : []; // teacher credit the student's device has not seen yet is applied again
+        for (const c of Array.isArray(old.credit) ? old.credit : []) if (c && !had.has(c.id)) applyCredit(all[tid], c) }
       if (tid === "_game") { all[tid].bonus = old.bonus || 0; all[tid].spent = Math.max(+old.spent || 0, +b.prog.spent || 0) } // tokens: bonus is set by the teacher, spent never goes down
       return all }); // tutor counts are kept by the server
     return { ok: true };
@@ -559,6 +609,8 @@ How you teach:
     const school = await loadSchool();
     const p = verify(school, b.token);
     if (!p) bad("Please sign in again.", 401);
+    if (p.r === "s") { const { cls } = await studentCtx(b.token); if (str(b.id, 40) !== cls.testId) bad("That test was not found.", 404) }
+    else await teacherCtx(b.token);
     const t = await loadTest(b.id);
     if (!t) bad("That test was not found.", 404);
     return { test: t };
@@ -599,15 +651,25 @@ How you teach:
   };
 
   /* ---------- problem reports ---------- */
+  /* a teacher-approved "my answer should count": the try becomes right everywhere it was recorded */
+  function applyCredit(tp, c) {
+    const lg = tp.log && tp.log[c.q]; if (lg && lg.right < lg.tries) { lg.right++; if (lg.first === false && lg.tries === 1) lg.first = true }
+    const rc = (tp.recent || []).slice().reverse().find(r => r.q === c.q && !r.ok); if (rc) rc.ok = true;
+    if (Array.isArray(tp.miss)) { const i = tp.miss.map(m => m.q).lastIndexOf(c.q); if (i >= 0) tp.miss.splice(i, 1) }
+    if (c.kind === "xt" && tp.xtr && tp.xtr[c.xid]) { const x = tp.xtr[c.xid]; x.ok = Math.min(x.n || 0, (x.ok || 0) + 1) }
+    tp.stars = (+tp.stars || 0) + 1;
+    tp.credit = [...(Array.isArray(tp.credit) ? tp.credit : []), { ...c, t: Date.now() }].slice(-50);
+  }
   A.reportAdd = async b => {
     const school = await loadSchool(), p = verify(school, b.token);
     if (!p) bad("Please sign in again.", 401);
-    let who = "", classId = "";
-    if (p.r === "s") { const { cls, st } = await studentCtx(b.token); who = st.name; classId = cls.id }
-    else { const t = school.teachers.find(x => x.id === p.id); who = (t?.name || "Teacher") + " (teacher)"; classId = str(b.classId, 20) }
+    let who = "", classId = "", sid = "";
+    if (p.r === "s") { const { cls, st } = await studentCtx(b.token); who = st.name; classId = cls.id; sid = st.id }
+    else { const t = school.teachers.find(x => x.id === p.id); who = (t?.name || "Teacher") + " (teacher)"; const cid = str(b.classId, 20), c = school.classes.find(x => x.id === cid); classId = c && t && (t.admin || c.teacherId === t.id) ? cid : "" }
     const q = b.q && typeof b.q === "object" ? b.q : {};
     const snap = JSON.stringify(q).length < 20000 ? q : { parts: (q.parts || []).filter(x => typeof x === "string") };
-    const rec = { id: "r" + rid(8), t: Date.now(), qid: str(b.qid, 80), std: str(b.std, 20), testId: str(b.testId, 40), reason: str(b.reason, 40), note: str(b.note, 500), who, classId, q: snap, status: "open" };
+    const rec = { id: "r" + rid(8), t: Date.now(), qid: str(b.qid, 80), std: str(b.std, 20), testId: str(b.testId, 40), reason: str(b.reason, 40), note: str(b.note, 500), who, classId, q: snap, status: "open",
+      ...(b.reason === "count" && sid ? { sid, pick: str(b.pick, 80), kind: ["practice", "check", "xt"].includes(b.kind) ? b.kind : "practice", xid: str(b.xid, 20), k: str(b.k, 40) } : {}) }; // "my answer should count"
     await mutJ("reports", list => { list = list || []; if (p.r === "s" && list.filter(r => r.who === who && r.t > Date.now() - 864e5).length >= 10) bad("Thanks! You already sent a lot of reports today.", 429); list.unshift(rec); return list.slice(0, 500) });
     return { ok: true };
   };
@@ -619,7 +681,11 @@ How you teach:
   A.reportUpdate = async b => {
     const ctx = await teacherCtx(b.token), mine = new Set(ctx.school.classes.filter(c => ctx.admin || c.teacherId === ctx.me.id).map(c => c.id));
     let hit = null;
-    await mutJ("reports", list => { list = list || []; const r = list.find(x => x.id === b.id); if (!r) bad("That report was not found.", 404); if (!ctx.admin && !mine.has(r.classId)) bad("That report is not for your classes.", 403); r.status = ["open", "fixed", "dismissed", "hidden"].includes(b.status) ? b.status : r.status; hit = r; return list });
+    await mutJ("reports", list => { list = list || []; const r = list.find(x => x.id === b.id); if (!r) bad("That report was not found.", 404); if (!ctx.admin && !mine.has(r.classId)) bad("That report is not for your classes.", 403); r.status = ["open", "fixed", "dismissed", "hidden"].includes(b.status) || (b.status === "credited" && r.reason === "count" && r.sid) ? b.status : r.status; hit = r; return list });
+    if (b.status === "credited" && hit.status === "credited") { // the teacher agreed: the answer counts as right
+      const c = { id: hit.id, q: hit.qid, k: hit.k || "", kind: hit.kind || "practice", xid: hit.xid || "" };
+      await mutJ(`prog/${hit.classId}/${hit.sid}`, all => { all = all || {}; const tp = all[hit.testId]; if (tp && !(tp.credit || []).some(x => x.id === c.id)) applyCredit(tp, c); return all });
+    }
     if (b.status === "hidden" && hit.qid && !hit.qid.startsWith("~")) {
       const school = await loadSchool(); school.hidden = [...new Set([...(school.hidden || []), hit.testId + "|" + hit.qid])].slice(-2000); await saveSchool(school);
     }
@@ -673,13 +739,13 @@ How you teach:
         if (u.n >= LIMIT) bad(`You asked Scout ${LIMIT} questions today. Great work! Ask your teacher if you still need help.`, 429);
         u.n++; u.total = (u.total || 0) + 1; pr.tutor = u; return all;
       });
-    }
+    } else await aiBudget(await teacherCtx(b.token));
     const q = b.q || {};
     const L = "ABCDE";
     const qText = [
-      ...(q.parts || []).map(x => typeof x === "string" ? x : x.eq ? x.eq : x.table ? "Table: " + x.table.map(r => r.join(" | ")).join("; ") : x.fig ? "Picture: " + x.fig : x.groups ? `Picture: ${x.groups[0]} groups with ${x.groups[1]} in each` : x.arr ? `Picture: an array with ${x.arr[0]} rows of ${x.arr[1]}` : x.img ? "Picture: " + (x.alt || "a picture from the test") : ""),
+      ...(q.parts || []).map(x => typeof x === "string" ? x : x.eq ? x.eq : x.table ? "Table: " + x.table.map(r => r.join(" | ")).join("; ") : x.fig ? "Picture: " + x.fig : x.groups ? `Picture: ${x.groups[0]} groups with ${x.groups[1]} in each` : x.arr ? `Picture: an array with ${x.arr[0]} rows of ${x.arr[1]}` : x.img ? "Picture: " + (x.alt || "a picture from the test") : x.viz && x.viz.alt ? str(x.viz.alt, 4000) : ""),
       ...(q.choices || []).map((c, i) => `${L[i]}. ${typeof c === "string" ? c : c.eq || (c.table ? c.table.map(r => r.join(" | ")).join("; ") : c.groups ? `${c.groups[0]} groups of ${c.groups[1]}` : c.alt || "a picture")}`),
-    ].filter(Boolean).join("\n");
+    ].filter(Boolean).join("\n").slice(0, 6000);
     const answered = !!b.result;
     const ctxText = `THE QUESTION (${q.std || ""} ${q.skillName || ""}):\n${qText}\n\nCorrect answer: ${Array.isArray(q.ans) ? q.ans.join(" and ") : q.ans}${q.type === "multi" ? " (pick two)" : ""}.\n` +
       (q.steps?.length ? `Teacher's solution steps: ${q.steps.map(s => s.say).join(" ")}\n` : "") +
@@ -690,14 +756,14 @@ How you teach:
     // merge back-to-back turns from the same side
     const merged = []; for (const m of msgs) { const last = merged[merged.length - 1]; if (last && last.role === m.role) last.content += "\n" + m.content; else merged.push({ ...m }) }
     if (merged[merged.length - 1].role !== "user") merged.push({ role: "user", content: "Can you help me more?" });
-    const lang = b.lang === "es" ? "\nThe student is learning English. Reply in simple Spanish, and give key math words in English too, like \"multiplicar (multiply)\"." : "";
+    const lang = b.lang === "es" ? "\nThe student is learning English. Reply in simple Spanish, and give key " + (+grade >= 14 ? "" : "math ") + "words in English too, like \"" + (+grade >= 14 ? "evidencia (evidence)" : "multiplicar (multiply)") + "\"." : "";
     const reply = await claude({ model: FAST(), system: TUTOR_SYS(grade, who) + lang + "\n\n" + ctxText, messages: merged, max_tokens: 300 });
     return { reply: reply.trim() };
   };
 
   /* ---------- AI: read a test PDF page ---------- */
   A.aiParse = async b => {
-    await teacherCtx(b.token);
+    await aiBudget(await teacherCtx(b.token));
     const pdf = str(b.pdf, 6_000_000);
     if (!pdf) bad("No page was sent.");
     const sys = `You turn printed math tests into data for a practice app. ${FORMAT}`;
@@ -719,7 +785,7 @@ Reply with JSON only: {"questions": [ ... ], "answerKey": {"1":"B", ...} (only i
 
   /* ---------- AI: add key words, steps, and why-wrong to questions ---------- */
   A.aiEnrich = async b => {
-    await teacherCtx(b.token);
+    await aiBudget(await teacherCtx(b.token));
     const qs = (Array.isArray(b.questions) ? b.questions : []).slice(0, 4);
     if (!qs.length) bad("No questions sent.");
     const t = await claude({
@@ -733,7 +799,7 @@ Reply with JSON only: {"questions": [ ... ], "answerKey": {"1":"B", ...} (only i
 
   /* ---------- AI: new practice questions for one standard ---------- */
   A.aiReteach = async b => {
-    await teacherCtx(b.token);
+    await aiBudget(await teacherCtx(b.token));
     const t = await claude({
       model: FAST(), max_tokens: 900,
       system: "You are an expert grade 3 math teacher coach. You write short, practical small-group reteach plans for a teacher station. Plain text, no markdown headings.",
@@ -746,7 +812,7 @@ Use only a pencil, paper, and a whiteboard (no colored materials). Give: 1) a on
   };
 
   A.aiPractice = async b => {
-    await teacherCtx(b.token);
+    await aiBudget(await teacherCtx(b.token));
     const n = Math.max(1, Math.min(4, +b.n || 3));
     const ex = (Array.isArray(b.examples) ? b.examples : []).slice(0, 3);
     const t = await claude({
