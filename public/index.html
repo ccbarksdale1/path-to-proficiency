@@ -8221,7 +8221,7 @@ function tbCard(){const B=S.tbld;
    <ol class="tb-list">${B.qs.map((x,i)=>{let q=null;try{q=viewQ(getQ(x.id))}catch(e){}const k=tbSkills().find(s=>s.id===x.k)||{};if(!q)return "";
      return `<li class="tb-q"><div class="row" style="justify-content:space-between"><span class="label">${esc(k.std||"")}${x.ea?` · <span class="pill purple">Think deeper</span>`:""}</span><span class="row" style="gap:6px"><button class="ghost small" data-tbs="${i}">Swap</button><button class="ghost small" data-tbr="${i}">Remove</button></span></div>${(h=>{const m='<div class="card"><h3>Key words to highlight</h3>',j=h.indexOf(m);return j<0?h:h.slice(0,j)+`<details class="tb-steps"><summary class="small">See the steps and why other answers are wrong</summary>${h.slice(j)}</details>`})(reviewHTML(q,"Question "+(i+1)))}</li>`}).join("")}</ol>
    <form class="grid" id="tb-f"><label class="f">Test name<input name="name" required maxlength="60" value="${esc(B.name||"")}" placeholder="Unit 3 check"></label>
-    <label class="f">Who<select name="who"><option value="all">Whole class</option>${P&&P.groups?P.groups.map((g,i)=>`<option value="${i}">${esc(g.name)} (${g.ids.length})</option>`).join(""):""}</select></label>
+    <label class="f">Who<select name="who"><option value="all">Whole class</option>${P&&P.groups?P.groups.map((g,i)=>`<option value="${i}">${esc(g.name)} (${g.ids.length})</option>`).join(""):""}</select></label>${TB.classes.filter(c=>c.teacherId===TB.me.id&&c.id!==CUR.cls.id).map(c=>`<label class="row small" style="gap:6px"><input type="checkbox" name="also" value="${esc(c.id)}"> Also give it to ${esc(c.name)} (whole class)</label>`).join("")}
     <div class="row" style="grid-column:1/-1"><button type="button" class="ghost" id="tb-back">← Change standards</button><button type="submit" ${B.qs.length?"":"disabled"}>Assign test</button><span class="muted small" id="tb-msg" role="status"></span></div></form></div>`}
 function wireTb(){const keep=fn=>()=>{const y=window.scrollY;fn();render();window.scrollTo(0,y)};
   const nw=document.getElementById("tb-new");if(nw)nw.onclick=keep(()=>{S.tbld={n:{},ea:{}};S.tbSaved=false});
@@ -8238,7 +8238,9 @@ function wireTb(){const keep=fn=>()=>{const y=window.scrollY;fn();render();windo
       const ids=new Set(who==="all"?realStudents().map(s=>s.id):(S.plan.groups[+who]||{ids:[]}).ids),k0=tbSkills().find(s=>s.id===B.qs[0].k);
       const rec={id:"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),d:isoDay(Date.now()),k:k0.id,std:k0.std,n:B.qs.length,name,qs:B.qs.map(y=>y.id)};
       busy(e.submitter,"Assigning…");
-      try{await saveRoster(CUR.raw.map(s=>ids.has(s.id)?{...s,xt:[...xtOf(s),rec].slice(-XT_MAX)}:s));S.tbld=null;S.tbSaved=true;render()}catch(er){document.getElementById("tb-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Assign test"}}}}
+      try{await saveRoster(CUR.raw.map(s=>ids.has(s.id)?{...s,xt:[...xtOf(s),rec].slice(-XT_MAX)}:s));
+        for(const cid of fd.getAll("also")){const d=(await api("classData",{ids:[String(cid)]})).classes[0];await api("rosterSave",{classId:d.cls.id,rev:d.rev,students:rosterOut(d.students.map(s=>s.sample?s:{...s,xt:[...xtOf(s),rec].slice(-XT_MAX)}))})}
+        S.tbld=null;S.tbSaved=true;render()}catch(er){document.getElementById("tb-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Assign test"}}}}
 /* per-standard and per-question results for a custom test, across the students who took it */
 function tbResults(x){const by={},q=x.qs.map(()=>[0,0]);x.who.forEach(w=>{const r=w.r;if(!r)return;(r.q||[]).forEach((v,i)=>{if(q[i]){q[i][1]++;if(v)q[i][0]++}});Object.entries(r.by||{}).forEach(([kid,[o,n]])=>{const y=by[kid]||(by[kid]=[0,0]);y[0]+=o;y[1]+=n})});
   const std=kid=>(tbSkills().find(s=>s.id===kid)||{}).std||kid;
