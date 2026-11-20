@@ -713,6 +713,8 @@ h3.bgrp{margin:14px 0 8px;font-size:1rem}
 .stop>span{min-width:0;overflow-wrap:break-word;hyphens:auto}
 @media (max-width:480px){.stop:nth-child(n){margin-left:0}.stop{grid-template-columns:44px minmax(0,1fr) auto;gap:8px;padding:8px 10px}.stop .num{width:44px;height:44px;font-size:1.15rem}.stop::after{left:31px}.stop .pill{font-size:.7rem;padding:3px 7px}}
 .tb-list{padding-left:1.2em;display:flex;flex-direction:column;gap:14px}.tb-steps summary{cursor:pointer;margin:6px 0}
+
+.lqs{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}.lq{margin:0;padding:16px 18px;border-radius:14px;background:var(--card,#fff);border:1px solid color-mix(in srgb,var(--ink) 12%,transparent)}.lq blockquote{margin:0;font-size:1.08rem;font-weight:600;line-height:1.4}
 </style>
 
 <form name="school-request" data-netlify="true" netlify-honeypot="bot-field" hidden><input name="bot-field"><input name="type"><input name="name"><input name="email"><input name="role"><input name="org"><input name="county"><input name="students"><input name="grades"><input name="times"><textarea name="message"></textarea></form><div class="wrap" id="app"></div>
@@ -4070,7 +4072,7 @@ const L_STEPS=[
   art:()=>`<div class="mock"><div class="fb oops" style="padding:10px 12px"><p><b>The answer is C.</b> 4 × 7 = 28. That is too small.</p></div><div class="stage" style="min-height:0;padding:10px">${skipHTML([4,8])}</div><p class="say" style="font-size:.95rem">Skip count by 4s until you reach 32. That is 8 jumps.</p></div>`},
  {t:"Ask Scout",k:"AI tutor",d:"Stuck? Scout, a friendly AI tutor, gives hints and asks guiding questions. Scout won’t give away the answer until the student tries, and the teacher can turn it off.",
   art:()=>`<div class="mock">${scout("What does the box stand for? 4 groups of how many make 32?")}<div class="me-b">I think 8!</div>${scout("Great thinking! Check it: 4 × 8 = ? ⭐")}</div>`},
- {t:"Reach the summit",k:"Mastery",d:"Ten right in a row on a standard reaches the checkpoint (the teacher can change the number). Then the trail climbs to the next standard, and practice never runs out.",
+ {t:"Reach the summit",k:"Mastery",d:"Ten stars on a standard reach the checkpoint: each right answer adds a star and a miss costs 2 (the teacher can change the number). Then the trail climbs to the next standard, and practice never runs out.",
   art:()=>`<div class="mock" style="align-items:center;text-align:center"><span class="flags">${Array.from({length:10},(_,i)=>`<i class="${i<10?'on':''}">★</i>`).join("")}</span><div class="newbadge" style="justify-content:center">⚑ Checkpoint reached! +5 stars</div></div>`},
 ];
 const L_JOUR=[
@@ -4149,6 +4151,7 @@ function landing(){
   </section>
   <div class="statstrip reveal"><div><b>273</b><span>Mississippi CCRS standards</span></div><div><b>3–8 + Alg I</b><span>grades and courses</span></div><div><b>2</b><span>languages: English &amp; Spanish</span></div><div><b>Any device</b><span>Chromebooks, iPads, phones</span></div></div>
 
+  <section class="lsec reveal" id="voices"><div class="lsec-h"><span class="eyebrow">In their words</span><h2>What 3rd graders said after using it</h2><p class="muted">Anonymous feedback from a Mississippi 3rd grade class.</p></div><div class="lqs"><figure class="lq"><blockquote>“I learned from my mistakes and now I know what to click.”</blockquote></figure><figure class="lq"><blockquote>“Shows you the stuff you don’t know.”</blockquote></figure><figure class="lq"><blockquote>“Explains the correct answers.”</blockquote></figure><figure class="lq"><blockquote>“Gives you enough time to answer a question.”</blockquote></figure><figure class="lq"><blockquote>“Music is calming.”</blockquote></figure></div></section>
   <section class="lsec reveal" id="who"><div class="lsec-h"><span class="eyebrow">Who it’s for</span><h2>One platform, everyone on the same page</h2></div>
    <div class="who4">
     <div class="wcard who t"><span class="wico">🧑‍🏫</span><h3>Teachers</h3><p>Know exactly who needs what, and why. Groups, lessons, and intervention plans are built for you.</p><button class="small" data-go="tour">See the teacher view</button></div>
@@ -4218,7 +4221,7 @@ function landing(){
   <section class="lsec" id="journey"><div class="lsec-h"><span class="eyebrow">The learning journey</span><h2>One trail per student, from base camp to the summit</h2><p class="muted">Here is Ava’s trail. She got adding and subtracting right on the test, so that checkpoint is already done.</p></div>
    <div class="jwrap"><ol class="trail">${jour.map((x,i)=>`<li class="stop ${x.state}"><span class="num">${x.state==="done"?"✓":i+1}</span><span><span class="name">${x.n}</span><br><span class="muted" style="font-size:.85rem">${x.std}</span></span>${x.s==="skip"?'<span class="pill go">Got it on the test</span>':x.state==="done"?'<span class="pill go">Mastered</span>':x.state==="now"?'<span class="pill now">Ava is here</span>':'<span class="pill">Coming up</span>'}</li>`).join("")}
      <li class="stop summit${J>=L_JOUR.length?" reached":""}"><span class="num">★</span><span><span class="name">Summit of Mastery</span><br><span class="muted" style="font-size:.85rem">Every standard mastered</span></span>${J>=L_JOUR.length?'<span class="pill gold">Proficient!</span>':""}</li></ol>
-    <div class="jside">${scout(J>=L_JOUR.length?"Ava reached the summit! She is proficient on every standard she missed.":J<=1?"Ava starts where she needs help most. A run of right answers in a row (the teacher sets how many) reaches each checkpoint.":`Checkpoint! Ava mastered ${esc(L_JOUR[J-1].n.toLowerCase())}. Next up: ${esc(L_JOUR[Math.min(J,L_JOUR.length-1)].n.toLowerCase())}.`)}
+    <div class="jside">${scout(J>=L_JOUR.length?"Ava reached the summit! She is proficient on every standard she missed.":J<=1?"Ava starts where she needs help most. Collecting enough stars (the teacher sets how many) reaches each checkpoint.":`Checkpoint! Ava mastered ${esc(L_JOUR[J-1].n.toLowerCase())}. Next up: ${esc(L_JOUR[Math.min(J,L_JOUR.length-1)].n.toLowerCase())}.`)}
      <div class="row"><button id="j-next">${J>=L_JOUR.length?"Start over":"Climb to the next checkpoint"}</button></div>
      <ul class="jlist"><li><b>Badges</b> for checkpoints, streaks, comebacks, skills like finding the proof, mastering each domain, and badges teachers give</li><li><b>Stars</b> for every right answer</li><li><b>Videos</b> from the teacher on each standard, if they add them</li></ul></div>
    </div></section>
@@ -4364,13 +4367,13 @@ function home(){
   const sk=cur&&p.skills[cur.id];
   const MASTERY=MAST();
   const msg=!cur?`You made it to the summit, ${esc(first)}! You are proficient on ${esc(TEST_NAME)}.`
-    :sk.streak>0?`${CHEERS[0]} ${MASTERY-sk.streak} more right in a row reaches the checkpoint.`
+    :sk.streak>0?`${CHEERS[0]} ${MASTERY-sk.streak} more ★ reach the checkpoint.`
     :done>0?`${done} checkpoint${done===1?"":"s"} done! Read slow, highlight your key words, then solve.`
     :`Hi, ${esc(first)}! Read slow, highlight your key words, then solve.`;
   const mission=cur?`<div class="card mission">
      <div class="top"><h2>${t(isELA(gradeOf())?"Today’s Reading Mission":isSci(gradeOf())?"Today’s Science Mission":"Today’s Math Mission")}</h2><span class="stars" aria-label="${p.stars} stars">★ ${p.stars}</span></div>
      <div class="skill">${ico(cur.id)}<div><b style="font-size:1.15rem">${esc(cur.name)}</b><br><span class="muted">${esc(cur.std)}</span></div></div>
-     <div class="row"><span class="flags" aria-label="${sk.streak} of ${MASTERY} in a row">${Array.from({length:MASTERY},(_,i)=>`<i class="${i<sk.streak?'on':''}">${i<sk.streak?'★':i+1}</i>`).join("")}</span><span class="muted">Get ${MASTERY} right in a row to reach the checkpoint</span></div>
+     <div class="row"><span class="flags" aria-label="${sk.streak} of ${MASTERY} stars">${Array.from({length:MASTERY},(_,i)=>`<i class="${i<sk.streak?'on':''}">${i<sk.streak?'★':i+1}</i>`).join("")}</span><span class="muted">Earn ${MASTERY} ★ to reach the checkpoint</span></div>
      ${scout(msg)}
      <div class="row"><button id="go">${t(sk.streak||Object.keys(p.log).length?"Keep climbing":"Start my mission")}</button>${db.videos[cur.id]?`<a class="btnlink" href="${esc(db.videos[cur.id])}" target="_blank" rel="noopener">▶ Watch the lesson</a>`:""}</div>
    </div>`:`<div class="card mission" style="align-items:flex-start">${HERO_ART}${scout(msg)}</div>`;
@@ -4419,12 +4422,12 @@ function topUp(sk,id,n=4){
 }
 function newQ(){S.lb=null;S.pf=null;S.ro=null;S.pit=null;S.evRes=null;S.rvKind=null;S.cnt=null;const cur=S.chkMode?null:curSkill(S.student),rv=(!S.demo||S.chkMode)&&pickReview(S.student),k=rv||cur;
   if(!k){S.chkMode=false;S.rvKind=null;S.screen="home";return false} // nothing left: check-ups finished, or the summit with nothing due
-  const sk=S.student.prog.skills[k.id];S.rev=!!rv;S.rep=null;S.reopened=false;confPick();
+  const sk=S.student.prog.skills[k.id];S.rev=!!rv;S.rep=null;S.reopened=false;S.kwFade=false;confPick();
   if(rv){S.k=k.id;S.qid=(S.rvKind==="v"&&(evOf(sk).vn||0)>=1&&eaIdFor(k))||reviewQid(k); /* the second verify check-up is a Think deeper (DOK 3) question */S.q=viewQ(getQ(S.qid));S.step=step0(S.q);S.kwSkip=S.step===2;S.bare=S.step===2&&kwMode()!=="off";S.shownAt=Date.now();S.hl=new Set();S.sel=[];S.result=null;S.r=0;S.full=false;S.mastered=false;S.chat=null;stopPlay();return}
   while(sk.queue.length&&(!getQ(sk.queue[0])||isHidden(sk.queue[0])))sk.queue.shift(); topUp(sk,k.id);
   S.k=k.id;S.qid=sk.queue[0];markSeen(sk,S.qid);
   if(dokMixOn()&&(S.dokN=(S.dokN||0)+1)%DOK_MIX_EVERY===0){const ea=eaIdFor(k);if(ea)S.qid=ea} /* match the state test mix: some DOK 3 */
-  S.q=viewQ(getQ(S.qid));S.step=step0(S.q);S.kwSkip=S.step===2;S.bare=S.step===2&&kwMode()!=="off";S.shownAt=Date.now();S.hl=new Set();S.sel=[];S.result=null;S.r=0;S.full=false;S.mastered=false;S.chat=null;stopPlay()}
+  S.q=viewQ(getQ(S.qid));S.step=step0(S.q);if(S.step===1&&kwMode()==="on"&&(sk.streak||0)>=4&&!(S.q&&S.q._ea)&&!planOn(S.q)&&(S.kwN=(S.kwN||0)+1)%3){S.step=2;S.kwFade=true}S.kwSkip=S.step===2;S.bare=S.step===2&&kwMode()!=="off";S.shownAt=Date.now();S.hl=new Set();S.sel=[];S.result=null;S.r=0;S.full=false;S.mastered=false;S.chat=null;stopPlay()}
 
 function answerArea(q){const h=answerArea0(q);return S.confPending&&!S.result?h.replace('<button id="check"','<button id="check" hidden')+confHTML():h}
 function answerArea0(q){
@@ -4503,11 +4506,11 @@ function practice(){
      <div class="row"><button id="done1" ${qHl()<2?'disabled':''}>${t("I found my key words")}</button><span class="muted">${qHl()} ${S.lang==="es"?"marcadas":"highlighted"}${S.hl.size>qHl()?(S.lang==="es"?` en la pregunta · ${S.hl.size-qHl()} en el pasaje`:` in the question · ${S.hl.size-qHl()} in the passage`):""}</span>${kwMode()==="optional"?`<button class="ghost small" id="kw-skip">${t("Skip to answering")}</button>`:""}</div></div>`;
   else below=`<div class="card pop">
      ${S.step===2&&!S.result?`${S.kwSkip?"":`<div class="fb info"><p><b>You found ${found} of ${nKeys} key words.</b> ${found<nKeys?'The wavy lines show the ones you missed. Read them again.':'Great reading!'}</p></div>`}
-     ${S.bare&&S.step===2&&!S.result?`<p class="muted small">${S.lang==="es"?"Problema corto: no hace falta marcar palabras clave.":"Quick problem: no key words needed this time."}</p>`:""}<p class="note">${t(isELA(gradeOf())?"Step 2: Answer it. Go back to the passage or the sentence, then choose.":isSci(gradeOf())?"Step 2: Answer it. Think about what you know, then choose.":"Step 2: Solve it. Work it out with your pencil, then answer.")}</p>`:''}
+     ${S.bare&&S.step===2&&!S.result?`<p class="muted small">${S.lang==="es"?"Problema corto: no hace falta marcar palabras clave.":(S.kwFade?"You know this skill well: no key words needed this time.":"Quick problem: no key words needed this time.")}</p>`:""}<p class="note">${t(isELA(gradeOf())?"Step 2: Answer it. Go back to the passage or the sentence, then choose.":isSci(gradeOf())?"Step 2: Answer it. Think about what you know, then choose.":"Step 2: Solve it. Work it out with your pencil, then answer.")}</p>`:''}
      ${planNote()}${answerArea(q)}${S.result?feedback(q):''}</div>`;
   app.innerHTML=header(`${langToggle()}${lbBtn()}<button class="ghost" id="back">${t("My trail")}</button>`)+`
    <div class="row" style="justify-content:space-between"><span class="label">${S.rev?`<span class="pill purple">${t(S.rvKind?"Check-up":"Review")}</span> `:""}${esc(k.std)} · ${esc(k.name)}</span>
-    ${S.rev?"":`<span class="flags" aria-label="Checkpoint progress: ${sk.streak} of ${MASTERY} in a row"><span class="muted" style="font-size:.85rem;margin-right:4px">${t("Checkpoint")}</span>${Array.from({length:MASTERY},(_,i)=>`<i class="${i<sk.streak?'on':''}">${i<sk.streak?'★':i+1}</i>`).join("")}</span>`}</div>
+    ${S.rev?"":`<span class="flags" aria-label="Checkpoint progress: ${sk.streak} of ${MASTERY} stars"><span class="muted" style="font-size:.85rem;margin-right:4px">${t("Checkpoint")}</span>${Array.from({length:MASTERY},(_,i)=>`<i class="${i<sk.streak?'on':''}">${i<sk.streak?'★':i+1}</i>`).join("")}</span>`}</div>
    <div class="steps-bar"><span class="on"></span><span class="${S.step>1?'on':''}"></span><span class="${S.result?'on':''}"></span></div>
    ${S.lang==="es"&&subjOf(gradeOf())!=="math"?`<p class="muted small" lang="es">Las preguntas y los textos de ${isELA(gradeOf())?"lectura":"ciencias"} están en inglés, como en el examen estatal. Las instrucciones, Chirp y la ayuda de Scout están en español.</p>`:""}
    <div class="notebook ${S.step>1?'ro':''}"><div class="row" style="justify-content:space-between"><span class="label">${S.q&&S.q._ea?`<span class="pill purple">${t("Think deeper")}</span> `:""}${S.rev?t(S.rvKind?"Check-up: on your own":"Review question"):t(qLabel(S.qid).replace(/ #\d+$/,""))+(qLabel(S.qid).match(/ #\d+$/)||[""])[0]}</span><div class="row">${sayBtn("say-q",t("🔊 Read to me"))}<button class="ghost small" id="rep-btn" title="Report a problem" aria-label="Report a problem with this question">🚩</button></div></div>${bodyHTML(q,S.hl,S.step===1?"tap":S.kwSkip?"plain":"check")}</div>${hsToolsBar()}${reportBox()}${below}${chatHTML()}${lbHTML()}`;
@@ -4558,8 +4561,8 @@ function grade(q){
     (p.miss=p.miss||[]).push({q:S.qid,k:k.id,p:pick,t:Date.now()});if(p.miss.length>80)p.miss.splice(0,p.miss.length-80)}
   if(S.rev){gradeReview(q,ok);if(ok)p.stars++;badgeTrack(p,k,sk,ok,false);chirpTick(ok);save();render();return}
   if(sk.queue[0]===S.qid)sk.queue.shift();
-  if(ok){sk.streak++;p.stars++}
-  else{sk.streak=0;topUp(sk,k.id,3);sk.queue.splice(3,0,S.qid)} // comes back after 3 other questions, with the choices in a new order
+  S.fixed=false;if(ok){sk.streak++;p.stars++;if(sk.redo===S.qid){S.fixed=true;delete sk.redo}}
+  else{sk.streak=Math.max(0,(sk.streak||0)-2);sk.redo=S.qid;topUp(sk,k.id,3);sk.queue.splice(3,0,S.qid)} /* a miss costs 2 stars, not all of them; the missed question comes back as a redemption */ // comes back after 3 other questions, with the choices in a new order
   S.mastered=ok&&sk.streak>=MAST();
   if(S.mastered){sk.status="done";sk.doneAt=Date.now();delete sk.reopen;p.stars+=5;award(p,"trail");if(!curSkill(s))award(p,"summit")} // counts right away, even if they leave this page
   badgeTrack(p,k,sk,ok,S.mastered);
@@ -4584,11 +4587,11 @@ function feedback(q){
   if(S.rev&&S.result==="right") return `<div class="fb go"><p style="display:flex;align-items:center"><span class="burst" aria-hidden="true"></span><b>${t(S.evRes==="verified"?"Verified! You showed you can do this on your own.":S.evRes==="retained"?"You still know it weeks later. That’s locked in!":S.evRes==="progress"?"Right, on your own! One more check-up on this one to verify it.":"Yes! You still remember this one.")}</b>&nbsp;+1 ★</p>
      ${S.full?stepsPlayer(q):`<button class="ghost small" id="see" style="align-self:flex-start">${t("See the breakdown")}</button>`}<button id="next">${t("Next question")}</button></div>`;
   if(S.result==="right") return `<div class="fb go"><p style="display:flex;align-items:center"><span class="burst" aria-hidden="true"></span><b>${t("Yes! That’s right.")}</b>&nbsp;+1 ★</p>
-     <p class="note" style="color:color-mix(in srgb,var(--go) 72%,var(--ink))">${S.mastered?`That makes ${MASTERY} in a row. You reached the checkpoint!`:`${CHEERS[(sk.streak+Object.keys(S.student.prog.log).length)%CHEERS.length]} ${MASTERY-sk.streak} more in a row to reach the checkpoint.`}</p>${S.mastered&&gameOn()?`<p class="note" style="color:color-mix(in srgb,var(--go) 72%,var(--ink))">🪙 ${t("You earned a game token! Spend it in the Game Arcade.")}</p>`:""}${nb}${confNote(true)}
+     <p class="note" style="color:color-mix(in srgb,var(--go) 72%,var(--ink))">${S.fixed?"<b>You fixed it! You won a star back.</b> ":""}${S.mastered?`That makes ${MASTERY} stars. You reached the checkpoint!`:`${CHEERS[(sk.streak+Object.keys(S.student.prog.log).length)%CHEERS.length]} ${MASTERY-sk.streak} more ★ to reach the checkpoint.`}</p>${S.mastered&&gameOn()?`<p class="note" style="color:color-mix(in srgb,var(--go) 72%,var(--ink))">🪙 ${t("You earned a game token! Spend it in the Game Arcade.")}</p>`:""}${nb}${confNote(true)}
      ${S.full?stepsPlayer(q):`<button class="ghost small" id="see" style="align-self:flex-start">${t("See the breakdown")}</button>`}
      <button id="next">${S.mastered?"See my badge":t("Next question")}</button></div>`;
   return `${scout(t(S.fast?"Whoa, that was fast! Did you work it out, or guess? Let’s slow down and learn from this one.":"Mistakes help us climb. Let’s learn from this one."))}
-   ${confNote(false)}${S.reopened?`<div class="fb info"><p><b>Time for a refresh!</b> ${esc(SKILLS.find(x=>x.id===S.k)?.name||"")} is back on your trail for a little more practice.</p></div>`:""}
+   ${S.rev?"":`<p class="note">This one cost 2 ★, but it will come back soon. Get it right to win a star back!</p>`}${confNote(false)}${S.reopened?`<div class="fb info"><p><b>Time for a refresh!</b> ${esc(SKILLS.find(x=>x.id===S.k)?.name||"")} is back on your trail for a little more practice.</p></div>`:""}
    <div class="fb oops"><p><b>${t("The answer is")} ${esc(ansText(q))}. ${t("Here’s what happened:")}</b></p><p>${whyText(q)}</p>${sayBtn("say-why","🔊 Read this to me")}</div>
    ${stepsPlayer(q)}
    ${vid?`<a href="${esc(vid)}" target="_blank" rel="noopener">Watch ${esc(TEACHER)}’s video on this skill</a>`:''}
@@ -4619,7 +4622,7 @@ function mastered(){
   app.innerHTML=header()+`<div class="card pop" style="text-align:center;align-items:center">
    ${next?`<div style="width:110px;height:110px;border-radius:50%;background:var(--gold);color:var(--gold-ink);display:grid;place-items:center;font-size:2.8rem;box-shadow:0 0 0 6px var(--card),0 0 0 9px var(--star)" aria-hidden="true">⚑</div>`:`<div style="width:100%;max-width:420px">${HERO_ART}</div>`}
    <h2>${next?"Checkpoint reached!":"You reached the summit!"}</h2>
-   <p><b>${esc(k.name)}</b> <span class="muted">· ${esc(k.std)} · ${MAST()} in a row · +5 bonus stars</span></p>
+   <p><b>${esc(k.name)}</b> <span class="muted">· ${esc(k.std)} · ${MAST()} stars to master · +5 bonus stars</span></p>
    ${nb}
    ${scout(next?`You earned it. Next stop on the trail: ${esc(next.name.toLowerCase())}.`:`You mastered every standard on your trail!`)}
    <button id="go">Back to my trail</button></div>`;
@@ -4959,7 +4962,7 @@ function tSettings(){
     <label class="f">Test students practice<select id="c-test">${TB.tests.map(t=>`<option value="${t.id}" ${t.id===c.testId?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label>
     <label class="f">Class goal (% of students)<input id="c-goal" type="number" min="1" max="100" value="${c.goal}" required></label>
     <label class="f">Step 1 before each question (key words, Find the proof, Rule it out, or Plan it)<select id="c-kw">${[["auto",`Automatic (${(()=>{const g=gradeOf(),l=isELA(g)?g-20:isSci(g)&&g<19?g-10:g;return g===9||isHS(g)||g===19||l>=6})()?"optional for this course":"required for this course"}; short number-only problems skip it)`],["on","Required: students do step 1 first"],["optional","Optional: students may skip it"],["off","Off: students go straight to the question"]].map(([v,l])=>`<option value="${v}" ${(c.kw||"auto")===v?"selected":""}>${l}</option>`).join("")}</select></label>
-    <label class="f">Right in a row to master a standard (3 to 20)<input id="c-mast" type="number" min="3" max="20" value="${c.mastery}" required></label>
+    <label class="f">Stars to master a standard (3 to 20; a miss costs 2)<input id="c-mast" type="number" min="3" max="20" value="${c.mastery}" required></label>
     <label class="f chk"><span><input type="checkbox" id="c-tutor" ${c.tutor?"checked":""}> Let students ask Scout, the AI tutor</span></label>
     <label class="f chk"><span><input type="checkbox" id="c-chirp" ${c.chirp!==false?"checked":""}> Chirp the bird cheers students on</span></label>
     <label class="f chk"><span><input type="checkbox" id="c-music" ${c.music!==false?"checked":""}> Students can turn on calm background music (off until a student picks a track)</span></label>
@@ -5607,8 +5610,8 @@ function chirpMsg(kind){
   if(kind==="fluTry")return pick([`Every try makes you faster, ${first}. Let’s go again!`,"Practice those facts and you’ll fly past it next time!","Speed comes with practice. I believe in you!"]);
   if(kind==="mastered")return pick([`Checkpoint! I’m so proud of you, ${first}!`,"You did it! Up, up, and away to the next one!"]);
   const opts=[];
-  if(k&&k.streak>=3)opts.push(`${k.streak} in a row, ${first}! You’re on fire!`,`Streak alert! ${k.streak} right in a row!`);
-  if(k&&k.streak>0&&M-k.streak<=3)opts.push(`Only ${M-k.streak} more in a row to the checkpoint!`);
+  if(k&&k.streak>=3)opts.push(`${k.streak} stars, ${first}! You’re on fire!`,`Look at you go! ${k.streak} stars on this one!`);
+  if(k&&k.streak>0&&M-k.streak<=3)opts.push(`Only ${M-k.streak} more ★ to the checkpoint!`);
   if(wrongs>=3)opts.push(`Tricky ones today? Mistakes help your brain grow. Read slow and highlight your key words.`,`Don’t give up, ${first}! Try asking Scout for a hint.`,"Take a deep breath. You’ve got this!");
   if(todayN>=10)opts.push(`You’ve answered ${todayN} questions today! Amazing effort!`);
   if(p&&p.stars>=20)opts.push(`${p.stars} stars! You’re a star collector!`);
@@ -7043,7 +7046,7 @@ function demoScoutReply(text){const q=S.q,st=(q.steps||[]).map(x=>plainQ(x.say))
 const MKEY="p2p-music";
 let MUS=(()=>{try{return JSON.parse(localStorage.getItem(MKEY)||"null")||{}}catch(e){return {}}})();
 const saveMus=()=>{try{localStorage.setItem(MKEY,JSON.stringify({track:MUS.track||"off",vol:MUS.vol??.5}))}catch(e){}};
-const MTRACKS=[["off","Off","Sin música","",""],["keys","Calm keys","Teclas tranquilas","Soft piano chords","Acordes suaves"],["lofi","Lo-fi study","Lo-fi para estudiar","A gentle, steady beat","Un ritmo suave"],["rain","Rain and chimes","Lluvia y campanas","Rain sounds with soft bells","Lluvia con campanas"],["stars","Starry night","Noche estrellada","Slow and dreamy","Lenta y tranquila"]];
+const MTRACKS=[["off","Off","Sin música","",""],["keys","Calm keys","Teclas tranquilas","Soft piano chords","Acordes suaves"],["lofi","Lo-fi study","Lo-fi para estudiar","A gentle, steady beat","Un ritmo suave"],["rain","Rain and chimes","Lluvia y campanas","Rain sounds with soft bells","Lluvia con campanas"],["stars","Starry night","Noche estrellada","Slow and dreamy","Lenta y tranquila"],["ocean","Ocean waves","Olas del mar","Slow waves and a soft hum","Olas lentas y un tono suave"],["camp","Campfire guitar","Guitarra de fogata","Gentle plucked strings","Cuerdas suaves"],["bounce","Sunny bounce","Ritmo alegre","Light and upbeat","Ligera y alegre"]];
 const musicAllowed=()=>(S.demo||S.role==="student")&&!(SB&&SB.cls&&SB.cls.music===false)&&!!(window.AudioContext||window.webkitAudioContext);
 const MP={ctx:null,out:null,timer:null,track:"off",step:0,next:0};
 function mCtx(){if(!MP.ctx){const AC=window.AudioContext||window.webkitAudioContext;MP.ctx=new AC();MP.out=MP.ctx.createGain();MP.out.gain.value=0;
@@ -7068,6 +7071,11 @@ const MSTEP={
   rain:{beat:.5,run(t,s){mNoise(t,.6,{gain:.03,cut:900});if(Math.random()<.35)mNote(PENTA[Math.floor(Math.random()*PENTA.length)]+12,t+Math.random()*.4,.2,{type:"sine",gain:.05,attack:.005,release:2.5,cut:4000})}},
   stars:{beat:.75,run(t,s){const ch=PROG_A[Math.floor(s/8)%4];if(s%8===0)ch.forEach(n=>mNote(n-12,t,6,{type:"sine",gain:.045,attack:2,release:3,cut:700}));
     if(Math.random()<.45)mNote(PENTA[Math.floor(Math.random()*6)+4],t,1.2,{type:"sine",gain:.04,attack:.05,release:3,cut:2600})}},
+  ocean:{beat:.5,run(t,s){if(s%12===0){mNoise(t,5.5,{gain:.045,cut:500});PROG_A[Math.floor(s/48)%4].slice(0,3).forEach(n=>mNote(n-12,t,6,{type:"sine",gain:.035,attack:2.5,release:3,cut:600}))}
+    if(s%12===6)mNoise(t,4,{gain:.03,cut:350})}},
+  camp:{beat:.4,run(t,s){const ch=PROG_B[Math.floor(s/16)%4],pat=[0,2,1,3,2,1];mNote(ch[pat[s%6]]+(s%6===0?-12:0),t,1.4,{type:"triangle",gain:.06,attack:.005,release:1.2,cut:1500})}},
+  bounce:{beat:.3,run(t,s){const ch=PROG_A[Math.floor(s/16)%4];if(s%4===0)mNote(ch[0]-24,t,.3,{type:"sine",gain:.16,attack:.005,release:.3,cut:300});
+    if(s%4===2)mNoise(t,.08,{gain:.025,hp:5000});if(s%2===0)mNote(ch[(s/2)%4]+12,t,.25,{type:"triangle",gain:.045,attack:.005,release:.4,cut:2400})}},
 };
 function musicPlay(track){MUS.track=track;saveMus();if(track==="off"||!musicAllowed()){musicStop();return}
   const c=mCtx();if(c.state==="suspended")c.resume();MP.track=track;MP.step=0;MP.next=c.currentTime+.1;
@@ -7927,7 +7935,7 @@ function stepsCard(){const real=realStudents();if(!real.length)return "";const R
     has.ch&&["Challenges (next grade)",r=>r.ch.length?`${r.ch.length} · ${Math.round(r.ch.reduce((a,c)=>a+c.ok,0)/r.ch.reduce((a,c)=>a+c.n,0)*100)}%<br><span class="muted small">last: ${esc(r.ch[r.ch.length-1].std)}</span>`:'<span class="muted">—</span>']].filter(Boolean);
   const avg=k=>{const L=R.map(r=>r.x[k]).filter(x=>x&&x.n),n=L.reduce((a,x)=>a+x.n,0);return n?Math.round(L.reduce((a,x)=>a+x.ok,0)/n*100):null};
   return `<div class="card"><div class="top"><h2>DOK, test-taking steps, confidence, and challenges</h2><span class="muted small">${[has.pf&&`Find the proof ${avg("pf")}%`,has.ro&&`Rule it out ${avg("ro")}%`,has.plan&&`Plan it ${avg("plan")}%`].filter(Boolean).join(" · ")}</span></div>
-   <p class="muted">${has.pf||has.ro||has.plan?"How often each student gets the strategy step right before answering. A low step score with good answers can mean guessing; a high step score with low answers means the strategy is there and the content needs work. ":""}${has.ps?"Passage sets are state-test style. ":""}${has.cf?"Confidence: about 1 in 6 practice questions asks how sure they are; <b>sure but wrong</b> points at a misconception, <b>guessed right</b> at luck. ":""}${has.ch?"Challenges are next-grade questions unlocked by verified standards. ":""}${has.dk?"DOK: Think deeper (DOK 3) questions ask students to find someone’s mistake; DOK 1 and 2 are estimated from each question (bare computation vs. words, pictures, or two steps).":""}</p>
+   <p class="muted">${has.pf||has.ro||has.plan?"How often each student gets the strategy step right before answering. A low step score with good answers can mean guessing; a high step score with low answers means the strategy is there and the content needs work. ":""}${has.ps?"Passage sets are state-test style. ":""}${has.cf?"Confidence: about 1 in 15 practice questions asks how sure they are; <b>sure but wrong</b> points at a misconception, <b>guessed right</b> at luck. ":""}${has.ch?"Challenges are next-grade questions unlocked by verified standards. ":""}${has.dk?"DOK: Think deeper (DOK 3) questions ask students to find someone’s mistake; DOK 1 and 2 are estimated from each question (bare computation vs. words, pictures, or two steps).":""}</p>
    <div class="tablewrap"><table class="roster"><thead><tr><th>Student</th>${cols.map(c=>`<th>${c[0]}</th>`).join("")}</tr></thead><tbody>
    ${R.sort((a,b)=>a.s.name.localeCompare(b.s.name)).map(r=>`<tr><td><b>${esc(r.s.name)}</b></td>${cols.map(c=>`<td>${c[1](r)}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`}
 function stepsMstats(s){const x=stepStats(s),out=[];if(x.ps)out.push(["Passage sets",`${x.ps.sets} · ${Math.round(x.ps.ok/x.ps.n*100)}%`]);
@@ -7977,10 +7985,10 @@ function chalFinish(){const X=S.xt,p=S.student.prog;let ok=0;X.qs.forEach((it,j)
   p.stars=(p.stars||0)+ok*2;p.last=Date.now();X.done=true;X.ok=ok;save();render();window.scrollTo(0,0)}
 
 /* ================= S16: Occasional confidence checks =================
-   About one practice question in six (never check-ups or reviews), the student says how sure they are
+   About one practice question in fifteen (never check-ups or reviews), the student says how sure they are
    before checking. Sure-but-wrong points at a misconception; guessed-but-right points at luck.
    prog.conf = {sure|kind|guess: {n, ok}}, prog.confR = [{k, c, ok, t}] (last 40). */
-const CONF_EVERY=6,CONF_OPTS=[["sure","😀","I’m sure"],["kind","🤔","Kind of sure"],["guess","🤷","I’m guessing"]];
+const CONF_EVERY=15,CONF_OPTS=[["sure","😀","I’m sure"],["kind","🤔","Kind of sure"],["guess","🤷","I’m guessing"]];
 function confPick(){S.conf=null;S.confPending=false;S.confN=(S.confN||0)+1;S.confAsk=!S.rev&&S.confN%CONF_EVERY===0}
 function confHTML(){return `<div class="conf card" role="group" aria-label="${t("How sure are you?")}"><b>${t("Before you check: how sure are you?")}</b>
   <div class="row">${CONF_OPTS.map(([v,e,l])=>`<button class="ghost" data-conf="${v}">${e} ${t(l)}</button>`).join("")}</div></div>`}
