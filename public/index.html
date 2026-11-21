@@ -4041,7 +4041,21 @@ function initStudent(s){
   return s;
 }
 /* a student as one test sees them */
-function viewStudent(raw){const s={...raw,missed:raw.missed?.[TESTID]??null,prog:raw.prog?.[TESTID]?JSON.parse(JSON.stringify(raw.prog[TESTID])):null,raw};initStudent(s);
+/* ================= Carry-over: when a class moves to a grade-level standards test, a student who has never practiced
+   under it starts with what they already did on the class's earlier test: skills mastered (or tested out of) on the same
+   standards count, and the earlier benchmark score shows. The earlier test's data is never changed. ================= */
+function carrySrc(raw){const P=raw.prog||{};if(P[TESTID]||!isStdT(TESTID))return null;
+  const c=Object.keys(P).filter(k=>k!==TESTID&&k[0]!=="_"&&P[k]&&P[k].skills&&(k==="a1"||isStdT(k)));return c.includes("a1")?"a1":c[0]||null}
+function stdOfSkill(tid,id){if(tid==="a1"){const k=SKILLS_A1.find(x=>x.id===id);return k&&k.std}const L=LIB.find(x=>x.gen===id);return L&&L.code}
+function carryProg(raw,src){const o=raw.prog[src],got={};
+  Object.entries(o.skills||{}).forEach(([id,sk])=>{const c=stdOfSkill(src,id);if(c&&(sk.status==="done"||sk.status==="skip"))got[c]=got[c]==="done"?"done":sk.status});
+  const match=std=>got[std]||Object.entries(got).find(([c])=>std.startsWith(c)&&/^[a-z]$/.test(std.slice(c.length)))?.[1];
+  const p={stars:o.stars||0,skills:{},log:{},days:JSON.parse(JSON.stringify(o.days||{})),carried:src,carryAt:dayKey()};
+  SKILLS.forEach(k=>{const st=match(k.std);if(st)p.skills[k.id]={status:st,streak:0,queue:[...k.twins],carried:true}});return p}
+function carryScore(raw){const m=raw.missed&&raw.missed.a1;if(!Array.isArray(m))return null;const n=new Set(m.map(Number).filter(x=>x>=1&&x<=30)).size;return Math.round((30-n)/30*100)}
+function viewStudent(raw){const src=carrySrc(raw),s={...raw,missed:raw.missed?.[TESTID]??null,prog:raw.prog?.[TESTID]?JSON.parse(JSON.stringify(raw.prog[TESTID])):src?carryProg(raw,src):null,raw};
+  if(isStdT(TESTID)&&(raw.scores?.[TESTID]==null||raw.scores[TESTID]==="")){const cs=carryScore(raw);if(cs!=null){s.scores={...(raw.scores||{}),[TESTID]:cs};s.scoreCarried=true}}
+  initStudent(s);
   const a=new Set([...(s.assigned||[]),...ipCodes(s)]);
   SKILLS.forEach(k=>{const sk=s.prog.skills[k.id];if(!sk)return;
     if(a.has(k.std)){if(sk.status==="off"||sk.status==="skip"){sk.was=sk.status;sk.status="todo"}sk.asg=true}
@@ -7121,7 +7135,7 @@ function accApply(d){const a=d.student&&d.student.acc;if(a&&a.big&&!BIG){BIG=tru
 const TS_RATE={ans:.1,imp:30,chk:10,cb:10}; // minutes: grade one answer, write one IMP, one weekly plan check, one catch-up plan
 function tsCalc(raws,since){const sd=dayKey(since),o={ans:0,imp:0,chk:0,cb:0};
   (raws||[]).forEach(r=>{if(!r||r.sample)return;const P=r.prog||{};
-    Object.values(P).forEach(p=>{if(!p||typeof p!=="object")return;Object.entries(p.days||{}).forEach(([d,x])=>{if(d>=sd)Object.values(x||{}).forEach(y=>o.ans+=+(y&&y.n)||0)});
+    Object.values(P).forEach(p=>{if(!p||typeof p!=="object")return;Object.entries(p.days||{}).forEach(([d,x])=>{if(d>=sd&&!(p.carryAt&&d<p.carryAt))Object.values(x||{}).forEach(y=>o.ans+=+(y&&y.n)||0)});
       if(p.cb&&p.cb.at&&p.cb.at>=sd)o.cb++});
     const ips=[...(r.ip?[r.ip]:[]),...((r.ip&&r.ip.hist)||[]).map(h=>({start:h.end}))];if(r.ip&&r.ip.start&&r.ip.start>=sd)o.imp++;
     if(r.ip&&r.ip.start){const a=Math.max(new Date(r.ip.start+"T00:00:00").getTime(),since),b=Math.min(Date.now(),new Date((r.ip.end||r.ip.start)+"T00:00:00").getTime());if(b>a)o.chk+=Math.floor((b-a)/(7*864e5))}});
