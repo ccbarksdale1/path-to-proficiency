@@ -4747,7 +4747,7 @@ function tClasses(){
     ${Object.entries(byT).map(([tid,cs])=>`<h3>${esc(tName(tid))}</h3><ul class="clist">${cs.map(card).join("")}</ul>`).join("")}</div>`:""}
    <div class="card"><h2>Make a new class</h2>
     <form class="grid" id="nc"><label class="f">Class name<input id="nc-name" required maxlength="60" placeholder="Homeroom"></label>
-     <label class="f">Test<select id="nc-test">${testsOrdered().map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
+     <label class="f">Test<select id="nc-test">${testOpts(TB.tests,(testsOrdered()[0]||{}).id)}</select></label>
      ${isAdmin()?`<label class="f">Teacher<select id="nc-t">${TB.teachers.map(t=>`<option value="${t.id}" ${t.id===TB.me.id?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label>`:""}
      <button type="submit">Make class</button></form><p class="err" id="nc-err" role="alert"></p></div>`;
 }
@@ -5007,7 +5007,7 @@ function tSettings(){
    <form class="grid" id="cs">
     <label class="f">Class name<input id="c-name" value="${esc(c.name)}" required maxlength="60"></label>
     ${isAdmin()?`<label class="f">Teacher<select id="c-t">${TB.teachers.map(t=>`<option value="${t.id}" ${t.id===c.teacherId?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label>`:""}
-    <label class="f">Test students practice<select id="c-test">${testsOrdered().map(t=>`<option value="${t.id}" ${t.id===c.testId?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label>
+    <label class="f">Test students practice<select id="c-test">${testOpts(TB.tests,c.testId)}</select></label>
     <label class="f">Class goal (% of students)<input id="c-goal" type="number" min="1" max="100" value="${c.goal}" required></label>
     <label class="f">Step 1 before each question (key words, Find the proof, Rule it out, or Plan it)<select id="c-kw">${[["auto",`Automatic (${(()=>{const g=gradeOf(),l=isELA(g)?g-20:isSci(g)&&g<19?g-10:g;return g===9||isHS(g)||g===19||l>=6})()?"optional for this course":"required for this course"}; short number-only problems skip it)`],["on","Required: students do step 1 first"],["optional","Optional: students may skip it"],["off","Off: students go straight to the question"]].map(([v,l])=>`<option value="${v}" ${(c.kw||"auto")===v?"selected":""}>${l}</option>`).join("")}</select></label>
     <label class="f">Stars to master a standard (3 to 20; a miss costs 2)<input id="c-mast" type="number" min="3" max="20" value="${c.mastery}" required></label>
@@ -5074,7 +5074,7 @@ function tCompare(){
   if(!TB.classes.length)return `<div class="card"><h2>Compare classes</h2><p class="muted">Make a class first.</p></div>`;
   if(!S.cmpTest||!tests.some(t=>t.id===S.cmpTest))S.cmpTest=(tests[0]||{id:"a1"}).id;
   const pick=`<div class="card"><h2>Compare classes</h2><p class="muted">${isAdmin()?"Every class in the school":"Your classes"} using the same test, side by side. Sample students are not counted.</p>
-   <form class="grid" id="cmp-f"><label class="f">Test<select id="cmp-test">${tests.map(t=>`<option value="${t.id}" ${t.id===S.cmpTest?"selected":""}>${esc(t.name)} (${TB.classes.filter(c=>c.testId===t.id).length} classes)</option>`).join("")}</select></label>
+   <form class="grid" id="cmp-f"><label class="f">Test<select id="cmp-test">${testOpts(tests,S.cmpTest,t=>`${esc(t.name)} (${TB.classes.filter(c=>c.testId===t.id).length} classes)`)}</select></label>
    <label class="f">Group by<select id="cmp-g"><option value="t" ${S.cmpG!=="c"?"selected":""}>Teacher</option><option value="c" ${S.cmpG==="c"?"selected":""}>Class only</option></select></label></form></div>`;
   const D=S.cmp;
   if(!D||D.loading||D.test!==S.cmpTest)return pick+`<div class="card"><p class="muted">Loading classes…</p></div>`;
@@ -5168,9 +5168,9 @@ function tTests(){
    <p class="muted">Pick standards and how many questions each gets, preview and swap questions, then assign it to a class or group. Pick the class:</p>
    <div class="row">${mineT.map(c=>`<button class="ghost" data-tbopen="${esc(c.id)}">＋ ${esc(c.name)}</button>`).join("")}</div></div>`:"";
   return build+`<div class="card"><h2>Tests</h2><p class="muted">Each class practices one test. Import a new test, then pick it in a class’s settings.</p>
-   <div class="tablewrap"><table class="roster"><thead><tr><th>Test</th><th>Questions</th><th>Standards</th><th>Used by</th><th></th></tr></thead><tbody>
-   ${TB.tests.map(t=>`<tr><td><b>${esc(t.name)}</b>${t.ownerId?`<br><span class="muted">by ${esc(tName(t.ownerId))}</span>`:""}</td><td>${t.nq}</td><td>${t.skills}</td><td>${used(t.id).map(c=>esc(c.name)).join(", ")||'<span class="muted">—</span>'}</td>
-     <td>${t.builtIn?"":`<div class="row">${TB.ai?`<button class="ghost small" data-more="${t.id}">More practice</button>`:""}${(isAdmin()||t.ownerId===TB.me.id)?`<button class="ghost small" data-edt="${t.id}">Edit</button><button class="ghost small" data-delt="${t.id}">Delete</button>`:""}</div>`}</td></tr>`).join("")}</tbody></table></div>
+   ${testGroups(TB.tests).map(([g,ts])=>`<h3 style="margin:.8rem 0 .3rem">${esc(g)}</h3><div class="tablewrap"><table class="roster"><thead><tr><th>Test</th><th>Questions</th><th>Standards</th><th>Used by</th><th></th></tr></thead><tbody>
+   ${ts.map(t=>`<tr><td><b>${esc(t.name)}</b>${t.ownerId?`<br><span class="muted">by ${esc(tName(t.ownerId))}</span>`:""}</td><td>${t.nq}</td><td>${t.skills}</td><td>${used(t.id).map(c=>esc(c.name)).join(", ")||'<span class="muted">—</span>'}</td>
+     <td>${t.builtIn?"":`<div class="row">${TB.ai?`<button class="ghost small" data-more="${t.id}">More practice</button>`:""}${(isAdmin()||t.ownerId===TB.me.id)?`<button class="ghost small" data-edt="${t.id}">Edit</button><button class="ghost small" data-delt="${t.id}">Delete</button>`:""}</div>`}</td></tr>`).join("")}</tbody></table></div>`).join("")}
    <p class="err" id="t-err" role="alert">${esc(S.terr||"")}</p></div>
   <div class="card"><h2>Import a test from a PDF</h2>
    ${TB.ai?`<p class="muted">Upload the test as a PDF. The AI reads each page, writes down every question, finds the standard, and solves it if there is no answer key. You check everything before it’s saved. Then the AI writes the key words, step-by-step breakdowns, and practice questions.</p>
@@ -7220,6 +7220,8 @@ window.addEventListener("message",e=>{const f=document.getElementById("lg-frame"
 
 /* the older Grade 3 benchmark goes last, so new classes don’t pick it by accident */
 const testsOrdered=()=>[...TB.tests.filter(t=>t.id!=="a1"),...TB.tests.filter(t=>t.id==="a1")];
+const testGroups=list=>[["Grade-level standards",list.filter(t=>isStdT(t.id))],["Benchmark tests (enter missed question numbers)",[...list.filter(t=>!isStdT(t.id)&&t.id!=="a1"),...list.filter(t=>t.id==="a1")]]].filter(g=>g[1].length);
+const testOpts=(list,sel,label)=>testGroups(list).map(([g,ts])=>`<optgroup label="${esc(g)}">${ts.map(t=>`<option value="${t.id}" ${t.id===sel?"selected":""}>${label?label(t):esc(t.name)}</option>`).join("")}</optgroup>`).join("");
 
 /* ================= Official IMP form (MDE Appendix E.3): the same layout, filled in from the student's plan.
    Teacher-only parts (core program, additional services, signatures, checklist marks) stay blank to complete by hand. ================= */
