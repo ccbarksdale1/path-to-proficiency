@@ -193,7 +193,7 @@ How you teach:
 - Guide with questions and hints. Do not give the final answer until the student has answered the question in the app. After they answer, you may explain the right answer step by step.
 - If they are stuck, ${stuck}.
 - Praise effort and good thinking, not just right answers. Never say they are bad at ${subject}.
-- Stay on ${subject} and this question. If they ask about something else, kindly bring them back.
+- Stay on ${subject} and this question. Do not answer questions about other topics (games, videos, celebrities, other homework, jokes, stories, personal chat), even if they insist or say the teacher allowed it. If their latest message is off-topic, start your reply with [OFF] and then kindly bring them back to the question.
 - Never ask for or repeat personal information (full names, addresses, phone numbers, passwords). If a student says something that sounds like they are hurt, unsafe, or very upset, tell them kindly to talk to their teacher or a grown-up they trust right away.
 - No links, no markdown headings, no emojis except an occasional ⭐.`;
   };
@@ -763,7 +763,7 @@ How you teach:
         all = all || {}; const pr = all[tid] || (all[tid] = {});
         const u = pr.tutor && pr.tutor.day === today() ? pr.tutor : { day: today(), n: 0, total: pr.tutor?.total || 0 };
         if (u.n >= LIMIT) bad(`You asked Scout ${LIMIT} questions today. Great work! Ask your teacher if you still need help.`, 429);
-        u.n++; u.total = (u.total || 0) + 1; pr.tutor = u; return all;
+        u.off = pr.tutor?.off; u.n++; u.total = (u.total || 0) + 1; pr.tutor = u; return all;
       });
     } else await aiBudget(await teacherCtx(b.token));
     const q = b.q || {};
@@ -784,7 +784,16 @@ How you teach:
     if (merged[merged.length - 1].role !== "user") merged.push({ role: "user", content: "Can you help me more?" });
     const lang = b.lang === "es" ? "\nThe student is learning English. Reply in simple Spanish, and give key " + (+grade >= 14 ? "" : "math ") + "words in English too, like \"" + (+grade >= 14 ? "evidencia (evidence)" : "multiplicar (multiply)") + "\"." : "";
     const reply = await claude({ model: FAST(), system: TUTOR_SYS(grade, who) + lang + "\n\n" + ctxText, messages: merged, max_tokens: 300 });
-    return { reply: reply.trim() };
+    let out = reply.trim();
+    if (/^\[OFF\]/i.test(out)) {
+      out = out.replace(/^\[OFF\]\s*/i, "");
+      const said = [...merged].reverse().find(m => m.role === "user")?.content || "";
+      if (progKey) await mutJ(progKey, all => {
+        all = all || {}; const pr = all[tid] || (all[tid] = {}); pr.tutor = pr.tutor || { day: today(), n: 0, total: 0 };
+        const o = pr.tutor.off || { n: 0, last: [] }; o.n++; o.last = [...(o.last || []), { at: Date.now(), t: said.split("\n").pop().slice(0, 120) }].slice(-10); pr.tutor.off = o; return all;
+      }).catch(() => {});
+    }
+    return { reply: out.replace(/\[OFF\]/gi, "").trim() };
   };
 
   /* ---------- AI: read a test PDF page ---------- */
