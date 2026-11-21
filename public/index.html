@@ -724,7 +724,11 @@ h3.bgrp{margin:14px 0 8px;font-size:1rem}
 @media (max-width:480px){.stop:nth-child(n){margin-left:0}.stop{grid-template-columns:44px minmax(0,1fr) auto;gap:8px;padding:8px 10px}.stop .num{width:44px;height:44px;font-size:1.15rem}.stop::after{left:31px}.stop .pill{font-size:.7rem;padding:3px 7px}}
 .tb-list{padding-left:1.2em;display:flex;flex-direction:column;gap:14px}.tb-steps summary{cursor:pointer;margin:6px 0}
 
-.lqs{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}.lq{margin:0;padding:16px 18px;border-radius:14px;background:var(--card,#fff);border:1px solid color-mix(in srgb,var(--ink) 12%,transparent)}.lq blockquote{margin:0;font-size:1.08rem;font-weight:600;line-height:1.4}
+.lqwrap{position:relative;display:flex;align-items:center;gap:6px}.lqs{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding:6px 2px 12px;flex:1;scrollbar-width:thin}
+.lq{flex:0 0 min(78%,250px);scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px}.lqa svg{width:96px;height:96px;display:block}.lq figcaption{font-size:.85rem;color:var(--muted,#64748b)}
+.lqnav{flex:0 0 auto;width:40px;height:40px;border-radius:50%;padding:0;font-size:1.5rem;line-height:1;background:var(--card,#fff);color:var(--ink);border:2px solid color-mix(in srgb,var(--ink) 15%,transparent)}
+@media (max-width:600px){.lqnav{display:none}}
+.lq{margin:0;padding:16px 18px;border-radius:14px;background:var(--card,#fff);border:1px solid color-mix(in srgb,var(--ink) 12%,transparent)}.lq blockquote{margin:0;font-size:1.08rem;font-weight:600;line-height:1.4}
 </style>
 
 <form name="school-request" data-netlify="true" netlify-honeypot="bot-field" hidden><input name="bot-field"><input name="type"><input name="name"><input name="email"><input name="role"><input name="org"><input name="county"><input name="students"><input name="grades"><input name="times"><textarea name="message"></textarea></form><div class="wrap" id="app"></div>
@@ -4206,7 +4210,7 @@ function landing(){
   </section>
   <div class="statstrip reveal"><div><b>273</b><span>Mississippi CCRS standards</span></div><div><b>3–8 + Alg I</b><span>grades and courses</span></div><div><b>2</b><span>languages: English &amp; Spanish</span></div><div><b>Any device</b><span>Chromebooks, iPads, phones</span></div></div>
 
-  <section class="lsec reveal" id="voices"><div class="lsec-h"><span class="eyebrow">In their words</span><h2>What 3rd graders said after using it</h2><p class="muted">Anonymous feedback from a Mississippi 3rd grade class.</p></div><div class="lqs"><figure class="lq"><blockquote>“I learned from my mistakes and now I know what to click.”</blockquote></figure><figure class="lq"><blockquote>“Shows you the stuff you don’t know.”</blockquote></figure><figure class="lq"><blockquote>“Explains the correct answers.”</blockquote></figure><figure class="lq"><blockquote>“Gives you enough time to answer a question.”</blockquote></figure><figure class="lq"><blockquote>“Music is calming.”</blockquote></figure></div></section>
+  <section class="lsec reveal" id="voices"><div class="lsec-h"><span class="eyebrow">In their words</span><h2>What 3rd graders said after using it</h2><p class="muted">Anonymous feedback from a Mississippi 3rd grade class.</p></div><div class="lqwrap"><button class="lqnav" data-lq="-1" aria-label="Previous quotes">‹</button><div class="lqs" id="lqs" tabindex="0" aria-label="Student quotes, scroll sideways">${[["I learned from my mistakes and now I know what to click.","#8B5A3C","#1d1d1d","puffs","#FFD8A8","#3B82F6"],["Shows you the stuff you don’t know.","#F1C27D","#6B3E1F","short","#C7F0D8","#16A34A"],["Explains the correct answers.","#5C3A21","#111","curly","#E9D5FF","#9333EA"],["Gives you enough time to answer a question.","#C68642","#2B1B0E","braids","#FDE68A","#EA580C"],["Music is calming.","#FFDBAC","#B5651D","pony","#BFDBFE","#DB2777"]].map(([q,sk,hr,st,bg,sh])=>`<figure class="lq"><div class="lqa" aria-hidden="true">${kidAv(sk,hr,st,bg,sh)}</div><blockquote>“${q}”</blockquote><figcaption>— 3rd grader, Mississippi</figcaption></figure>`).join("")}</div><button class="lqnav" data-lq="1" aria-label="More quotes">›</button></div><p class="muted" style="font-size:.8rem;margin-top:.4rem">Real quotes, shared anonymously. Pictures are drawings, not the students.</p></div></section>
   <section class="lsec reveal" id="who"><div class="lsec-h"><span class="eyebrow">Who it’s for</span><h2>One platform, everyone on the same page</h2></div>
    <div class="who4">
     <div class="wcard who t"><span class="wico">🧑‍🏫</span><h3>Teachers</h3><p>Know exactly who needs what, and why. Groups, lessons, and intervention plans are built for you.</p><button class="small" data-go="tour">See the teacher view</button></div>
@@ -5424,6 +5428,15 @@ function libPreviewCard(){
 function wireLibPreview(){
   const g=document.getElementById("g-sk");if(g)g.onchange=e=>{S.genSk=e.target.value;S.genSeed=Math.floor(Math.random()*1e9);render()};
   const n=document.getElementById("g-new");if(n)n.onclick=()=>{S.genSeed=Math.floor(Math.random()*1e9);render()};
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-lq]");if(!b)return;const r=document.getElementById("lqs");if(r)r.scrollBy({left:+b.dataset.lq*Math.max(200,r.clientWidth*.8),behavior:"smooth"})});
+function kidAv(sk,hr,st,bg,sh){
+  const hair={puffs:`<circle cx="26" cy="26" r="13" fill="${hr}"/><circle cx="70" cy="26" r="13" fill="${hr}"/><path d="M26 42a22 22 0 0 1 44 0c-6-8-14-11-22-11s-16 3-22 11z" fill="${hr}"/>`,
+    short:`<path d="M26 44a22 22 0 0 1 44 0c-4-7-12-12-22-12s-18 5-22 12z" fill="${hr}"/>`,
+    curly:[[30,30],[40,23],[52,22],[63,27],[68,37],[28,40]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="9" fill="${hr}"/>`).join(""),
+    braids:`<path d="M26 44a22 22 0 0 1 44 0c-5-7-13-12-22-12s-17 5-22 12z" fill="${hr}"/><rect x="21" y="40" width="7" height="30" rx="3.5" fill="${hr}"/><rect x="68" y="40" width="7" height="30" rx="3.5" fill="${hr}"/>`,
+    pony:`<path d="M26 44a22 22 0 0 1 44 0c-5-7-13-12-22-12s-17 5-22 12z" fill="${hr}"/><ellipse cx="74" cy="36" rx="7" ry="14" fill="${hr}" transform="rotate(25 74 36)"/><circle cx="68" cy="28" r="3.5" fill="${sh}"/>`}[st]||"";
+  return `<svg viewBox="0 0 96 96" role="img"><circle cx="48" cy="48" r="48" fill="${bg}"/><path d="M18 96c2-16 14-24 30-24s28 8 30 24z" fill="${sh}"/><rect x="42" y="60" width="12" height="12" rx="4" fill="${sk}"/>${st==="braids"||st==="pony"?hair:""}<circle cx="48" cy="46" r="22" fill="${sk}"/>${st==="braids"||st==="pony"?hair.replace(/<rect[^>]*>|<ellipse[^>]*>|<circle cx="68"[^>]*>/g,""):hair}<circle cx="40" cy="47" r="2.6" fill="#1f2937"/><circle cx="56" cy="47" r="2.6" fill="#1f2937"/><circle cx="35" cy="54" r="3" fill="#f87171" opacity=".35"/><circle cx="61" cy="54" r="3" fill="#f87171" opacity=".35"/><path d="M41 55q7 6 14 0" stroke="#1f2937" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>`;
 }
 function tStandards(){
   const open=S.stdOpen,q=open?libSample(open,S.stdSeed||1):null,G=S.stdG||(S.stdG=3),L0=LIB.filter(x=>x.grade===G);
