@@ -289,6 +289,11 @@ button.link.small{font-size:.9rem;text-decoration:none}
 @media (max-width:760px){.lhero{grid-template-columns:1fr}}
 .lsec{display:flex;flex-direction:column;gap:18px;scroll-margin-top:80px}
 .lsec-h{display:flex;flex-direction:column;gap:6px;max-width:62ch}
+.fdr{display:grid;grid-template-columns:minmax(180px,280px) 1fr;gap:28px;align-items:start;background:var(--card,#fff);border:1px solid color-mix(in srgb,var(--ink) 12%,transparent);border-radius:20px;padding:22px}
+.fdr img{width:100%;height:auto;border-radius:16px;display:block;box-shadow:0 12px 30px -14px rgba(0,0,0,.35)}
+.fdr-t h3{margin:0;font-size:1.5rem}.fdr-r{margin:.2rem 0 .8rem;font-size:.92rem}.fdr-t p{line-height:1.6;margin:0 0 .85rem}
+.fdr-q{font-weight:700;border-left:4px solid var(--go,#16a34a);padding-left:12px}
+@media (max-width:700px){.fdr{grid-template-columns:1fr;padding:16px}.fdr img{max-width:260px;margin:0 auto}}
 .lsec-h h2{font-size:clamp(1.4rem,3.2vw,2rem);font-weight:700}
 .why3{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
 .wcard{background:var(--card);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 0 var(--rule),0 6px 24px -14px rgba(20,40,80,.25)}
@@ -4301,6 +4306,13 @@ function landing(){
     <button data-go="found">Learn about Founding Schools</button></div></section>
 
   ${quotesSection()}
+  <section class="lsec reveal" id="founder"><div class="lsec-h"><span class="eyebrow">Meet the founder</span><h2>Built by a Mississippi Delta teacher</h2></div>
+   <div class="fdr"><img src="/img/founder.jpg" alt="Christian Barksdale, founder of Path to Proficiency" width="520" height="777" loading="lazy">
+    <div class="fdr-t"><h3>Christian Barksdale</h3><p class="muted fdr-r">Founder of Path to Proficiency · 3rd Grade Math &amp; Science Teacher · Author</p>
+     <p>Christian Barksdale teaches third-grade math and science in the Mississippi Delta, in his hometown of Cleveland, Mississippi. Every day he sees students who are ready to learn but are stuck with one-size-fits-all resources that don’t meet them where they are.</p>
+     <p>So he built Path to Proficiency in his own classroom, for his own students. It turns test results into a personal practice path for every child. It explains every wrong answer, and it gives teachers the intervention plans and reports they would otherwise spend hours making by hand.</p>
+     <p>Barksdale holds a B.S. in Biology from Mississippi Valley State University and is earning his MBA at Delta State University. He is also the author of <i>Hearts in White Coats</i>, a collection of physicians’ stories from around the world.</p>
+     <p class="fdr-q">His vision is simple: Every student deserves more than the opportunity to learn. Every student deserves a pathway to succeed.</p></div></div></section>
   <section class="lsec reveal" id="faq"><div class="lsec-h"><span class="eyebrow">Questions</span><h2>Questions schools ask</h2></div>
    <div class="faq">${L_FAQ.map(([qq,a],i)=>`<div class="fq${LD.faq===i?" open":""}"><button data-faq="${i}" aria-expanded="${LD.faq===i}"><span>${qq}</span><span aria-hidden="true">${LD.faq===i?"−":"+"}</span></button>${LD.faq===i?`<p>${a}</p>`:""}</div>`).join("")}</div></section>
 
