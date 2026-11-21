@@ -144,6 +144,9 @@ input.num{font:inherit;font-size:1.4rem;width:120px;color:var(--ink);background:
 .err{color:var(--oops);min-height:1.5em}
 .tabs{display:flex;gap:8px;flex-wrap:wrap}
 .dd{position:relative}
+.tgrp{border:2px solid var(--rule);border-radius:14px;padding:.6rem .9rem;margin:.5rem 0}
+.tgrp>summary{cursor:pointer;padding:.2rem 0}
+.tgrp[open]>summary{margin-bottom:.5rem}
 .dd>summary{list-style:none;cursor:pointer;padding:.5rem .9rem;border:2px solid var(--rule);border-radius:999px;background:var(--card);font-weight:700;user-select:none}
 .dd>summary::-webkit-details-marker{display:none}
 .dd>summary.on{background:var(--ink);color:var(--card);border-color:var(--ink)}
@@ -5180,9 +5183,9 @@ function tTests(){
    <p class="muted">Pick standards and how many questions each gets, preview and swap questions, then assign it to a class or group. Pick the class:</p>
    <div class="row">${mineT.map(c=>`<button class="ghost" data-tbopen="${esc(c.id)}">＋ ${esc(c.name)}</button>`).join("")}</div></div>`:"";
   return build+`<div class="card"><h2>Tests</h2><p class="muted">Each class practices one test. Import a new test, then pick it in a class’s settings.</p>
-   ${testGroups(TB.tests).map(([g,ts])=>`<h3 style="margin:.8rem 0 .3rem">${esc(g)}</h3><div class="tablewrap"><table class="roster"><thead><tr><th>Test</th><th>Questions</th><th>Standards</th><th>Used by</th><th></th></tr></thead><tbody>
+   ${(()=>{const gr=t=>+t.id.slice(3),std=TB.tests.filter(t=>isStdT(t.id));return [["Math",std.filter(t=>!isSci(gr(t))&&!isELA(gr(t)))],["Science",std.filter(t=>isSci(gr(t)))],["Reading & language",std.filter(t=>isELA(gr(t)))],["Benchmark tests (enter missed question numbers)",TB.tests.filter(t=>!isStdT(t.id))]].filter(g=>g[1].length)})().map(([g,ts])=>{const nUse=ts.filter(t=>TB.classes.some(c=>c.testId===t.id)).length;return `<details class="tgrp" ${nUse?"open":""}><summary><b>${esc(g)}</b> <span class="muted">${ts.length} test${ts.length===1?"":"s"}${nUse?` · ${nUse} in use`:""}</span></summary><div class="tablewrap"><table class="roster"><thead><tr><th>Test</th><th>Questions</th><th>Standards</th><th>Used by</th><th></th></tr></thead><tbody>
    ${ts.map(t=>`<tr><td><b>${esc(t.name)}</b>${t.ownerId?`<br><span class="muted">by ${esc(tName(t.ownerId))}</span>`:""}</td><td>${t.nq}</td><td>${t.skills}</td><td>${used(t.id).map(c=>esc(c.name)).join(", ")||'<span class="muted">—</span>'}</td>
-     <td>${t.builtIn?"":`<div class="row">${TB.ai?`<button class="ghost small" data-more="${t.id}">More practice</button>`:""}${(isAdmin()||t.ownerId===TB.me.id)?`<button class="ghost small" data-edt="${t.id}">Edit</button><button class="ghost small" data-delt="${t.id}">Delete</button>`:""}</div>`}</td></tr>`).join("")}</tbody></table></div>`).join("")}
+     <td>${t.builtIn?"":`<div class="row">${TB.ai?`<button class="ghost small" data-more="${t.id}">More practice</button>`:""}${(isAdmin()||t.ownerId===TB.me.id)?`<button class="ghost small" data-edt="${t.id}">Edit</button><button class="ghost small" data-delt="${t.id}">Delete</button>`:""}</div>`}</td></tr>`).join("")}</tbody></table></div></details>`}).join("")}
    <p class="err" id="t-err" role="alert">${esc(S.terr||"")}</p></div>
   <div class="card"><h2>Import a test from a PDF</h2>
    ${TB.ai?`<p class="muted">Upload the test as a PDF. The AI reads each page, writes down every question, finds the standard, and solves it if there is no answer key. You check everything before it’s saved. Then the AI writes the key words, step-by-step breakdowns, and practice questions.</p>
