@@ -144,6 +144,11 @@ input.num{font:inherit;font-size:1.4rem;width:120px;color:var(--ink);background:
 .err{color:var(--oops);min-height:1.5em}
 .tabs{display:flex;gap:8px;flex-wrap:wrap}
 .dd{position:relative}
+.navfab{position:fixed;left:16px;bottom:16px;z-index:60;border-radius:999px;padding:.7rem 1.1rem;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.navh{display:flex;flex-direction:column;gap:10px}.nh-g h3{margin:.6rem 0 .3rem}
+.nh-i{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;margin:0 0 6px;background:var(--card);color:var(--ink);border:2px solid var(--rule);border-radius:12px;padding:.55rem .8rem}
+.nh-i:hover,.nh-i:focus{border-color:var(--go)}.nh-i span{font-size:.82rem;font-weight:500}
+@media print{.navfab{display:none}}
 .tgrp{border:2px solid var(--rule);border-radius:14px;padding:.6rem .9rem;margin:.5rem 0}
 .tgrp>summary{cursor:pointer;padding:.2rem 0}
 .tgrp[open]>summary{margin-bottom:.5rem}
@@ -4722,6 +4727,35 @@ async function openClass(id,tab){
   S.loading=false;render();
   if(CUR&&!S.err)autoPrograms();
 }
+const CLS_MENU=[["Progress",[["class","Class progress"],["why","Why they missed it"],["bd","Question breakdowns"],["items","Item analysis"],["fluency","Fluency"]]],["Plan & teach",[["plan","Station planner"],["mtss","MTSS"],["ip","Math plans (IMP)"]]],["Reports",[["bench","Benchmarks & reports"],["badges","Badges"]]],["Class",[["setup","Students"],["settings","Class settings"]]]];
+const TOP_NAME={overview:"School overview",classes:"My classes",compare:"Compare classes",standards:"Standards",tests:"Tests",reports:"Reports",teachers:"Teachers / My account",tutors:"Tutors",leads:"School requests"};
+const NAVH=[
+ ["Your class",[["See how my class is doing","class"],["Find who needs help right now","class"],["Print a Sub Day plan or Help Buddy cards","class"],["See off-topic Scout chats","class"],["See why students missed questions","why"],["Break down each test question","bd"],["Find the hardest test questions","items"],["Check math fact fluency","fluency"]]],
+ ["Plan & teach",[["Plan small-group stations","plan"],["See MTSS tiers (Tier 2 and Tier 3)","mtss"],["Make or print an IMP (Individualized Math Plan)","ip"]]],
+ ["Scores & reports",[["Enter benchmark scores or import screener scores","bench"],["Print class or parent reports","bench"],["See student badges","badges"]]],
+ ["Students & settings",[["Add students or print login cards","setup"],["Assign standards to students","setup"],["Set accommodations (read aloud, Spanish, extra time)","setup"],["Change the class test or turn on Buddy","settings"]]],
+ ["Whole school",[["See the whole school at a glance","@overview"],["Compare my classes","@compare"],["Browse every standard with sample questions","@standards"],["Import a new test","@tests"],["Reports for principals and leaders","@reports"],["Change my password or account","@teachers"]]]];
+function navWhere(){const tt=S.tt||"classes";if(tt==="class"&&CUR){const t=S.tab||"class",g=CLS_MENU.find(g=>g[1].some(x=>x[0]===t));return `My classes › ${esc(CUR.cls.name)} › ${g[0]} › ${g[1].find(x=>x[0]===t)[1]}`}return TOP_NAME[tt]||"My classes"}
+function navPath(to){if(to[0]==="@")return TOP_NAME[to.slice(1)];const g=CLS_MENU.find(g=>g[1].some(x=>x[0]===to));return `A class › ${g[0]} › ${g[1].find(x=>x[0]===to)[1]}`}
+function navGo(to){document.querySelectorAll(".lb-back,.lb-pop.navh").forEach(e=>e.remove());
+  if(to[0]==="@"){const b=document.querySelector(`[data-tt="${to.slice(1)}"]`);if(b)b.click();window.scrollTo(0,0);return}
+  if(S.tt==="class"&&CUR){S.tab=to;render();window.scrollTo(0,0);return}
+  const mine=TB.classes.filter(c=>c.teacherId===TB.me.id),c=CUR?.cls||mine[0]||TB.classes[0];
+  if(!c){S.tt="classes";S.err="Make a class first, then that page will be inside it.";render();return}
+  openClass(c.id,to);window.scrollTo(0,0)}
+function navHelp(){
+  const items=NAVH.map(([g,l])=>[g,l.filter(x=>x[1]!=="@overview"||isAdmin())]);
+  const back=document.createElement("div");back.className="lb-back";const pop=document.createElement("div");pop.className="card lb-pop navh";pop.setAttribute("role","dialog");pop.setAttribute("aria-label","Find a page");
+  pop.innerHTML=`<div class="top"><h2>🧭 Find a page</h2><button class="ghost small" id="nh-x">Close</button></div>
+   <p class="muted" style="margin:0">You are here: <b>${navWhere()}</b></p>
+   <input id="nh-q" type="search" placeholder="What do you want to do? Try “IMP” or “login cards”" aria-label="Search pages" style="width:100%">
+   <div id="nh-list">${items.map(([g,l])=>`<div class="nh-g"><h3>${g}</h3>${l.map(([q,to])=>`<button class="nh-i" data-nh="${to}"><b>${esc(q)}</b><span class="muted">${esc(navPath(to))}</span></button>`).join("")}</div>`).join("")}</div>
+   <p class="muted" id="nh-none" hidden>No match. Try another word, or open <b>My classes</b> and pick a class.</p>`;
+  document.body.append(back,pop);const close=()=>{back.remove();pop.remove()};back.onclick=close;pop.querySelector("#nh-x").onclick=close;
+  pop.addEventListener("keydown",e=>{if(e.key==="Escape")close()});
+  pop.querySelectorAll("[data-nh]").forEach(b=>b.onclick=()=>navGo(b.dataset.nh));
+  const q=pop.querySelector("#nh-q");q.focus();q.oninput=()=>{const w=q.value.toLowerCase().trim().split(/\s+/).filter(Boolean);let any=0;
+    pop.querySelectorAll(".nh-g").forEach(g=>{let n=0;g.querySelectorAll(".nh-i").forEach(b=>{const ok=w.every(x=>b.textContent.toLowerCase().includes(x));b.hidden=!ok;n+=ok});g.hidden=!n;any+=n});pop.querySelector("#nh-none").hidden=!!any}}
 function teacher(){
   const tt=S.tt||"classes";
   if(tt!=="class"){TEACHER=TB.me.name}
@@ -4733,12 +4767,12 @@ function teacher(){
     const tab=S.tab||"class";
     const tabs=`<div class="card" style="gap:10px;padding:14px 16px"><div class="top"><div><span class="label">Class</span><h2>${esc(CUR.cls.name)}</h2><span class="muted" style="font-size:.85rem">${esc(tName(CUR.cls.teacherId))} · ${esc(TEST_NAME)} · class code <b style="letter-spacing:.1em">${esc(CUR.cls.join)}</b></span></div>
       <button class="ghost small" id="allc">← All classes</button></div>
-      <div class="tabs ddnav" role="group" aria-label="Class pages">${[["Progress",[["class","Class progress"],["why","Why they missed it"],["bd","Question breakdowns"],["items","Item analysis"],["fluency","Fluency"]]],["Plan & teach",[["plan","Station planner"],["mtss","MTSS"],["ip","Math plans (IMP)"]]],["Reports",[["bench","Benchmarks & reports"],["badges","Badges"]]],["Class",[["setup","Students"],["settings","Class settings"]]]].map(([g,items])=>{const on=items.find(x=>x[0]===tab);return `<details class="dd"><summary class="${on?"on":""}">${g}${on?`: <b>${on[1]}</b>`:""} ▾</summary><div class="ddm">${items.map(([id,l])=>`<button class="small" data-tab="${id}" aria-pressed="${tab===id}">${l}</button>`).join("")}</div></details>`}).join("")}</div></div>`;
+      <div class="tabs ddnav" role="group" aria-label="Class pages">${CLS_MENU.map(([g,items])=>{const on=items.find(x=>x[0]===tab);return `<details class="dd"><summary class="${on?"on":""}">${g}${on?`: <b>${on[1]}</b>`:""} ▾</summary><div class="ddm">${items.map(([id,l])=>`<button class="small" data-tab="${id}" aria-pressed="${tab===id}">${l}</button>`).join("")}</div></details>`}).join("")}</div></div>`;
     const ipn=S.ipNew&&S.ipNew.length&&tab!=="ip"?`<div class="fb go" role="status"><p>📘 New individual plan${S.ipNew.length>1?"s":""} started for ${S.ipNew.map(esc).join(", ")} (scored below ${ipCfg().cut}%). <button class="link" data-tab="ip">See plans and print lessons</button></p></div>`:"";
     body=tabs+ipn+({class:tClass,why:tWhy,plan:tPlanner,fluency:tFluency,mtss:tMtss,ip:tIP,bench:tBench,badges:tBadges,bd:tBreak,items:()=>qualityCard()+tItems(),setup:tSetup,settings:tSettings})[tab]();
   } else body=({classes:tClasses,compare:tCompare,standards:tStandards,tests:tTests,reports:tReports,teachers:tTeachers,tutors:tTutors,leads:tLeads,overview:tOverview,class:tClasses})[tt]();
-  app.innerHTML=demoBanner()+header(`<button class="ghost" id="out">${DEMO_T?"Leave sample school":"Sign out"}</button>`,`${TB.school.name} · ${TB.me.name}${isAdmin()?" (admin)":""}`)+nav+(S.err?`<div class="fb oops" role="alert"><p>${esc(S.err)}</p></div>`:"")+body;
-  document.getElementById("out").onclick=signOut;
+  app.innerHTML=demoBanner()+header(`<button class="ghost" id="out">${DEMO_T?"Leave sample school":"Sign out"}</button>`,`${TB.school.name} · ${TB.me.name}${isAdmin()?" (admin)":""}`)+nav+`<button class="navfab" id="navfab" aria-label="Find a page">🧭 Find a page</button>`+(S.err?`<div class="fb oops" role="alert"><p>${esc(S.err)}</p></div>`:"")+body;
+  document.getElementById("out").onclick=signOut;document.getElementById("navfab").onclick=navHelp;
   app.querySelectorAll("[data-tt]").forEach(b=>b.onclick=()=>{S.tt=b.dataset.tt;S.err="";S.reports=null;S.backups=null;S.tutors=null;S.lic=undefined;S.ov=null;S.leads=null;if(S.tt!=="class")useTest(null);render()});
   const allc=document.getElementById("allc");if(allc)allc.onclick=()=>{S.tt="classes";useTest(null);render()};
   app.querySelectorAll("details.dd").forEach(d=>d.ontoggle=()=>{if(d.open)app.querySelectorAll("details.dd").forEach(o=>{if(o!==d)o.open=false})});
