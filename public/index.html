@@ -4050,7 +4050,8 @@ function stdOfSkill(tid,id){if(tid==="a1"){const k=SKILLS_A1.find(x=>x.id===id);
 function carryProg(raw,src){const o=raw.prog[src],got={};
   Object.entries(o.skills||{}).forEach(([id,sk])=>{const c=stdOfSkill(src,id);if(c&&(sk.status==="done"||sk.status==="skip"))got[c]=got[c]==="done"?"done":sk.status});
   const match=std=>got[std]||Object.entries(got).find(([c])=>std.startsWith(c)&&/^[a-z]$/.test(std.slice(c.length)))?.[1];
-  const p={stars:o.stars||0,skills:{},log:{},days:JSON.parse(JSON.stringify(o.days||{})),carried:src,carryAt:dayKey()};
+  const L=Object.values(o.log||{}),p={stars:o.stars||0,skills:{},log:{},days:JSON.parse(JSON.stringify(o.days||{})),carried:src,carryAt:dayKey(),
+    prior:{tries:L.reduce((a,l)=>a+(+l.tries||0),0),right:L.reduce((a,l)=>a+(+l.right||0),0)},...(o.last?{last:o.last}:{}),...(o.tutor?{tutor:{total:o.tutor.total||0}}:{})};
   SKILLS.forEach(k=>{const st=match(k.std);if(st)p.skills[k.id]={status:st,streak:0,queue:[...k.twins],carried:true}});return p}
 function carryScore(raw){const m=raw.missed&&raw.missed.a1;if(!Array.isArray(m))return null;const n=new Set(m.map(Number).filter(x=>x>=1&&x<=30)).size;return Math.round((30-n)/30*100)}
 function viewStudent(raw){const src=carrySrc(raw),s={...raw,missed:raw.missed?.[TESTID]??null,prog:raw.prog?.[TESTID]?JSON.parse(JSON.stringify(raw.prog[TESTID])):src?carryProg(raw,src):null,raw};
@@ -4786,7 +4787,7 @@ function tClass(){
   const groupsCard=`<div class="card"><h2>Standards and small groups</h2><p class="muted">Students in the same row are working on the same standard right now. Pull them together for a small group.</p>
    <div class="tablewrap"><table class="roster"><thead><tr><th>Standard</th><th>Proficient</th><th>Small group (working on it now)</th></tr></thead><tbody>${stdRows}</tbody></table></div></div>`;
   const rows=CUR.students.map(s=>{const p=s.prog,cur=curSkill(s),TR=trailFor(s),done=TR.filter(k=>p.skills[k.id].status!=="todo").length;
-    const tries=Object.values(p.log).reduce((a,l)=>a+l.tries,0),right=Object.values(p.log).reduce((a,l)=>a+l.right,0);
+    const tries=Object.values(p.log).reduce((a,l)=>a+l.tries,0)+(p.prior?.tries||0),right=Object.values(p.log).reduce((a,l)=>a+l.right,0)+(p.prior?.right||0);
     return `<tr><td><b>${esc(s.name)}</b>${p.go?' <span class="pill gold">🚀 Working ahead</span>':""}${cbTag(s)}<br><span class="muted">code ${esc(s.code)}</span></td>
      <td>${s.missed==null?'<span class="muted">not entered</span>':missedText(s.missed)}</td>
      <td><span class="bar"><span style="width:${TR.length?done/TR.length*100:0}%;background:var(--go)"></span></span> ${done}/${TR.length}${(s.assigned||[]).length?`<br><span class="muted" style="font-size:.8rem">Assigned: ${esc(s.assigned.join(", "))}</span>`:""}</td>
@@ -5063,7 +5064,7 @@ function classStats(entry){
   const withData=studs.filter(s=>Array.isArray(s.missed)),scored=studs.map(scorePct).filter(v=>v!=null);
   const testAvg=scored.length?Math.round(scored.reduce((a,v)=>a+v,0)/scored.length):null;
   let t=0,r=0,tut=0,active=0;const wk=Date.now()-7*864e5;
-  studs.forEach(s=>{Object.values(s.prog.log).forEach(l=>{t+=l.tries;r+=l.right});tut+=s.prog.tutor?.total||0;if((s.prog.last||0)>wk)active++});
+  studs.forEach(s=>{Object.values(s.prog.log).forEach(l=>{t+=l.tries;r+=l.right});t+=s.prog.prior?.tries||0;r+=s.prog.prior?.right||0;tut+=s.prog.tutor?.total||0;if((s.prog.last||0)>wk)active++});
   const std=SKILLS.map(k=>N?Math.round(studs.filter(s=>s.prog.skills[k.id].status!=="todo").length/N*100):null);
   const stdTest=SKILLS.map(k=>{if(!k.qs.length||!withData.length)return null;const qs=new Set(k.qs.map(Number));return Math.max(0,Math.min(100,Math.round(withData.reduce((a,s)=>a+(1-new Set(s.missed.map(Number).filter(n=>qs.has(n))).size/qs.size),0)/withData.length*100)))});
   return {cls:entry.cls,N,finished,fin:N?Math.round(finished/N*100):null,testAvg,acc:t?Math.round(r/t*100):null,answered:t,tut,active,std,stdTest,goal:entry.cls.goal};
@@ -5926,7 +5927,7 @@ function csvCell(v){v=v==null?"":String(v);return /[",\n]/.test(v)?`"${v.replace
 function classCSV(){
   const head=["Name","Code","Missed on test","Assigned standards","Working on","Checkpoints done","Checkpoints total","Practice accuracy %","Questions answered","Minutes practiced","Readiness estimate %","Fluency level","Tier","Asked Scout"];
   const rows=CUR.raw.filter(r=>!isSample(r)).map(r=>{const s=CUR.students.find(x=>x.id===r.id),TR=trailFor(s),p=s.prog,cur=curSkill(s);
-    const tries=Object.values(p.log).reduce((a,l)=>a+l.tries,0),right=Object.values(p.log).reduce((a,l)=>a+l.right,0);
+    const tries=Object.values(p.log).reduce((a,l)=>a+l.tries,0)+(p.prior?.tries||0),right=Object.values(p.log).reduce((a,l)=>a+l.right,0)+(p.prior?.right||0);
     return [r.name,r.code,s.missed==null?"not entered":s.missed.join(" "),(r.assigned||[]).join(" "),cur?cur.std:"finished",TR.filter(k=>p.skills[k.id].status!=="todo").length,TR.length,tries?Math.round(right/tries*100):"",tries,minsOf(p),readiness(s)??"",(r.prog?._flu?.level??0)+1,r.mtss?.tier?("Tier "+r.mtss.tier):"Tier 1",p.tutor?.total||0]});
   return [head,...rows].map(r=>r.map(csvCell).join(",")).join("\n")+"\n";
 }
