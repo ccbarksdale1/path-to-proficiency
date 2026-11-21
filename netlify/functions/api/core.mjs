@@ -85,7 +85,7 @@ export function makeApi({ store, env }) {
     games: { on: c.games?.on !== false, mins: c.games?.mins || 3 },
     ip: { on: c.ip?.on !== false, cut: c.ip?.cut || 60 } });
   const testMeta = t => ({ id: t.id, name: t.name, grade: t.grade || "", ownerId: t.ownerId || null, created: t.created || 0, nq: Object.keys(t.qs || {}).length, skills: (t.skills || []).length });
-  const BUILTIN = { id: "a1", name: "Grade 3 benchmark (8 standards, enter missed question numbers)", builtIn: true, grade: "3", nq: 0, skills: 8 };
+  const BUILTIN = { id: "a1", name: "Grade 3 benchmark (older 30-question test: enter missed question numbers)", builtIn: true, grade: "3", nq: 30, skills: 8 };
   const STDTESTS = [["std3", "3", 33], ["std4", "4", 34], ["std5", "5", 34], ["std6", "6", 50], ["std7", "7", 37], ["std8", "8", 33], ["std9", "9", 52], ["std10", "10", 36], ["std11", "11", 28], ["std14", "14", 31], ["std15", "15", 34], ["std17", "17", 36], ["std18", "18", 41], ["std19", "19", 48], ["std23", "23", 17], ["std24", "24", 17], ["std25", "25", 17], ["std26", "26", 17], ["std27", "27", 17], ["std28", "28", 17]].map(([id, g, n]) => ({ id, name: +g >= 23 ? `ELA Grade ${g - 20}: reading and language standards (no test)` : +g >= 14 ? (g === "19" ? "Biology: all objectives (no test)" : `Science Grade ${g - 10}: all objectives (no test)`) : g === "10" ? "ACT® Math prep: all skills (no test)" : g === "11" ? "WorkKeys® Applied Math: Levels 3–7 (no test)" : g === "9" ? "Algebra I: all standards (no test)" : `Grade ${g}: all standards (no test)`, builtIn: true, grade: g === "9" ? "Algebra I" : g === "10" ? "ACT Math" : g === "11" ? "WorkKeys" : +g >= 23 ? "ELA " + (g - 20) : g === "19" ? "Biology" : +g >= 14 ? "Science " + (g - 10) : g, nq: 0, skills: n }));
   const builtinIds = new Set(["a1", ...STDTESTS.map(t => t.id)]);
 
@@ -297,7 +297,7 @@ How you teach:
     let teacherId = b.teacherId || c?.teacherId || ctx.me.id;
     if (!ctx.admin && teacherId !== ctx.me.id) bad("Only a school admin can give a class to another teacher.", 403);
     if (!school.teachers.some(t => t.id === teacherId)) bad("That teacher was not found.");
-    const testId = b.testId || c?.testId || "a1";
+    const testId = b.testId || c?.testId || (c ? "a1" : "std3"); // new classes start on Grade 3 standards, not the older benchmark
     if (!builtinIds.has(testId) && !(school.tests || []).some(t => t.id === testId)) bad("That test was not found.");
     if (!c) {
       let j; do { j = joinCode() } while (school.classes.some(x => x.join === j));

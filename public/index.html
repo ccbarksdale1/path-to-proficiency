@@ -4732,7 +4732,7 @@ function tClasses(){
     ${Object.entries(byT).map(([tid,cs])=>`<h3>${esc(tName(tid))}</h3><ul class="clist">${cs.map(card).join("")}</ul>`).join("")}</div>`:""}
    <div class="card"><h2>Make a new class</h2>
     <form class="grid" id="nc"><label class="f">Class name<input id="nc-name" required maxlength="60" placeholder="Homeroom"></label>
-     <label class="f">Test<select id="nc-test">${TB.tests.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
+     <label class="f">Test<select id="nc-test">${testsOrdered().map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
      ${isAdmin()?`<label class="f">Teacher<select id="nc-t">${TB.teachers.map(t=>`<option value="${t.id}" ${t.id===TB.me.id?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label>`:""}
      <button type="submit">Make class</button></form><p class="err" id="nc-err" role="alert"></p></div>`;
 }
@@ -4992,7 +4992,7 @@ function tSettings(){
    <form class="grid" id="cs">
     <label class="f">Class name<input id="c-name" value="${esc(c.name)}" required maxlength="60"></label>
     ${isAdmin()?`<label class="f">Teacher<select id="c-t">${TB.teachers.map(t=>`<option value="${t.id}" ${t.id===c.teacherId?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label>`:""}
-    <label class="f">Test students practice<select id="c-test">${TB.tests.map(t=>`<option value="${t.id}" ${t.id===c.testId?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label>
+    <label class="f">Test students practice<select id="c-test">${testsOrdered().map(t=>`<option value="${t.id}" ${t.id===c.testId?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label>
     <label class="f">Class goal (% of students)<input id="c-goal" type="number" min="1" max="100" value="${c.goal}" required></label>
     <label class="f">Step 1 before each question (key words, Find the proof, Rule it out, or Plan it)<select id="c-kw">${[["auto",`Automatic (${(()=>{const g=gradeOf(),l=isELA(g)?g-20:isSci(g)&&g<19?g-10:g;return g===9||isHS(g)||g===19||l>=6})()?"optional for this course":"required for this course"}; short number-only problems skip it)`],["on","Required: students do step 1 first"],["optional","Optional: students may skip it"],["off","Off: students go straight to the question"]].map(([v,l])=>`<option value="${v}" ${(c.kw||"auto")===v?"selected":""}>${l}</option>`).join("")}</select></label>
     <label class="f">Stars to master a standard (3 to 20; a miss costs 2)<input id="c-mast" type="number" min="3" max="20" value="${c.mastery}" required></label>
@@ -6633,7 +6633,7 @@ function demoBuild(){
       if(q){const vq=viewQ(q),k=SKILLS.find(x=>x.id===m.k);store.reports=[{id:"rdemo1",t:now-5*3600e3,qid:m.q,std:k?k.std:"",testId:dc.testId,reason:"count",note:"I think my answer works too. I checked it two ways.",who:raw.name,classId:cls.id,q:vq,status:"open",sid:raw.id,pick:vq.type==="input"?String(Number(vq.ans)+1):vq.choices?pickText(vq,[[...L].slice(0,vq.choices.length).find(l=>!(Array.isArray(vq.ans)?vq.ans:[vq.ans]).includes(l))]):"",kind:"practice",k:m.k}]}}
     store.classes[cls.id]={cls,rev:"demo",students:raws}});
   db=keep.db;useTest(null);addExtras([]);
-  const tests=[{id:"a1",name:"Grade 3 benchmark (8 standards, enter missed question numbers)",builtIn:true,grade:"3",nq:30,skills:8},...GRADES.map(g=>({id:"std"+g,name:stdTestName(g),builtIn:true,grade:g===9?"Algebra I":g===10?"ACT Math":g===11?"WorkKeys":g>=23?"ELA "+(g-20):g===19?"Biology":g>=14?"Science "+(g-10):String(g),nq:0,skills:(useTest({id:"std"+g}),SKILLS.length)}))];useTest(null);
+  const tests=[{id:"a1",name:"Grade 3 benchmark (older 30-question test: enter missed question numbers)",builtIn:true,grade:"3",nq:30,skills:8},...GRADES.map(g=>({id:"std"+g,name:stdTestName(g),builtIn:true,grade:g===9?"Algebra I":g===10?"ACT Math":g===11?"WorkKeys":g>=23?"ELA "+(g-20):g===19?"Biology":g>=14?"Science "+(g-10):String(g),nq:0,skills:(useTest({id:"std"+g}),SKILLS.length)}))];useTest(null);
   const tb={me:teachers[0],school:{name:"Magnolia Public Schools (sample school)"},teachers,classes:DEMO_CLASSES.map(c=>store.classes[c.id].cls),allClassCount:DEMO_CLASSES.length,tests,hidden:[],ai:false,license:null};
   return {tb,store};
 }
@@ -7189,6 +7189,9 @@ window.addEventListener("message",e=>{const f=document.getElementById("lg-frame"
   else if(d.type==="save"&&Array.isArray(d.scores)){gp.lg=gp.lg||{};gp.lg[S.lg]=d.scores.slice(0,9).map(n=>Math.max(0,Math.min(3,+n||0)));saveGame()}
   else if(d.type==="answer"&&typeof d.std==="string"&&S.student&&!S.demo){track(S.student.prog,lgKid(d.std.slice(0,12)),!!d.ok,+d.ms||0);save()}
   else if(d.type==="exit"){S.screen="arcade";render()}});
+
+/* the older Grade 3 benchmark goes last, so new classes don’t pick it by accident */
+const testsOrdered=()=>[...TB.tests.filter(t=>t.id!=="a1"),...TB.tests.filter(t=>t.id==="a1")];
 
 /* ================= Bigger text: one tap, remembered on this device ================= */
 const TKEY="p2p-bigtext";let BIG=(()=>{try{return localStorage.getItem(TKEY)==="1"}catch(e){return false}})();
