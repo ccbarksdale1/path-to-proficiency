@@ -80,7 +80,7 @@ export function makeApi({ store, env }) {
   /* ---------- helpers ---------- */
   const codeHash = (school, code) => sha(school.salt + ":" + code);
   const pubTeacher = t => ({ id: t.id, name: t.name, admin: !!t.admin });
-  const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false, music: c.music !== false, chal: c.chal !== false, gofur: c.gofur !== false, dokmix: c.dokmix !== false, kw: ["on", "optional", "off"].includes(c.kw) ? c.kw : "auto",
+  const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false, music: c.music !== false, chal: c.chal !== false, gofur: c.gofur !== false, dokmix: c.dokmix !== false, buddy: c.buddy !== false, kw: ["on", "optional", "off"].includes(c.kw) ? c.kw : "auto",
     flu: { on: c.flu?.on !== false, secs: c.flu?.secs || 180, pass: c.flu?.pass || 28, n: c.flu?.n || 30 },
     games: { on: c.games?.on !== false, mins: c.games?.mins || 3 },
     ip: { on: c.ip?.on !== false, cut: c.ip?.cut || 60 } });
@@ -315,6 +315,7 @@ How you teach:
       chal: b.chal === undefined ? c.chal !== false : !!b.chal, // next-grade challenges after a standard is verified
       gofur: b.gofur === undefined ? c.gofur !== false : !!b.gofur, // Go Further: next grade after the summit
       dokmix: b.dokmix === undefined ? c.dokmix !== false : !!b.dokmix, // match the state test DOK mix
+      buddy: b.buddy === undefined ? c.buddy !== false : !!b.buddy, // Find Buddy's Mistake in practice
       kw: ["auto", "on", "optional", "off"].includes(b.kw) ? b.kw : (c.kw || "auto"),
     });
     if (b.flu && typeof b.flu === "object") {
@@ -386,7 +387,8 @@ How you teach:
       const xt = Array.isArray(s.xt) ? s.xt.slice(-20).map(x => x && typeof x === "object" ? { id: str(x.id, 20), d: day(x.d), k: /^[\w-]{1,40}$/.test(String(x.k)) ? String(x.k) : "", std: STD.test(str(x.std, 12)) ? str(x.std, 12) : "", n: +x.n === 5 ? 5 : 3, ...(x.mis ? { mis: str(x.mis, 160), mx: str(x.mx, 160) } : {}),
           ...(Array.isArray(x.qs) && x.qs.length ? (q => q.length ? { qs: q, n: q.length, name: str(x.name, 60) } : {})(x.qs.slice(0, 40).map(v => String(v)).filter(v => /^[~!][\w~!:.-]{2,80}$/.test(v))) : {}) } : null).filter(x => x && x.id && x.d && x.k) : []; // exit tickets the teacher gave (mis = a mistake check)
       const pp = Array.isArray(s.pp) ? s.pp.slice(-20).map(x => x && typeof x === "object" ? { id: str(x.id, 20), d: day(x.d), k: /^[\w-]{1,40}$/.test(String(x.k)) ? String(x.k) : "", std: STD.test(str(x.std, 12)) ? str(x.std, 12) : "", n: Math.max(1, Math.min(20, Math.round(+x.n || 6))), ok: Math.max(0, Math.round(+x.ok || 0)) } : null).filter(x => x && x.id && x.d && x.k).map(x => ({ ...x, ok: Math.min(x.n, x.ok) })) : []; // paper practice scores
-      students.push({ id: s.id && /^[A-Za-z0-9]{4,20}$/.test(s.id) ? s.id : "s" + rid(8), name, code, missed, assigned, ...(m ? { mtss: m } : {}), ...(ip ? { ip } : {}), ...(ses.length ? { ses } : {}), ...(xt.length ? { xt } : {}), ...(pp.length ? { pp } : {}), ...(Object.keys(scores).length ? { scores } : {}), ...(Object.keys(bm).length ? { bm } : {}), sample: !!s.sample });
+      const acc = s.acc && typeof s.acc === "object" ? { read: !!s.acc.read, big: !!s.acc.big, es: !!s.acc.es, fewer: !!s.acc.fewer } : null; // accommodations
+      students.push({ id: s.id && /^[A-Za-z0-9]{4,20}$/.test(s.id) ? s.id : "s" + rid(8), name, code, missed, assigned, ...(acc && Object.values(acc).some(Boolean) ? { acc } : {}), ...(m ? { mtss: m } : {}), ...(ip ? { ip } : {}), ...(ses.length ? { ses } : {}), ...(xt.length ? { xt } : {}), ...(pp.length ? { pp } : {}), ...(Object.keys(scores).length ? { scores } : {}), ...(Object.keys(bm).length ? { bm } : {}), sample: !!s.sample });
     }
     if (students.filter(x => x.sample).length > 3) bad("A class can have up to 3 sample students.");
     const L = license(ctx.school), realNew = students.filter(x => !x.sample).length, realOld = old.students.filter(x => !x.sample).length;
@@ -585,7 +587,30 @@ How you teach:
     const prog = (await getJ(`prog/${c.id}/${st.id}`)) || {};
     const t = school.teachers.find(x => x.id === c.teacherId);
     const { mtss, ses, ...me } = st; if (me.ip) me.ip = { ...me.ip, note: "" };
-    return { token, cls: pubClass(c), teacher: t?.name || "", student: me, prog, test: await loadTest(c.testId), ai: !!env.ANTHROPIC_API_KEY, hidden: school.hidden || [] };
+    return { token, cls: pubClass(c), teacher: t?.name || "", student: me, prog, test: await loadTest(c.testId), ai: !!env.ANTHROPIC_API_KEY, hidden: school.hidden || [], comeback: await comebackFor(c, st, prog) };
+  }
+  /* Comeback: did the class practice on 3+ days (a day most classmates practiced) after this student's last practice?
+     If so, send the skills the class worked on then that this student still has to do. Only "class days" count,
+     so weekends, holidays, and days the teacher didn't use the app never flag anyone. */
+  async function comebackFor(c, st, prog) {
+    try {
+      const tid = c.testId || "a1", me = prog[tid] || {}, mine = Object.keys(me.days || {}).sort();
+      if (!mine.length) return null;
+      const last = mine[mine.length - 1];
+      if (Date.now() - Date.parse(last + "T00:00:00Z") < 2.5 * 864e5) return null; // too soon to have missed 3 class days
+      const roster = (await getJ("roster/" + c.id)) || { students: [] };
+      const others = roster.students.filter(x => x.id !== st.id && !x.sample);
+      const days = (await Promise.all(others.map(x => getJ(`prog/${c.id}/${x.id}`)))).map(p => p?.[tid]?.days).filter(d => d && Object.keys(d).length);
+      if (days.length < 2) return null;
+      const need = Math.ceil(days.length / 2), cnt = {};
+      for (const d of days) for (const k of Object.keys(d)) if (k > last) cnt[k] = (cnt[k] || 0) + 1;
+      const classDays = Object.keys(cnt).filter(k => cnt[k] >= need);
+      if (classDays.length < 3) return null;
+      const tally = {};
+      for (const d of days) for (const k of classDays) for (const [id, x] of Object.entries(d[k] || {})) tally[id] = (tally[id] || 0) + (+x?.n || 0);
+      const ids = Object.keys(tally).filter(id => me.skills?.[id]?.status === "todo").sort((a, b) => tally[b] - tally[a]).slice(0, 3);
+      return ids.length ? { n: classDays.length, since: last, ids } : null;
+    } catch (e) { return null }
   }
   A.studentBoot = async b => { const { school, cls, st } = await studentCtx(b.token); return studentPayload(school, cls, st, b.token) };
 

@@ -3956,9 +3956,30 @@ function pickSkills(){const base=SKILLS.filter(k=>genOf(k)),g=gradeOf(),ord=c=>{
   return [...base,...more].sort((a,b)=>ord(a.std)-ord(b.std))}
 const allAssigned=list=>list.flatMap(s=>[...(s.assigned||[]),...ipCodes(s),...goListRaw(s),...xtCodes(s)]);
 /* a student's trail: assigned standards first, then the rest; "off" = not on this student's trail */
-const trailFor=s=>{const on=SKILLS.filter(k=>s.prog.skills[k.id]&&s.prog.skills[k.id].status!=="off"),ipc=ipCodes(s),a=new Set(s.assigned||[]);
+const trailBase=s=>{const on=SKILLS.filter(k=>s.prog.skills[k.id]&&s.prog.skills[k.id].status!=="off"),ipc=ipCodes(s),a=new Set(s.assigned||[]);
   /* an individual plan goes first, in its building-block order; then assigned standards; then the rest */
   const first=ipc.map(c=>on.find(k=>k.std===c)).filter(Boolean),rest=on.filter(k=>!first.includes(k));return [...first,...rest.filter(k=>a.has(k.std)),...rest.filter(k=>!a.has(k.std))]};
+/* ================= Comeback: a short catch-up for students who missed class practice days =================
+   The server spots it (the class practiced 3+ days after this student's last practice) and sends the skills
+   the class worked on that this student still needs. Those go first on the trail until the student answers
+   CB_Q questions in each, or CB_DAYS days pass. Saved in prog.cb so the teacher sees it too. */
+const CB_Q=5,CB_DAYS=7;
+const cbAge=c=>(Date.now()-new Date(c.at+"T00:00:00").getTime())/864e5;
+function cbLeft(s,ignoreAge){const c=s.prog&&s.prog.cb;if(!c||!c.at||!Array.isArray(c.ids))return [];if(!ignoreAge&&cbAge(c)>CB_DAYS)return [];
+  return c.ids.filter(id=>{const sk=s.prog.skills[id];if(!sk||sk.status!=="todo")return false;let n=0;for(const [d,x] of Object.entries(s.prog.days||{}))if(d>=c.at&&x[id])n+=x[id].n||0;return n<CB_Q})}
+const trailFor=s=>{const b=trailBase(s),L=cbLeft(s);if(!L.length)return b;const f=L.map(id=>b.find(k=>k.id===id)).filter(Boolean);return [...f,...b.filter(k=>!f.includes(k))]};
+function cbStart(c){const st=S.student,p=st&&st.prog;if(!p||!c||!Array.isArray(c.ids)||!c.ids.length)return;
+  if(p.cb&&(p.cb.since===c.since||cbLeft(st).length))return; /* already started for this absence, or one is still going */
+  p.cb={n:c.n,since:c.since,ids:c.ids.filter(id=>p.skills[id]),at:dayKey()}}
+function cbCard(s){const c=s.prog.cb,L=cbLeft(s);if(!c||!L.length)return "";const es=S.lang==="es",tot=c.ids.length,done=tot-L.length;
+  const li=c.ids.map(id=>{const k=SKILLS.find(x=>x.id===id);return k?`<li>${L.includes(id)?"○":"✅"} <b>${esc(k.name)}</b> <span class="muted">${esc(k.std)}</span></li>`:""}).join("");
+  return `<div class="card"><h2>👋 ${es?"¡Bienvenido de vuelta!":"Welcome back!"}</h2>
+   <p>${es?`Tu clase practicó ${c.n} días mientras no estabas. Aquí tienes ${tot} repaso${tot===1?"":"s"} rápido${tot===1?"":"s"}:`:`Your class practiced ${c.n} days while you were away. Here ${tot===1?"is":"are"} ${tot} quick catch-up${tot===1?"":"s"}:`}</p>
+   <ul style="list-style:none;padding-left:0;margin:.4rem 0">${li}</ul>
+   <p class="muted">${es?`${done} de ${tot} listos. Tu misión de hoy empieza con ellos.`:`${done} of ${tot} done. Today’s mission starts with them.`}</p></div>`}
+function cbTag(s){const c=s.prog&&s.prog.cb;if(!c||!c.at||!Array.isArray(c.ids))return "";const age=cbAge(c);if(age>14)return "";
+  const tot=c.ids.length,L=cbLeft(s,true),names=c.ids.map(id=>(SKILLS.find(x=>x.id===id)||{}).std).filter(Boolean).join(", "),tip=`Missed ${c.n} class practice days. Catch-up: ${names}`;
+  return !L.length?` <span class="pill go" title="${esc(tip)}">↺ Caught up</span>`:age>CB_DAYS?` <span class="pill" title="${esc(tip)}">↺ Catch-up not finished (${tot-L.length}/${tot})</span>`:` <span class="pill purple" title="${esc(tip)}">↺ Catching up ${tot-L.length}/${tot}</span>`}
 let TESTID="a1",NQ=30,ACT=null;
 /* switch the whole app to one test: the built-in Assessment 1, or a test a teacher imported */
 function useTest(t){
@@ -4035,11 +4056,20 @@ function save(){
 }
 async function flushSave(){
   if(saving){saveAgain=true;return}saving=true;
-  try{await api("progSave",{testId:TESTID,prog:S.student.prog});S.saveErr=false}
-  catch(e){S.saveErr=true;setTimeout(save,8000)}
+  try{await api("progSave",{testId:TESTID,prog:S.student.prog});S.saveErr=false;ls.set(OFFKEY,null)}
+  catch(e){S.saveErr=true;ls.set(OFFKEY,{sid:S.student.id,tid:TESTID,prog:S.student.prog,t:Date.now()});setTimeout(save,8000)}
   saving=false;markSaved();if(saveAgain){saveAgain=false;flushSave()}
 }
-function markSaved(){const el=document.getElementById("savestate");if(el)el.innerHTML=S.saveErr?'<span class="pill oops">Not saved yet: check the internet</span>':""}
+function markSaved(){const el=document.getElementById("savestate");if(el)el.innerHTML=!S.saveErr?"":navigator.onLine===false?`<span class="pill gold">📴 ${t("Offline: keep practicing. Your work saves when the internet is back.")}</span>`:'<span class="pill oops">Not saved yet: check the internet</span>'}
+/* ================= Offline: practice keeps going when Wi-Fi drops. Unsaved work is kept on this device and sent when the
+   internet is back (right away, on the "online" event). A copy of the sign-in data lets a reloaded tab open offline. ================= */
+const OFFKEY="p2p-unsaved",BOOTKEY="p2p-boot";
+window.addEventListener("online",()=>{if(S.saveErr&&S.role==="student"){S.saveErr=false;flushSave()}});
+window.addEventListener("offline",()=>{if(S.role==="student"&&!S.demo){S.saveErr=true;markSaved()}});
+const offTries=p=>Object.values((p&&p.log)||{}).reduce((a,l)=>a+(+l.tries||0),0);
+function offRestore(d){const u=ls.get(OFFKEY);if(!u||!d.student||u.sid!==d.student.id||u.tid!==TESTID)return false;d.prog=d.prog||{};
+  if(offTries(u.prog)>offTries(d.prog[TESTID])){d.prog[TESTID]=u.prog;return true}ls.set(OFFKEY,null);return false}
+if("serviceWorker" in navigator&&location.protocol==="https:")window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
 const curSkill=s=>trailFor(s).find(k=>s.prog.skills[k.id].status==="todo");
 /* blank = scores not entered yet (practice everything); "none" or 0 = missed nothing */
 const parseMissed=t=>{t=String(t||"").trim();if(!t)return null;if(/^(none|0)$/i.test(t))return [];
@@ -4359,7 +4389,7 @@ function startStudent(d){
   TOKEN=d.token;ls.set(SKEY,{token:d.token,role:"student"},sessionStorage);SB=d;S.role="student";S.demo=false;
   if(d.test)TESTS[d.test.id]=d.test;useTest(d.test||(isStdT(d.cls.testId)?{id:d.cls.testId}:null));addExtras([...(d.student.assigned||[]),...ipCodes(d.student),...goList(d.prog&&d.prog[TESTID]),...xtCodes(d.student)]);
   db={mastery:d.cls.mastery,videos:d.cls.videos||{},goal:d.cls.goal};TEACHER=d.teacher||"Your teacher";
-  S.student=viewStudent({...d.student,prog:d.prog});S.lang=(d.prog&&d.prog._pref&&d.prog._pref.lang)||"en";S.screen="home";S.err="";render();
+  const restored=offRestore(d);try{const {token,...keep}=d;ls.set(BOOTKEY,keep,sessionStorage)}catch(e){}S.student=viewStudent({...d.student,prog:d.prog});cbStart(d.comeback);if(restored)setTimeout(save,500);accApply(d);S.lang=(d.prog&&d.prog._pref&&d.prog._pref.lang)||(d.student&&d.student.acc&&d.student.acc.es?"es":"en");S.screen="home";S.err="";render();
 }
 function home(){
   const s=S.student,p=s.prog,cur=curSkill(s),first=s.name.replace(" (sample)","");
@@ -4377,7 +4407,7 @@ function home(){
      ${scout(msg)}
      <div class="row"><button id="go">${t(sk.streak||Object.keys(p.log).length?"Keep climbing":"Start my mission")}</button>${db.videos[cur.id]?`<a class="btnlink" href="${esc(db.videos[cur.id])}" target="_blank" rel="noopener">▶ Watch the lesson</a>`:""}</div>
    </div>`:`<div class="card mission" style="align-items:flex-start">${HERO_ART}${scout(msg)}</div>`;
-  app.innerHTML=header(`${langToggle()}<button class="ghost" id="out">${t("Sign out")}</button>`)+tbadgeNotice()+creditNotice(p)+mission+xtHomeCard(s)+evHomeCard(s)+chalCard(s)+psetCard(s)+hsHomeCard(s)+goFurtherCard(s)+(hsOn()||subjOf(gradeOf())!=="math"?"":fluCard())+gameCard()+`
+  app.innerHTML=header(`${langToggle()}<button class="ghost" id="out">${t("Sign out")}</button>`)+tbadgeNotice()+creditNotice(p)+cbCard(s)+mission+xtHomeCard(s)+evHomeCard(s)+chalCard(s)+psetCard(s)+hsHomeCard(s)+goFurtherCard(s)+(hsOn()||subjOf(gradeOf())!=="math"?"":fluCard())+gameCard()+`
   <div class="card">
    <div class="top"><h2>${t("My trail")}</h2><span class="pill gold">${done} of ${TR.length} checkpoints</span></div>
    ${ipActive(s)?`<p class="fb info">📘 ${t("Your teacher made you a personal math plan. Your trail starts with the building blocks you need.")}</p>`:""}
@@ -4427,6 +4457,7 @@ function newQ(){S.lb=null;S.pf=null;S.ro=null;S.pit=null;S.evRes=null;S.rvKind=n
   while(sk.queue.length&&(!getQ(sk.queue[0])||isHidden(sk.queue[0])))sk.queue.shift(); topUp(sk,k.id);
   S.k=k.id;S.qid=sk.queue[0];markSeen(sk,S.qid);
   if(dokMixOn()&&(S.dokN=(S.dokN||0)+1)%DOK_MIX_EVERY===0){const ea=eaIdFor(k);if(ea)S.qid=ea} /* match the state test mix: some DOK 3 */
+  if(buddyOn()&&S.qid[0]!=="!"&&(S.bdN=(S.bdN||0)+1)%BD_EVERY===0){const bd=bdIdFor(S.qid);if(bd)S.qid=bd} /* Find Buddy's Mistake */
   S.q=viewQ(getQ(S.qid));S.step=step0(S.q);if(S.step===1&&kwMode()==="on"&&(sk.streak||0)>=4&&!(S.q&&S.q._ea)&&!planOn(S.q)&&(S.kwN=(S.kwN||0)+1)%3){S.step=2;S.kwFade=true}S.kwSkip=S.step===2;S.bare=S.step===2&&kwMode()!=="off";S.shownAt=Date.now();S.hl=new Set();S.sel=[];S.result=null;S.r=0;S.full=false;S.mastered=false;S.chat=null;stopPlay()}
 
 function answerArea(q){const h=answerArea0(q);return S.confPending&&!S.result?h.replace('<button id="check"','<button id="check" hidden')+confHTML():h}
@@ -4517,6 +4548,7 @@ function practice(){
   document.getElementById("back").onclick=()=>{stopPlay();S.screen="home";render()};
   wireChat();wireReport();wireLang();wireHsTools();roMark();wireLook();
   const sq=document.getElementById("say-q"); if(sq) sq.onclick=()=>{stopPlay();speak(S.step===1?q.parts.map(p=>typeof p==="string"?p:p.eq||p.fig||"").join(". "):qSpeech(q))};
+  if(sq&&accOn("read")&&S.accReadQ!==S.qid){S.accReadQ=S.qid;setTimeout(()=>sq.click(),300)} /* accommodation: read every question aloud */
   if(S.step===1&&pfOn(q)){wirePf(q);return}
   if(S.step===1&&roOn(q)){wireRo(q);return}
   if(S.step===1&&planOn(q)){wirePlan(q);return}
@@ -4681,6 +4713,7 @@ function teacher(){
   app.querySelectorAll("[data-tt]").forEach(b=>b.onclick=()=>{S.tt=b.dataset.tt;S.err="";S.reports=null;S.backups=null;S.tutors=null;S.lic=undefined;S.ov=null;S.leads=null;if(S.tt!=="class")useTest(null);render()});
   const allc=document.getElementById("allc");if(allc)allc.onclick=()=>{S.tt="classes";useTest(null);render()};
   app.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;S.err="";S.mtssId=null;S.rcpt=null;S.xtNew=false;render();window.scrollTo(0,0)});
+  const sdb=document.getElementById("sub-day");if(sdb)sdb.onclick=subDay;const hbb=document.getElementById("help-buddy");if(hbb)hbb.onclick=helpBuddy;
   const cd=document.getElementById("csv-dl");if(cd)cd.onclick=()=>saveFile(`${CUR.cls.name.replace(/[^\w]+/g,"-")}-${new Date().toISOString().slice(0,10)}.csv`,classCSV());
   if(tt==="class"&&CUR)({class:()=>{},why:wireMis,plan:wirePlanner,fluency:wireFluency,mtss:wireMtss,ip:wireIP,bench:wireBench,badges:wireBadges,bd:wireBreak,items:wireQuality,setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
   else ({classes:wireClasses,compare:wireCompare,standards:wireStandards,tests:wireTests,reports:wireReports,teachers:wireTeachers,tutors:wireTutors,leads:wireLeads,overview:wireOverview,class:wireClasses})[tt]();
@@ -4740,13 +4773,13 @@ function tClass(){
    <div class="tablewrap"><table class="roster"><thead><tr><th>Standard</th><th>Proficient</th><th>Small group (working on it now)</th></tr></thead><tbody>${stdRows}</tbody></table></div></div>`;
   const rows=CUR.students.map(s=>{const p=s.prog,cur=curSkill(s),TR=trailFor(s),done=TR.filter(k=>p.skills[k.id].status!=="todo").length;
     const tries=Object.values(p.log).reduce((a,l)=>a+l.tries,0),right=Object.values(p.log).reduce((a,l)=>a+l.right,0);
-    return `<tr><td><b>${esc(s.name)}</b>${p.go?' <span class="pill gold">🚀 Working ahead</span>':""}<br><span class="muted">code ${esc(s.code)}</span></td>
+    return `<tr><td><b>${esc(s.name)}</b>${p.go?' <span class="pill gold">🚀 Working ahead</span>':""}${cbTag(s)}<br><span class="muted">code ${esc(s.code)}</span></td>
      <td>${s.missed==null?'<span class="muted">not entered</span>':missedText(s.missed)}</td>
      <td><span class="bar"><span style="width:${TR.length?done/TR.length*100:0}%;background:var(--go)"></span></span> ${done}/${TR.length}${(s.assigned||[]).length?`<br><span class="muted" style="font-size:.8rem">Assigned: ${esc(s.assigned.join(", "))}</span>`:""}</td>
      <td>${cur?`${esc(cur.std)}<br><span class="muted">${esc(cur.name)}</span>`:'<span style="color:var(--go);font-weight:700">Proficient</span>'}</td>
      <td>${tries?Math.round(right/tries*100)+"%":"—"}<br><span class="muted">${tries} answered</span></td>
      <td>${(()=>{const r=readiness(s),b=band(r);return r==null?`<span class="pill" title="Not enough practice or test data yet">Evidence needed</span>`:`<span class="pill ${b.c}">${r}%</span>`})()}</td><td>${p.tutor?.total||0}</td></tr>`}).join("");
-  return `${nextCard()}${goalCard}${hsClassCard()}${readinessCard()}${evClassCard()}${stepsCard()}${attnCard}${groupsCard}<div class="card"><div class="top"><h2>Every student</h2><button class="ghost small" id="csv-dl">Download class data (CSV)</button></div>
+  return `${nextCard()}${tsCard(CUR.raw)}${goalCard}${hsClassCard()}${readinessCard()}${evClassCard()}${stepsCard()}${attnCard}${groupsCard}<div class="card"><div class="top"><h2>Every student</h2><span class="row" style="gap:.4rem;margin:0"><button class="small" id="sub-day">🧑‍🏫 Sub Day</button><button class="ghost small" id="help-buddy">🦝 Help Buddy warm-up</button><button class="ghost small" id="csv-dl">Download class data (CSV)</button></span></div>
    <p class="muted">Each student’s path skips any standard where they got every test question right. Students marked “sample” are examples and are not counted in your goal.</p>
    <div class="tablewrap"><table class="roster"><thead><tr><th>Student</th><th>Missed on test</th><th>Path</th><th>Working on</th><th>Accuracy</th><th>Readiness</th><th>Asked Scout</th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="muted">No students yet.</td></tr>`}</tbody></table></div>
    <p class="muted" style="font-size:.85rem">Progress saves online, so students can use any device. <button class="link" id="reload">Refresh</button></p></div>${growthCard()}`;
@@ -4812,7 +4845,7 @@ function tItems(){
 document.addEventListener("click",e=>{const b=e.target.closest("[data-goq]");if(b){S.tab="bd";S.bdq=+b.dataset.goq;render()}});
 
 /* ---------- students ---------- */
-const rosterOut=list=>list.map(s=>({id:s.id,name:s.name,code:s.code,missed:s.missed||{},assigned:s.assigned||[],...(s.mtss?{mtss:s.mtss}:{}),...(s.ip?{ip:s.ip}:{}),...(s.scores?{scores:s.scores}:{}),...(s.bm?{bm:s.bm}:{}),...(Array.isArray(s.ses)&&s.ses.length?{ses:s.ses}:{}),...(Array.isArray(s.xt)&&s.xt.length?{xt:s.xt}:{}),...(Array.isArray(s.pp)&&s.pp.length?{pp:s.pp}:{}),sample:!!s.sample}));
+const rosterOut=list=>list.map(s=>({id:s.id,name:s.name,code:s.code,missed:s.missed||{},assigned:s.assigned||[],...(s.mtss?{mtss:s.mtss}:{}),...(s.acc&&Object.values(s.acc).some(Boolean)?{acc:s.acc}:{}),...(s.ip?{ip:s.ip}:{}),...(s.scores?{scores:s.scores}:{}),...(s.bm?{bm:s.bm}:{}),...(Array.isArray(s.ses)&&s.ses.length?{ses:s.ses}:{}),...(Array.isArray(s.xt)&&s.xt.length?{xt:s.xt}:{}),...(Array.isArray(s.pp)&&s.pp.length?{pp:s.pp}:{}),sample:!!s.sample}));
 async function saveRoster(list,extra={}){
   let d;try{d=await api("rosterSave",{classId:CUR.cls.id,rev:CUR.rev,students:rosterOut(list),...extra})}
   catch(e){if(/Someone else changed/.test(e.message)){const tab=S.tab;await openClass(CUR.cls.id,tab);alert(e.message+" Please make your change again.")}throw e}
@@ -4967,6 +5000,7 @@ function tSettings(){
     <label class="f chk"><span><input type="checkbox" id="c-chirp" ${c.chirp!==false?"checked":""}> Chirp the bird cheers students on</span></label>
     <label class="f chk"><span><input type="checkbox" id="c-music" ${c.music!==false?"checked":""}> Students can turn on calm background music (off until a student picks a track)</span></label>
     <label class="f chk"><span><input type="checkbox" id="c-dokmix" ${c.dokmix!==false?"checked":""}> Match the state test mix: MAAP is about 75% DOK 2 and 25% DOK 1 and 3, so about 1 in 8 practice questions (and 1 question on 5-question exit tickets) is a “Think deeper” (DOK 3) question. When off, DOK 3 shows up only in check-ups.</span></label>
+     <label class="f chk"><span><input type="checkbox" id="c-buddy" ${c.buddy!==false?"checked":""}> 🦝 Find Buddy’s Mistake: about 1 in 12 practice questions shows Buddy’s wrong answer (a real common mistake), and students find the right one</span></label>
     <label class="f chk"><span><input type="checkbox" id="c-chal" ${c.chal!==false?"checked":""}> Challenge zone: once a standard is verified, students can try next-grade questions that build on it</span></label>
     <label class="f chk"><span><input type="checkbox" id="c-gofur" ${c.gofur!==false?"checked":""}> Go Further: after the summit, students can start the next grade’s standards</span></label>
     <label class="f chk"><span><input type="checkbox" id="c-flu" ${c.flu?.on!==false?"checked":""}> Fluency mode on</span></label>
@@ -4991,7 +5025,7 @@ async function saveClass(patch){const c=CUR.cls;const d=await api("classSave",{i
 function wireSettings(){
   const c=CUR.cls;
   document.getElementById("cs").onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Saving…");
-    const patch={name:document.getElementById("c-name").value,testId:document.getElementById("c-test").value,goal:+document.getElementById("c-goal").value,mastery:+document.getElementById("c-mast").value,tutor:document.getElementById("c-tutor").checked,chirp:document.getElementById("c-chirp").checked,music:document.getElementById("c-music").checked,chal:document.getElementById("c-chal").checked,dokmix:document.getElementById("c-dokmix").checked,gofur:document.getElementById("c-gofur").checked,kw:document.getElementById("c-kw").value,
+    const patch={name:document.getElementById("c-name").value,testId:document.getElementById("c-test").value,goal:+document.getElementById("c-goal").value,mastery:+document.getElementById("c-mast").value,tutor:document.getElementById("c-tutor").checked,chirp:document.getElementById("c-chirp").checked,music:document.getElementById("c-music").checked,chal:document.getElementById("c-chal").checked,dokmix:document.getElementById("c-dokmix").checked,buddy:document.getElementById("c-buddy").checked,gofur:document.getElementById("c-gofur").checked,kw:document.getElementById("c-kw").value,
       flu:{on:document.getElementById("c-flu").checked,n:+document.getElementById("c-fn").value,pass:+document.getElementById("c-fp").value,secs:Math.round(+document.getElementById("c-fs").value*60)},games:{on:document.getElementById("c-games").checked,mins:+document.getElementById("c-gm").value},ip:{on:document.getElementById("c-ip").checked,cut:+document.getElementById("c-ipc").value}};
     const ct=document.getElementById("c-t");if(ct)patch.teacherId=ct.value;
     try{const testChanged=patch.testId!==c.testId;await saveClass(patch);await openClass(c.id,"settings");flash("cs-msg",testChanged?`Saved. Students now practice ${testName(patch.testId)}.`:"Saved.");render()}
@@ -5844,6 +5878,7 @@ function mtssReport(r,s){
     <label class="f">Tier<select id="m-tier"><option value="">Tier 1</option><option value="2" ${m.tier==="2"?"selected":""}>Tier 2</option><option value="3" ${m.tier==="3"?"selected":""}>Tier 3</option></select></label>
     <label class="f">Intervention start<input type="date" id="m-start" value="${esc(m.start||"")}"></label>
     <label class="f" style="grid-column:1/-1">Goal<input id="m-goal" maxlength="300" value="${esc(m.goal||"")}" placeholder="e.g. Master 3.OA.4 with 80% accuracy by Dec 15"></label>
+    <fieldset class="f" style="grid-column:1/-1;border:1px solid var(--line,#ddd);border-radius:10px;padding:8px 12px"><legend><b>Accommodations</b> <span class="muted">(IEP, 504, or teacher choice. Set them once and they turn on every time this student signs in.)</span></legend>${ACC.map(([k,l])=>`<label class="chk" style="display:inline-flex;gap:6px;margin-right:16px"><input type="checkbox" data-acc="${k}" ${(r.acc||{})[k]?"checked":""}> ${l}</label>`).join("")}</fieldset>
     <label class="f" style="grid-column:1/-1">Notes<textarea id="m-notes" rows="3" maxlength="2000" placeholder="Small group times, strategies tried, parent contact…">${esc(m.notes||"")}</textarea></label>
     <button type="submit">Save</button></form><p class="muted" id="m-msg" role="status"></p>
    <div class="mstats">${(()=>{const T=sesSum(r,since);return [["Sessions with teacher",T.n],["Minutes with teacher",T.mins],["Sessions missed",T.absent]]})().concat([["App minutes",total],["Days with practice",days],["Minutes since start",m.start?minsOf(s.prog,null,since):"—"],["Fluency level",f?`${(f.level||0)+1} of ${FLU().length}`:"—"],["Now working on",cur?cur.std:"Finished"]]).concat(stepsMstats(s)).map(([l,v])=>`<div><b>${esc(String(v))}</b><span>${l}</span></div>`).join("")}</div>
@@ -5864,7 +5899,7 @@ function wireMtss(){wireReceipts();
   const bk=document.getElementById("m-back");if(bk)bk.onclick=()=>{S.mtssId=null;render()};
   const pr=document.getElementById("m-print");if(pr)pr.onclick=()=>printEl("mrep",`Intervention report`);
   const f=document.getElementById("m-f");if(f)f.onsubmit=async e=>{e.preventDefault();const id=S.mtssId,v=x=>document.getElementById(x).value;busy(e.submitter,"Saving…");
-    try{await saveRoster(CUR.raw.map(s=>s.id===id?{...s,mtss:{tier:v("m-tier"),start:v("m-start"),goal:v("m-goal"),notes:v("m-notes")}}:s));flash("m-msg","Saved.");render()}catch(er){document.getElementById("m-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save"}};
+    try{await saveRoster(CUR.raw.map(s=>s.id===id?{...s,mtss:{tier:v("m-tier"),start:v("m-start"),goal:v("m-goal"),notes:v("m-notes")},acc:Object.fromEntries([...document.querySelectorAll("[data-acc]")].map(i=>[i.dataset.acc,i.checked]))}:s));flash("m-msg","Saved.");render()}catch(er){document.getElementById("m-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save"}};
 }
 function printEl(id,title){const el=document.getElementById(id),w=window.open("","_blank");if(!el||!w){alert("Allow pop-ups to print.");return}
   const css=[...document.querySelectorAll("style")].map(s=>s.outerHTML).join("");
@@ -5956,7 +5991,7 @@ const ES={
 const t=s=>S.lang==="es"&&ES[s]||s;
 const CHIRP_ES={streak:n=>`¡${n} seguidas! ¡Estás que ardes!`,near:n=>`¡Solo ${n} más seguidas para la parada!`,tough:"Los errores hacen crecer tu cerebro. Lee despacio y marca tus palabras clave.",today:n=>`¡Ya contestaste ${n} preguntas hoy! ¡Qué esfuerzo!`,
  gen:["¡Sigue subiendo! Cada pregunta te hace más fuerte.","¡Me encanta cómo sigues intentando!","¡Lo estás haciendo muy bien!","¡Tú puedes!"],fluPass:"¡Wow! ¡Tu cerebro es cada vez más rápido!",fluTry:"Cada intento te hace más rápido. ¡Otra vez!",mastered:"¡Llegaste a la parada! ¡Estoy muy orgulloso de ti!"};
-function langToggle(){return S.demo||S.role==="student"?`<button class="ghost small" id="lang">${S.lang==="es"?"English":"Español"}</button>${voiceBtn()}${musicBtn()}${voicePanel()}${musicPanel()}`:""}
+function langToggle(){return S.demo||S.role==="student"?`<button class="ghost small" id="lang">${S.lang==="es"?"English":"Español"}</button>${voiceBtn()}${musicBtn()}${textBtn()}${voicePanel()}${musicPanel()}`:""}
 function wireLang(){wireVoice();wireMusic();const b=document.getElementById("lang");if(b)b.onclick=()=>{S.lang=S.lang==="es"?"en":"es";if(!S.demo&&S.student){const all=S.student.raw.prog||(S.student.raw.prog={});all._pref={...(all._pref||{}),lang:S.lang};api("progSave",{testId:"_pref",prog:all._pref}).catch(()=>{})}render()}}
 
 /* ================= Game Arcade: earn tokens by mastering checkpoints, play math games ================= */
@@ -6701,6 +6736,7 @@ function tOverview(){
     <div class="pbar" role="img" aria-label="Estimated proficiency ${X.prof}% against a target of ${X.goal}%"><span class="pb-on" style="width:${X.onT/Math.max(1,X.N)*100}%"></span><span class="pb-cl" style="width:${X.close/Math.max(1,X.N)*100}%"></span><i style="left:${X.goal}%"><em>Target ${X.goal}%</em></i></div>
     <div class="row" style="gap:16px;font-size:.9rem"><span><span class="dot go"></span> On track ${X.onT}</span><span><span class="dot gold"></span> Close ${X.close}</span><span><span class="dot oops"></span> Needs support ${X.need}</span></div>
     <p class="muted" style="font-size:.8rem">Estimated proficiency is the share of students on track on the standards on their trail (mastered, or right on the benchmark). It is an estimate from practice, not a state test score.</p></div>
+  ${tsCard((S.ov.raw||[]).flatMap(c=>c.students||[]),"whole school")}${ovReportsCard()}
   ${(()=>{const B=X.BM;if(!WINS.some(w=>B[w].n))return "";return `<div class="card"><div class="top"><h2>Benchmark growth · ${esc(schoolYear())}</h2><span class="muted" style="font-size:.85rem">fall, winter, and spring benchmark scores</span></div>
     <div class="kpis small">${WINS.map(w=>B[w].n?`<div class="kpi ${B[w].at/B[w].n>=.6?"go":"gold"}"><b>${Math.round(B[w].sum/B[w].n)}%</b><span>${w} average</span><small>${Math.round(B[w].at/B[w].n*100)}% at or above the cut</small></div>`:`<div class="kpi"><b>—</b><span>${w}</span><small>not entered yet</small></div>`).join("")}
      <div class="kpi go"><b>${B.moved}</b><span>Students moved to at or above the cut</span><small>${B.two?`${B.grew} of ${B.two} improved`:"needs two windows"}</small></div></div></div>`})()}
@@ -6716,8 +6752,8 @@ function tOverview(){
 }
 async function ovLoad(){S.ov={loading:true};try{const d=await api("classData",{ids:TB.classes.map(c=>c.id)});
   for(const e of d.classes){const id=e.cls.testId;if(id&&id!=="a1"&&!isStdT(id)&&!TESTS[id]){try{TESTS[id]=(await api("testGet",{id})).test}catch(er){}}}
-  S.ov={x:ovCompute(d.classes)}}catch(e){S.ov={err:e.message}}if(S.screen==="teacher"&&S.tt==="overview"){render();if(S.tour!=null)tourGo(S.tour)}}
-function wireOverview(){app.querySelectorAll("[data-ovc]").forEach(b=>b.onclick=()=>openClass(b.dataset.ovc,"class"))}
+  S.ov={x:ovCompute(d.classes),raw:d.classes}}catch(e){S.ov={err:e.message}}if(S.screen==="teacher"&&S.tt==="overview"){render();if(S.tour!=null)tourGo(S.tour)}}
+function wireOverview(){app.querySelectorAll("[data-ovc]").forEach(b=>b.onclick=()=>openClass(b.dataset.ovc,"class"));[["rp-week",rpWeek],["rp-dm",rpDM],["rp-year",rpYear]].forEach(([id,f])=>{const b=document.getElementById(id);if(b)b.onclick=f})}
 
 /* ================= Pages for schools: demo requests, Founding Schools, Mississippi intervention ================= */
 const ROLES={parent:"Parent",homeschool:"Homeschool parent",teacher:"Teacher",principal:"Principal",assistant:"Assistant principal",coach:"Math coach / interventionist",district:"District leader",other:"Other"};
@@ -6943,13 +6979,13 @@ function tBench(){
     ${B.map(({s,b})=>{const g=bmGrowth(b);return `<tr><td><b>${esc(s.name)}</b></td>${WINS.map(w=>`<td><input class="bmi" type="number" min="0" max="100" inputmode="numeric" aria-label="${esc(s.name)} ${w} score" data-bm="${s.id}" data-w="${w}" value="${b[w]!=null&&!(w==="Fall"&&b._fallAuto)?b[w]:""}" placeholder="${w==="Fall"&&b._fallAuto?b.Fall:"%"}"></td>`).join("")}
       <td>${g==null?'<span class="muted">—</span>':`<span class="pill ${g>0?"go":g<0?"oops":""}">${g>0?"+":""}${g}</span>`}</td></tr>`}).join("")}</tbody></table></div>
     <div class="row"><button type="submit">Save scores</button><span class="muted" id="bm-msg" role="status"></span></div></form></div>
-  ${progressCard()}`;
+  ${scrCard()}${progressCard()}`;
 }
 function wireBench(){const f=document.getElementById("bm-f");if(f)f.onsubmit=async e=>{e.preventDefault();const yr=schoolYear();busy(e.submitter,"Saving…");
     f.querySelectorAll("[data-bm]").forEach(i=>{const r=CUR.raw.find(x=>x.id===i.dataset.bm);r.bm={...(r.bm||{})};const y={...(r.bm[yr]||{})};
       if(i.value==="")delete y[i.dataset.w];else y[i.dataset.w]=Math.max(0,Math.min(100,Math.round(+i.value)));r.bm[yr]=y});
     try{await saveRoster(CUR.raw);flash("bm-msg","Saved.");render()}catch(er){document.getElementById("bm-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save scores"}};
-  wireProgress()}
+  wireScr();wireProgress()}
 
 /* ---------- progress reports for every student (English / Spanish) ---------- */
 function progressCard(){const real=CUR.students.filter(s=>!isSample(s));
@@ -6980,6 +7016,165 @@ function reportHTML(s,es){const T=(a,b)=>es?b:a,p=s.prog,TR=trailFor(s),first=s.
 function printProgress(list,lang){list=list.filter(Boolean);if(!list.length)return;const w=window.open("","_blank");if(!w){alert("Allow pop-ups to print.");return}
   const css=[...document.querySelectorAll("style")].map(x=>x.outerHTML).join("");
   w.document.write(`<!doctype html><html lang="${lang==="es"?"es":"en"}"><meta charset="utf-8"><title>${lang==="es"?"Reportes de progreso":"Progress reports"} · ${esc(CUR.cls.name)}</title>${css}<style>body{background:#fff;color:#111}</style><div class="lp-wrap">${list.map(s=>reportHTML(s,lang==="es")).join("")}</div><script>setTimeout(()=>print(),500)<\/script>`);w.document.close()}
+
+/* ================= Sub Day: one click prints a sub cover sheet (online and paper directions), a packet for each
+   student with problems from their own next skills, and an answer key for the teacher ================= */
+const SD_PER=5;
+function sdQs(s){const todo=trailFor(s).filter(k=>s.prog.skills[k.id]&&s.prog.skills[k.id].status==="todo");
+  const ks=(todo.length?todo:trailFor(s).slice().sort(()=>Math.random()-.5)).slice(0,2),out=[];
+  ks.forEach(k=>{const g=genOf(k),pool=[...k.twins,...k.qs.map(n=>"q"+n)];let n=0,tries=0;
+    while(n<SD_PER&&tries++<30){const id=g?`~${g}~${Math.floor(Math.random()*1e9)}`:pool[tries-1];if(!id)break;let q=null;try{q=getQ(id)}catch(e){}
+      if(!q||!q.parts||q._ea||q._bd||!["mc","multi","input","matrix"].includes(q.type))continue;out.push({k,q});n++}});return out}
+function sdItem(q,i){let a="";
+  if((q.type==="mc"||q.type==="multi")&&q.choices)a=`<div class="sd-ch">${q.choices.map((c,j)=>`<div>${q.type==="multi"?"☐":"○"} <b>${L[j]}.</b> ${choiceInner(c)}</div>`).join("")}</div>${q.type==="multi"?'<p class="muted">Pick all that are right.</p>':""}`;
+  else if(q.type==="input")a=`<p>Answer: ______________</p>`;
+  else if(q.type==="matrix")a=`<table class="sd-mx"><tr><th></th>${q.cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr>${q.rows.map(r=>`<tr><td>${esc(r.n)}</td>${q.cols.map(()=>"<td>○</td>").join("")}</tr>`).join("")}</table>`;
+  return `<div class="sd-q"><b class="sd-n">${i}.</b><div>${bodyHTML(q,null,"print")}${a}</div></div>`}
+function subDay(){const list=realStudents();if(!list.length){alert("Add students first.");return}
+  const w=window.open("","_blank");if(!w){alert("Allow pop-ups to print.");return}
+  const css=[...document.querySelectorAll("style")].map(x=>x.outerHTML).join(""),c=CUR.cls,day=new Date().toLocaleDateString(),url=location.origin+location.pathname;
+  const packs=list.map(s=>({s,qs:sdQs(s)}));
+  const cover=`<section class="sd-page"><h1>Sub plan: ${esc(c.name)}</h1><p>${esc(tName(c.teacherId))} · ${esc(TEST_NAME)} · ${day}</p>
+   <h2>Math practice, about 30 minutes</h2><p>Every student has their own work. It is matched to what each student needs, so it is okay that packets look different.</p>
+   <h3>Option 1: Paper (no computers needed)</h3><ol><li>Hand each student the packet with their name on it.</li><li>Students work quietly for about 30 minutes. They can skip a problem and come back.</li><li>Collect every packet and leave them for the teacher.</li></ol>
+   <h3>Option 2: Computers</h3><ol><li>Students go to <b>${esc(url)}</b> and choose <b>I’m a student</b>.</li><li>Class code: <b style="letter-spacing:.1em">${esc(c.join)}</b>. Then each student types their own code from the list below.</li><li>They tap <b>Start my mission</b> and practice for about 30 minutes. Their work saves on its own.</li></ol>
+   <p class="muted">If the internet stops working, switch to the paper packets.</p>
+   <table class="sd-codes"><tr><th>Student</th><th>Code</th></tr>${list.map(s=>`<tr><td>${esc(s.name)}</td><td>${esc(s.code)}</td></tr>`).join("")}</table></section>`;
+  const pk=packs.map(({s,qs})=>`<section class="sd-page"><div class="sd-head"><b>${esc(s.name)}</b><span>${esc(c.name)} · ${day}</span></div>
+   <p class="muted">Practice: ${[...new Set(qs.map(x=>x.k.name))].map(esc).join(" and ")||"Review"}. Show your work.</p>${qs.map((x,i)=>sdItem(x.q,i+1)).join("")}</section>`).join("");
+  const key=`<section class="sd-page"><h1>Answer key (for the teacher)</h1>${packs.map(({s,qs})=>`<p><b>${esc(s.name)}</b>: ${qs.map((x,i)=>`${i+1}. ${esc(ansText(x.q))}`).join(" · ")||"no problems"}</p>`).join("")}</section>`;
+  w.document.write(`<!doctype html><html lang="en"><meta charset="utf-8"><title>Sub Day · ${esc(c.name)}</title>${css}<style>body{background:#fff;color:#111;padding:0}.sd-page{padding:24px;break-after:page;page-break-after:always}.sd-page:last-child{break-after:auto}.sd-head{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:8px;font-size:1.1rem}.sd-q{display:flex;gap:10px;break-inside:avoid;page-break-inside:avoid;margin:14px 0;padding-bottom:10px;border-bottom:1px dashed #bbb}.sd-n{font-size:1.1rem}.sd-ch div{margin:4px 0}.sd-codes,.sd-mx{border-collapse:collapse;margin-top:10px}.sd-codes td,.sd-codes th,.sd-mx td,.sd-mx th{border:1px solid #999;padding:4px 10px;text-align:left}@media print{button{display:none}}</style><div class="sd-wrap">${cover}${pk}${key}</div><script>setTimeout(()=>print(),700)<\/script>`);w.document.close()}
+
+/* ================= Help Buddy warm-up: a projector slideshow of Buddy problems on the skill most of the class is on ================= */
+function helpBuddy(){const list=realStudents();const tally={};list.forEach(s=>{const k=curSkill(s);if(k)tally[k.id]=(tally[k.id]||0)+1});
+  const ids=Object.keys(tally).sort((a,b)=>tally[b]-tally[a]),k=SKILLS.find(x=>x.id===ids[0])||trailBase(list[0]||{prog:{skills:{}}})[0]||SKILLS[0];
+  const g=genOf(k),pool=[...k.twins,...k.qs.map(n=>"q"+n)],slides=[];let tries=0;
+  while(slides.length<4&&tries++<60){const base=g?`~${g}~${Math.floor(Math.random()*1e9)}`:pool[tries-1];if(!base)break;const bd=bdIdFor(base);if(!bd)continue;const q=getQ(bd);if(!q)continue;
+    const l=bd.slice(bd.lastIndexOf("!")+1),mist=(q.steps[0]&&q.steps[0].say||"").replace(/^🦝 /,"");
+    slides.push({body:bodyHTML(q,null,"print"),ch:q.choices.map((c,j)=>`<div class="hb-c" data-l="${L[j]}"><b>${L[j]}.</b> ${choiceInner(c)}${L[j]===l?' <span class="hb-tag">← Buddy</span>':""}</div>`).join(""),ans:q.ans,mist})}
+  if(!slides.length){alert("Buddy needs multiple-choice practice on this skill. Try again after the class moves to another skill.");return}
+  const w=window.open("","_blank");if(!w){alert("Allow pop-ups to show the warm-up.");return}
+  const css=[...document.querySelectorAll("style")].map(x=>x.outerHTML).join("");
+  w.document.write(`<!doctype html><html lang="en"><meta charset="utf-8"><title>Help Buddy · ${esc(k.std)}</title>${css}<style>body{background:#fff;color:#111;font-size:24px;max-width:1100px;margin:0 auto;padding:24px}.qtext{font-size:1.6rem!important}.hb-c{font-size:1.4rem;margin:10px 0;padding:8px 14px;border-radius:10px}.hb-c.ok{background:#dff3e6;font-weight:700}.hb-tag{color:#b03a2e;font-weight:700}.hb-m{font-size:1.3rem;background:#fff6e0;padding:12px 16px;border-radius:10px}.hb-nav{display:flex;gap:12px;margin-top:20px}.hb-nav button{font-size:1.1rem}</style>
+   <h1>🦝 Help Buddy! <span class="muted" style="font-size:1rem">${esc(k.name)} · ${esc(k.std)}</span></h1><div id="hb"></div>
+   <script>const S=${JSON.stringify(slides).replace(/</g,"\\u003c")};let i=0,open=false;
+   function show(){const s=S[i];document.getElementById("hb").innerHTML='<p class="muted">Problem '+(i+1)+' of '+S.length+'. Talk with a partner: what did Buddy do wrong? What is the right answer?</p>'+s.body+'<div>'+s.ch+'</div>'+(open?'<p class="hb-m"><b>Right answer: '+s.ans+'.</b> '+s.mist+'</p>':'')+'<div class="hb-nav"><button class="ghost" id="p" '+(i?'':'disabled')+'>← Back</button><button id="r">'+(open?'Hide answer':'Show answer')+'</button><button class="ghost" id="n" '+(i<S.length-1?'':'disabled')+'>Next →</button></div>';
+     if(open)document.querySelectorAll('.hb-c').forEach(e=>{if(e.dataset.l===s.ans)e.classList.add('ok')});
+     document.getElementById('p').onclick=()=>{i--;open=false;show()};document.getElementById('n').onclick=()=>{i++;open=false;show()};document.getElementById('r').onclick=()=>{open=!open;show()}}
+   show();<\/script>`);w.document.close()}
+
+/* ================= Screener import: upload a screener/benchmark score file, fill one window for every student,
+   start an Individualized Math Plan for each new student below the cut, and show which plans can now exit ================= */
+const nmKey=x=>String(x||"").toLowerCase().replace(/[^a-z0-9 ,]/g,"").replace(/\s+/g," ").trim();
+function nameKeys(n){const k=nmKey(n),out=new Set([k.replace(/,/g,"")]);if(k.includes(",")){const [l,f]=k.split(",").map(x=>x.trim());out.add(`${f} ${l}`);out.add(f.split(" ")[0]+" "+l)}
+  else{const w=k.split(" ");if(w.length>=2){out.add(`${w[0]} ${w[w.length-1]}`);out.add(`${w[0]} ${w[w.length-1][0]}`)}}return out}
+function parseScreener(text){const rows=parseCSV(text).map(r=>r.map(c=>String(c).trim()));if(rows.length<2)throw new Error("That file has no rows of scores.");
+  const H=rows[0].map(h=>h.toLowerCase()),fi=(re,not)=>H.findIndex(h=>re.test(h)&&!(not&&not.test(h)));
+  const iFirst=fi(/first/),iLast=fi(/last/),iName=fi(/name|student/,/first|last|teacher|school|class/),iCode=fi(/^code$|student code|login/),iScore=fi(/percent|%|pct|score|scale|total/,/date|level|rank|teacher/);
+  if(iScore<0)throw new Error("Couldn’t find a score column. Name one column Score (as a percent, 0–100).");
+  if(iName<0&&iFirst<0&&iCode<0)throw new Error("Couldn’t find student names. Use a Name column (or First and Last).");
+  const real=CUR.students.filter(s=>!isSample(s)),idx=new Map();real.forEach(s=>nameKeys(s.name).forEach(k=>{if(!idx.has(k))idx.set(k,s.id)}));
+  return rows.slice(1).map(r=>{const nm=iName>=0?r[iName]:[r[iFirst]||"",r[iLast]||""].join(" ").trim(),raw=String(r[iScore]||"").replace("%",""),sc=raw===""?null:Math.round(+raw);
+    let id=null;if(iCode>=0&&r[iCode]){const s=real.find(x=>x.code===r[iCode]);if(s)id=s.id}
+    if(!id)for(const k of nameKeys(nm)){if(idx.has(k)){id=idx.get(k);break}}
+    return {nm,sc:sc!=null&&isFinite(sc)&&sc>=0&&sc<=100?sc:null,id}}).filter(r=>r.nm||r.sc!=null)}
+function scrCard(){const cut=ipCfg().cut||60,imp=S.scr,cur=WINS[ipWinOf(Date.now())];
+  return `<div class="card" id="scr-card"><h2>📥 Import screener scores</h2>
+   <p class="muted">Upload the score file from your screener or benchmark (CSV, or a spreadsheet saved as CSV) with a Name column (or First and Last) and a Score column as a percent. Scores go into the window you pick. Every student below ${cut}% without a plan gets an Individualized Math Plan, and you’ll see which plans can exit.</p>
+   <div class="row"><label class="f" style="min-width:140px">Window<select id="scr-w">${WINS.map(w=>`<option ${w===(imp&&imp.w||cur)?"selected":""}>${w}</option>`).join("")}</select></label>
+    <label class="ghost filebtn" style="align-self:flex-end">Choose file<input type="file" id="scr-file" accept=".csv,.tsv,.txt,text/csv" hidden></label>
+    <button class="link" id="scr-tpl" style="align-self:flex-end">Download a sample</button></div><p class="oops" id="scr-err" role="alert"></p>
+   ${imp?`<p><b>${imp.rows.filter(r=>r.id&&r.sc!=null).length}</b> of ${imp.rows.length} rows matched a student.${imp.rows.some(r=>!r.id)?` Not matched (check spelling): ${imp.rows.filter(r=>!r.id).map(r=>esc(r.nm)).join(", ")}.`:""}</p>
+    <div class="tablewrap"><table class="roster"><thead><tr><th>In file</th><th>Student</th><th>Score</th><th></th></tr></thead><tbody>${imp.rows.map(r=>{const s=r.id&&CUR.students.find(x=>x.id===r.id);
+      return `<tr><td>${esc(r.nm)}</td><td>${s?esc(s.name):'<span class="muted">no match</span>'}</td><td>${r.sc??"—"}${r.sc!=null?"%":""}</td><td>${s&&r.sc!=null&&r.sc<cut?`<span class="pill oops">below ${cut}%</span>`:""}</td></tr>`}).join("")}</tbody></table></div>
+    <div class="row"><button id="scr-go">Save ${esc(imp.w)} scores and update plans</button><button class="ghost" id="scr-no">Cancel</button></div>`:""}
+   <p class="muted" id="scr-msg" role="status">${S.scrMsg?esc(S.scrMsg):""}</p></div>`}
+function wireScr(){const f=document.getElementById("scr-file");if(!f)return;const err=document.getElementById("scr-err");
+  document.getElementById("scr-tpl").onclick=()=>download("screener-sample.csv",`Name,Score\n${CUR.students.filter(s=>!isSample(s)).slice(0,3).map(s=>`"${s.name}",`).join("\n")||"Ava Jones,72\nBen Smith,48"}\n`);
+  f.onchange=async e=>{const x=e.target.files[0];if(!x)return;try{S.scr={w:document.getElementById("scr-w").value,rows:parseScreener(await x.text())};S.scrMsg="";render()}catch(er){err.textContent=er.message}};
+  const w=document.getElementById("scr-w");w.onchange=()=>{if(S.scr){S.scr.w=w.value;render()}};
+  const no=document.getElementById("scr-no");if(no)no.onclick=()=>{S.scr=null;render()};
+  const go=document.getElementById("scr-go");if(go)go.onclick=async()=>{busy(go,"Saving…");const imp=S.scr,yr=schoolYear(),cut=ipCfg().cut||60;let n=0;const made=[];
+    imp.rows.forEach(r=>{if(!r.id||r.sc==null)return;const raw=CUR.raw.find(x=>x.id===r.id);if(!raw)return;raw.bm={...(raw.bm||{})};raw.bm[yr]={...(raw.bm[yr]||{}),[imp.w]:r.sc};n++;
+      if(!raw.ip&&r.sc<cut&&ipCfg().on!==false){const s=CUR.students.find(x=>x.id===r.id);if(s){const p=buildProgram(s,r.sc,cut);if(p.steps.length){raw.ip=p;made.push(raw.name)}}}});
+    try{await saveRoster(CUR.raw);S.scr=null;
+      const ready=CUR.students.filter(s=>s.ip&&s.ip.status==="active"&&(()=>{try{return ipState(s).k==="eligible"}catch(e){return false}})()).map(s=>s.name);
+      S.scrMsg=`Saved ${n} ${imp.w} score${n===1?"":"s"}.${made.length?` New Individualized Math Plans: ${made.join(", ").replace(/\.$/,"")}.`:" No new plans needed."}${ready.length?` Ready to exit their plan: ${ready.join(", ").replace(/\.$/,"")}.`:""}`;render()}
+    catch(er){go.disabled=false;go.textContent="Try again";err.textContent=er.message}}}
+
+/* ================= Accommodations: per-student defaults a teacher sets once (read-aloud, bigger text, Spanish, fewer choices) ================= */
+const ACC=[["read","🔊 Read every question aloud"],["big","A+ Bigger text"],["es","Español first"],["fewer","3 answer choices instead of 4"]];
+const accOn=k=>S.role==="student"&&!S.demo&&!!(SB&&SB.student&&SB.student.acc&&SB.student.acc[k]);
+function accApply(d){const a=d.student&&d.student.acc;if(a&&a.big&&!BIG){BIG=true;applyBig()}}
+/* fewer choices: drop one wrong answer from 4+ choice questions (never Buddy's or a Think deeper question), letters re-made */
+{const vq=viewQ;viewQ=function(q){if(accOn("fewer")&&q&&q.type==="mc"&&!q._ea&&!q._bd&&!q.fixed&&Array.isArray(q.choices)&&q.choices.length>=4){
+  const wrong=q.choices.map((_,i)=>i).filter(i=>L[i]!==q.ans),drop=wrong[Math.floor(Math.random()*wrong.length)],keep=q.choices.map((_,i)=>i).filter(i=>i!==drop),map={};keep.forEach((o,j)=>map[L[o]]=L[j]);
+  q={...q,choices:keep.map(i=>q.choices[i]),ans:map[q.ans],why:Object.fromEntries(Object.entries(q.why||{}).filter(([k])=>map[k]).map(([k,v])=>[map[k],remapText(v,map)])),steps:(q.steps||[]).map(st=>({...st,say:remapText(st.say,map)}))}}
+  return vq(q)}}
+
+/* ================= Time saved: an estimate of teacher work Path to Proficiency did, from real data
+   (answers graded, plans written, weekly plan checks, catch-up plans). Shown on each class and the school overview. ================= */
+const TS_RATE={ans:.1,imp:30,chk:10,cb:10}; // minutes: grade one answer, write one IMP, one weekly plan check, one catch-up plan
+function tsCalc(raws,since){const sd=dayKey(since),o={ans:0,imp:0,chk:0,cb:0};
+  (raws||[]).forEach(r=>{if(!r||r.sample)return;const P=r.prog||{};
+    Object.values(P).forEach(p=>{if(!p||typeof p!=="object")return;Object.entries(p.days||{}).forEach(([d,x])=>{if(d>=sd)Object.values(x||{}).forEach(y=>o.ans+=+(y&&y.n)||0)});
+      if(p.cb&&p.cb.at&&p.cb.at>=sd)o.cb++});
+    const ips=[...(r.ip?[r.ip]:[]),...((r.ip&&r.ip.hist)||[]).map(h=>({start:h.end}))];if(r.ip&&r.ip.start&&r.ip.start>=sd)o.imp++;
+    if(r.ip&&r.ip.start){const a=Math.max(new Date(r.ip.start+"T00:00:00").getTime(),since),b=Math.min(Date.now(),new Date((r.ip.end||r.ip.start)+"T00:00:00").getTime());if(b>a)o.chk+=Math.floor((b-a)/(7*864e5))}});
+  o.mins=Math.round(o.ans*TS_RATE.ans+o.imp*TS_RATE.imp+o.chk*TS_RATE.chk+o.cb*TS_RATE.cb);return o}
+const tsHours=m=>m<60?`${m} min`:`${(m/60).toFixed(m<600?1:0)} hours`;
+function tsCard(raws,who){const m=tsCalc(raws,Date.now()-30*864e5),y=tsCalc(raws,new Date(schoolYear().slice(0,4)+"-07-01T00:00:00").getTime());
+  if(!y.mins)return "";const line=(n,t)=>n?`<li><b>${n.toLocaleString()}</b> ${t}</li>`:"";
+  return `<div class="card"><div class="top"><h2>⏱ Time saved${who?` · ${esc(who)}`:""}</h2><span class="pill go">${tsHours(m.mins)} this month</span></div>
+   <p>About <b>${tsHours(y.mins)}</b> of teacher work done for you this school year.</p>
+   <ul style="margin:.3rem 0">${line(m.ans,"answers graded and explained")}${line(m.imp,"Individualized Math Plans written")}${line(m.chk,"weekly plan progress checks")}${line(m.cb,"catch-up plans for returning students")}</ul>
+   <p class="muted" style="font-size:.8rem">Last 30 days. Estimate: ${TS_RATE.ans*60} seconds to grade an answer, ${TS_RATE.imp} minutes to write a plan, ${TS_RATE.chk} minutes per weekly plan check, ${TS_RATE.cb} minutes per catch-up plan.</p></div>`}
+
+/* ================= Leader reports from the school overview: weekly principal summary, data meeting packet (by grade),
+   and an end-of-year results report. All built from the same data as the overview; printable. ================= */
+function printDoc(title,html){const w=window.open("","_blank");if(!w){alert("Allow pop-ups to print.");return}
+  const css=[...document.querySelectorAll("style")].map(x=>x.outerHTML).join("");
+  w.document.write(`<!doctype html><html lang="en"><meta charset="utf-8"><title>${esc(title)}</title>${css}<style>body{background:#fff;color:#111;padding:0}.rp{padding:24px;break-after:page;page-break-after:always}.rp:last-child{break-after:auto}.rp table{border-collapse:collapse;width:100%;margin:8px 0}.rp td,.rp th{border:1px solid #bbb;padding:5px 8px;text-align:left;font-size:.9rem}.rp h1{margin:0 0 4px}.rp .kpis{margin:10px 0}</style>${html}<script>setTimeout(()=>print(),600)<\/script>`);w.document.close()}
+const rpDays=(r,since)=>{const sd=dayKey(since),o={act:false,ms:0,n:0,ok:0};Object.values(r.prog||{}).forEach(p=>{if(p&&p.days)Object.entries(p.days).forEach(([d,x])=>{if(d<sd)return;Object.values(x||{}).forEach(y=>{if(y&&y.n){o.act=true;o.n+=y.n;o.ok+=y.ok||0;o.ms+=y.ms||0}})})});return o};
+const rpReal=e=>(e.students||[]).filter(r=>!r.sample);
+const rpTile=(v,l,sub)=>`<div class="kpi"><b>${v}</b><span>${l}</span>${sub?`<small>${sub}</small>`:""}</div>`;
+function ovReportsCard(){return `<div class="card"><h2>🖨 Reports for leaders</h2><p class="muted">One click, ready to print or save as PDF.</p>
+  <div class="row"><button class="small" id="rp-week">Weekly principal summary</button><button class="small ghost" id="rp-dm">Data meeting packet (by grade)</button><button class="small ghost" id="rp-year">Results report (this school year)</button></div></div>`}
+function rpWeek(){const X=S.ov.x,R=S.ov.raw||[],wk=Date.now()-7*864e5,P=X.plans;let act=0,N=0,n=0,ok=0,ms=0;
+  const rows=R.map(e=>{const L0=rpReal(e);let a=0,m=0;L0.forEach(r=>{const d=rpDays(r,wk);if(d.act)a++;m+=d.ms;n+=d.n;ok+=d.ok});act+=a;N+=L0.length;ms+=m;const c=X.classes.find(x=>x.c.id===e.cls.id)||{};
+    return `<tr><td>${esc(e.cls.name)}</td><td>${L0.length}</td><td>${L0.length?Math.round(a/L0.length*100):0}%</td><td>${L0.length?Math.round(m/60000/L0.length):0} min</td><td>${c.on==null?"—":c.on+"%"}</td><td>${c.inI||0}</td></tr>`}).join("");
+  const ts=tsCalc(R.flatMap(e=>e.students||[]),wk);
+  printDoc("Weekly summary",`<section class="rp"><h1>Weekly summary · ${esc(TB.school.name)}</h1><p class="muted">Week ending ${new Date().toLocaleDateString()}</p>
+   <div class="kpis">${rpTile(N?Math.round(act/N*100)+"%":"—","Students who practiced",`${act} of ${N}`)}${rpTile(n?Math.round(ok/n*100)+"%":"—","Accuracy this week",`${n.toLocaleString()} answers`)}${rpTile(X.prof==null?"—":X.prof+"%","Estimated proficiency",`target ${X.goal}%`)}${rpTile(P.active,"Active IMPs",P.active?`${Math.round(P.onPace/P.active*100)}% on pace`:"")}${rpTile(tsHours(ts.mins),"Teacher time saved","this week (estimate)")}</div>
+   <h2>By class</h2><table><tr><th>Class</th><th>Students</th><th>Practiced this week</th><th>Avg minutes</th><th>On track</th><th>In intervention</th></tr>${rows}</table>
+   ${X.attn.length?`<h2>Standards needing attention</h2><table><tr><th>Standard</th><th>Skill</th><th>Proficient</th></tr>${X.attn.slice(0,6).map(o=>`<tr><td>${esc(o.std)}</td><td>${esc(o.name)}</td><td>${o.pct}% of ${o.n}</td></tr>`).join("")}</table>`:""}
+   <p class="muted" style="font-size:.8rem">Proficiency is estimated from practice, not a state test score.</p></section>`)}
+function rpDM(){const X=S.ov.x,R=S.ov.raw||[],wk=Date.now()-7*864e5,gs=[...new Set(X.classes.map(x=>x.g))];
+  const page=g=>{const cs=X.classes.filter(x=>x.g===g),ids=new Set(cs.map(x=>x.c.id)),E=R.filter(e=>ids.has(e.cls.id));
+    const imp=E.flatMap(e=>rpReal(e).filter(r=>r.ip&&r.ip.status==="active").map(r=>({r,c:e.cls.name}))),idle=E.flatMap(e=>rpReal(e).filter(r=>!rpDays(r,wk).act).map(r=>({r,c:e.cls.name})));
+    const grp={};imp.forEach(x=>{const k=(x.r.ip.steps[0]||{}).std||"—";(grp[k]=grp[k]||[]).push(x)});const at=X.attn.filter(o=>o.g===g).slice(0,6);
+    return `<section class="rp"><h1>Data meeting · ${esc(gLabel(g))}</h1><p class="muted">${esc(TB.school.name)} · ${new Date().toLocaleDateString()}</p>
+     <table><tr><th>Class</th><th>Students</th><th>On track</th><th>In intervention</th><th>Showing growth</th></tr>${cs.map(x=>`<tr><td>${esc(x.c.name)}</td><td>${x.n}</td><td>${x.on==null?"—":x.on+"%"}</td><td>${x.inI}</td><td>${x.gr==null?"—":x.gr+"%"}</td></tr>`).join("")}</table>
+     <h2>Standards needing attention</h2>${at.length?`<table><tr><th>Standard</th><th>Skill</th><th>Proficient</th></tr>${at.map(o=>`<tr><td>${esc(o.std)}</td><td>${esc(o.name)}</td><td>${o.pct}% of ${o.n}</td></tr>`).join("")}</table>`:'<p class="muted">None below 50% right now.</p>'}
+     <h2>Suggested intervention groups (by plan starting point)</h2>${Object.keys(grp).length?`<table><tr><th>Start with</th><th>Students</th></tr>${Object.entries(grp).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.map(x=>`${esc(x.r.name)} <span class="muted">(${esc(x.c)})</span>`).join(", ")}</td></tr>`).join("")}</table>`:'<p class="muted">No active plans.</p>'}
+     <h2>Didn’t practice this week</h2><p>${idle.length?idle.map(x=>`${esc(x.r.name)} <span class="muted">(${esc(x.c)})</span>`).join(", "):"Everyone practiced."}</p>
+     <h2>Notes and next steps</h2><p style="border-bottom:1px solid #bbb;height:28px"></p><p style="border-bottom:1px solid #bbb;height:28px"></p><p style="border-bottom:1px solid #bbb;height:28px"></p></section>`};
+  printDoc("Data meeting packet",gs.map(page).join(""))}
+function rpYear(){const X=S.ov.x,R=S.ov.raw||[],yr=schoolYear(),B=X.BM,P=X.plans,start=new Date(yr.slice(0,4)+"-07-01T00:00:00").getTime(),ts=tsCalc(R.flatMap(e=>e.students||[]),start);
+  const cls=R.map(e=>{const L0=rpReal(e),c=X.classes.find(x=>x.c.id===e.cls.id)||{},bw=WINS.map(w=>{const v=L0.map(r=>((r.bm||{})[yr]||{})[w]).filter(v=>v!=null);return v.length?Math.round(v.reduce((a,x)=>a+x,0)/v.length)+"%":"—"});
+    const met=L0.filter(r=>r.ip&&(r.ip.status==="met"||r.ip.status==="exited")).length;return `<tr><td>${esc(e.cls.name)}</td><td>${L0.length}</td>${bw.map(v=>`<td>${v}</td>`).join("")}<td>${c.on==null?"—":c.on+"%"}</td><td>${met}</td></tr>`}).join("");
+  printDoc("Results report",`<section class="rp"><h1>Results report · ${esc(TB.school.name)} · ${esc(yr)}</h1><p class="muted">Printed ${new Date().toLocaleDateString()}</p>
+   <div class="kpis">${WINS.map(w=>rpTile(B[w].n?Math.round(B[w].sum/B[w].n)+"%":"—",`${w} benchmark average`,B[w].n?`${Math.round(B[w].at/B[w].n*100)}% at or above the cut`:"not entered")).join("")}
+    ${rpTile(B.moved,"Moved to at or above the cut",B.two?`${B.grew} of ${B.two} students improved`:"")}${rpTile(P.met,"Plans met goal and exited",`${P.active} still active`)}${rpTile(tsHours(ts.mins),"Teacher time saved","this school year (estimate)")}${rpTile(X.mins?Math.round(X.mins/60).toLocaleString()+" hrs":"—","Student practice time","")}</div>
+   <h2>By class</h2><table><tr><th>Class</th><th>Students</th>${WINS.map(w=>`<th>${w}</th>`).join("")}<th>On track now</th><th>Plans met</th></tr>${cls}</table>
+   <p class="muted" style="font-size:.8rem">Benchmark scores are the ones teachers entered or imported. “On track” is estimated from practice, not a state test score.</p></section>`)}
+
+/* ================= Bigger text: one tap, remembered on this device ================= */
+const TKEY="p2p-bigtext";let BIG=(()=>{try{return localStorage.getItem(TKEY)==="1"}catch(e){return false}})();
+document.head.insertAdjacentHTML("beforeend","<style>html.big-text{font-size:118%}html.big-text body{font-size:19px}</style>");
+const applyBig=()=>document.documentElement.classList.toggle("big-text",BIG);applyBig();
+function textBtn(){const es=S&&S.lang==="es",l=BIG?(es?"Letra normal":"Normal text"):(es?"Letra más grande":"Bigger text");return `<button class="ghost small" id="bigtext-btn" aria-pressed="${BIG}" aria-label="${l}" title="${l}">${BIG?"A−":"A+"}</button>`}
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("#bigtext-btn");if(!b)return;BIG=!BIG;try{localStorage.setItem(TKEY,BIG?"1":"0")}catch(x){}applyBig();b.outerHTML=textBtn()});
 
 /* ================= Read-aloud voices: pick the most natural voice on the device, let students choose ================= */
 const VKEY="p2p-voice",NOVELTY=/albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|ralph|kathy|grandma|grandpa|rocko|shelley|sandy|flo|eddy|reed/i;
@@ -8185,6 +8380,18 @@ function eaMake(id,g0){const m=String(id).match(/^!ea!(.+)!(v:(.+)|([A-E]))$/);i
   const why={};ord.forEach((i,j)=>{if(i)why[L[j]]=i===3?`${B}’s answer, ${rightTxt}, is correct.`:`${A}’s answer, ${said}, is not correct. ${B} is right: ${rightTxt}.`});
   return {type:"mc",_ea:true,dok:3,skill:base.skill,parts:[...base.parts,`${first[0]} said the answer is ${first[1]}. ${first[2]} said the answer is ${first[3]}.`,"Who is correct, and why?"],keys:["correct","why"],
     choices,ans,why,steps:[...(base.steps||[]),{say:`${B} is correct. ${A}’s mistake: ${mist}.`}]}}
+/* ================= Find Buddy's Mistake =================
+   Every BD_EVERY practice questions, a regular question comes with Buddy's wrong answer (a real common mistake
+   from the question's own explanations). The student finds the right answer; the walkthrough starts with Buddy's mistake. */
+const BD_EVERY=12,buddyOn=()=>S.demo||!(SB&&SB.cls&&SB.cls.buddy===false);
+function bdMake(id,g0){const m=String(id).match(/^!bd!(.+)!([A-E])$/);if(!m)return null;const base=g0(m[1]),l=m[2];
+  if(!base||base.type!=="mc"||!base.why||l===base.ans||!base.why[l])return null;const c=base.choices[L.indexOf(l)];if(typeof c!=="string")return null;
+  const clean=x=>String(x).replace(/<[^>]+>/g,"").trim().replace(/\.$/,""),said=clean(c),mist=clean(base.why[l]);if(!said||!mist)return null;
+  return {...base,_bd:true,parts:[...base.parts,`🦝 Buddy said the answer is ${said}. Buddy made a mistake! What is the right answer?`],
+    why:{...base.why,[l]:`That’s Buddy’s answer, and it has his mistake. ${mist}.`},steps:[{say:`🦝 Buddy’s mistake: ${mist}.`},...(base.steps||[])]}}
+{const g0=getQ;getQ=function(id){if(typeof id==="string"&&id.startsWith("!bd!")){if(QS[id])return QS[id];const q=bdMake(id,g0);if(q)QS[id]=q;return q}return g0(id)}}
+function bdIdFor(qid){if(typeof qid!=="string"||qid[0]==="!")return null;let q=null;try{q=getQ(qid)}catch(e){}if(!q||q.type!=="mc"||!q.why)return null;
+  const ws=Object.keys(q.why).filter(l=>l!==q.ans&&typeof q.choices[L.indexOf(l)]==="string"&&eaWhyOK(q.why[l]));return ws.length?`!bd!${qid}!${ws[Math.floor(Math.random()*ws.length)]}`:null}
 {const g0=getQ;getQ=function(id){if(typeof id==="string"&&id.startsWith("!ea!")){if(QS[id])return QS[id];const q=eaMake(id,g0);if(q)QS[id]=q;return q}return g0(id)}}
 /* a Think deeper question for a skill, or null when its question maker has no usable explanations */
 function eaIdFor(k){const g=genOf(k);if(!g)return null;for(let i=0;i<14;i++){const base=`~${g}~${Math.floor(Math.random()*1e9)}`;let q=null;try{q=getQ(base)}catch(e){}if(!q)continue;
@@ -12811,7 +13018,7 @@ const SHOTS={};
   const sess=ls.get(SKEY,sessionStorage);
   if(sess&&sess.token){TOKEN=sess.token;
     try{if(sess.role==="teacher"){startTeacher({token:TOKEN,...await api("boot")});return}
-      else{startStudent({...await api("studentBoot"),token:TOKEN});return}}catch(e){TOKEN=null;ls.set(SKEY,null,sessionStorage)}}
+      else{startStudent({...await api("studentBoot"),token:TOKEN});return}}catch(e){const c=ls.get(BOOTKEY,sessionStorage);if(sess.role!=="teacher"&&c&&/reach the school server/.test(e.message)){startStudent({...c,token:TOKEN});return}TOKEN=null;ls.set(SKEY,null,sessionStorage)}}
   if(location.hash==="#tutor"){S.screen="tutorApply"}
   if(location.hash==="#owner"){S.screen="owner"}
   if(location.hash==="#mississippi")S.screen="mississippi";if(location.hash==="#founding")S.screen="founding";if(location.hash==="#demo-request"){S.screen="lead";S.leadType="demo"}
