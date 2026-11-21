@@ -7178,7 +7178,15 @@ const LGAMES=[{id:"aa",name:"Area Architect",ico:"🏗️",src:"arcade/area-arch
  {id:"mg",name:"Multiplication Galaxy",ico:"🚀",src:"arcade/multiplication-galaxy/index.html",stds:["3.OA.1–7"],grades:[3,4],
   desc:"Build star fleets in equal groups, share cargo fairly, and jump through portals with multiplication facts."},
  {id:"fi",name:"Fraction Island",ico:"🏝️",src:"arcade/fraction-island/index.html",stds:["3.G.2","3.NF.1–3"],grades:[3,4],
-  desc:"Cut banners into equal parts, color fractions, sail the number line, and match equal fractions."}];
+  desc:"Cut banners into equal parts, color fractions, sail the number line, and match equal fractions."},
+ {id:"dd",name:"Delta Delivery",ico:"🚚",src:"arcade/delta-delivery/index.html",stds:["3.NBT.1–3"],grades:[3,4],
+  desc:"Round delivery labels, load cargo by place value, balance the ledger, and dispatch truck convoys across the Delta."},
+ {id:"md",name:"Market Day",ico:"🛍️",src:"arcade/market-day/index.html",stds:["3.OA.8","3.OA.9"],grades:[3,4],
+  desc:"Run a Delta market: solve two-step story problems at the stand and the register, and crack number patterns."},
+ {id:"fd",name:"Field Day Data",ico:"🏃",src:"arcade/field-day-data/index.html",stds:["3.MD.1–4"],grades:[3,4],
+  desc:"Set the stadium clock, time the races, weigh the gear, build score graphs, and measure ribbons for a line plot."},
+ {id:"ss",name:"Shape Sorter",ico:"👑",src:"arcade/shape-sorter/index.html",stds:["3.G.1"],grades:[3,4],
+  desc:"Sort quadrilaterals at the castle gate, find shared attributes, earn family seals, and forge your own shield."}];
 const lgGrade=()=>TESTID==="a1"?3:ACT&&ACT.grade?+ACT.grade:0;
 const lgFor=()=>LGAMES.filter(G=>G.grades.includes(lgGrade()));
 function lgCards(){const L=lgFor();if(!L.length)return "";return `<div class="card"><h2>🧠 ${t("Learning games")}</h2><p class="muted">${t("Free to play. Every answer counts as practice.")}</p>
