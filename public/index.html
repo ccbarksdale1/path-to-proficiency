@@ -7176,7 +7176,9 @@ function rpYear(){const X=S.ov.x,R=S.ov.raw||[],yr=schoolYear(),B=X.BM,P=X.plans
 const LGAMES=[{id:"aa",name:"Area Architect",ico:"🏗️",src:"arcade/area-architect/index.html",stds:["3.MD.5","3.MD.6","3.MD.7"],grades:[3,4],
   desc:"Build a city with area: lay tiles, count square units, and multiply to design buildings."},
  {id:"mg",name:"Multiplication Galaxy",ico:"🚀",src:"arcade/multiplication-galaxy/index.html",stds:["3.OA.1–7"],grades:[3,4],
-  desc:"Build star fleets in equal groups, share cargo fairly, and jump through portals with multiplication facts."}];
+  desc:"Build star fleets in equal groups, share cargo fairly, and jump through portals with multiplication facts."},
+ {id:"fi",name:"Fraction Island",ico:"🏝️",src:"arcade/fraction-island/index.html",stds:["3.G.2","3.NF.1–3"],grades:[3,4],
+  desc:"Cut banners into equal parts, color fractions, sail the number line, and match equal fractions."}];
 const lgGrade=()=>TESTID==="a1"?3:ACT&&ACT.grade?+ACT.grade:0;
 const lgFor=()=>LGAMES.filter(G=>G.grades.includes(lgGrade()));
 function lgCards(){const L=lgFor();if(!L.length)return "";return `<div class="card"><h2>🧠 ${t("Learning games")}</h2><p class="muted">${t("Free to play. Every answer counts as practice.")}</p>
@@ -7188,7 +7190,7 @@ SCREENS.lg=lgScreen;
 window.addEventListener("message",e=>{const f=document.getElementById("lg-frame"),d=e.data;if(!f||e.source!==f.contentWindow||!d||(d.src!=="ptp-aa"&&d.src!=="ptp-lg"))return;
   const gp=gameProg();
   if(d.type==="ready")f.contentWindow.postMessage({src:"ptp-host",type:"init",scores:(gp.lg&&gp.lg[S.lg])||null,lang:S.lang},location.origin);
-  else if(d.type==="save"&&Array.isArray(d.scores)){gp.lg=gp.lg||{};gp.lg[S.lg]=d.scores.slice(0,9).map(n=>Math.max(0,Math.min(3,+n||0)));saveGame()}
+  else if(d.type==="save"&&Array.isArray(d.scores)){gp.lg=gp.lg||{};gp.lg[S.lg]=d.scores.slice(0,30).map(n=>Math.max(0,Math.min(3,+n||0)));saveGame()}
   else if(d.type==="answer"&&typeof d.std==="string"&&S.student&&!S.demo){track(S.student.prog,lgKid(d.std.slice(0,12)),!!d.ok,+d.ms||0);save()}
   else if(d.type==="exit"){S.screen="arcade";render()}});
 
