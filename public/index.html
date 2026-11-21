@@ -7174,7 +7174,9 @@ function rpYear(){const X=S.ov.x,R=S.ov.raw||[],yr=schoolYear(),B=X.BM,P=X.plans
 
 /* ================= Learning games (Arcade 2.0): free to play, every answer is practice on its standard ================= */
 const LGAMES=[{id:"aa",name:"Area Architect",ico:"🏗️",src:"arcade/area-architect/index.html",stds:["3.MD.5","3.MD.6","3.MD.7"],grades:[3,4],
-  desc:"Build a city with area: lay tiles, count square units, and multiply to design buildings."}];
+  desc:"Build a city with area: lay tiles, count square units, and multiply to design buildings."},
+ {id:"mg",name:"Multiplication Galaxy",ico:"🚀",src:"arcade/multiplication-galaxy/index.html",stds:["3.OA.1–7"],grades:[3,4],
+  desc:"Build star fleets in equal groups, share cargo fairly, and jump through portals with multiplication facts."}];
 const lgGrade=()=>TESTID==="a1"?3:ACT&&ACT.grade?+ACT.grade:0;
 const lgFor=()=>LGAMES.filter(G=>G.grades.includes(lgGrade()));
 function lgCards(){const L=lgFor();if(!L.length)return "";return `<div class="card"><h2>🧠 ${t("Learning games")}</h2><p class="muted">${t("Free to play. Every answer counts as practice.")}</p>
@@ -7183,7 +7185,7 @@ function lgKid(std){const k=SKILLS.find(x=>x.std===std)||SKILLS.find(x=>x.std&&(
 function lgScreen(){const G=LGAMES.find(x=>x.id===S.lg)||LGAMES[0];
   app.innerHTML=`<iframe id="lg-frame" src="${G.src}" title="${esc(G.name)}" style="position:fixed;inset:0;width:100%;height:100%;border:0;background:#fff;z-index:20"></iframe>`}
 SCREENS.lg=lgScreen;
-window.addEventListener("message",e=>{const f=document.getElementById("lg-frame"),d=e.data;if(!f||e.source!==f.contentWindow||!d||d.src!=="ptp-aa")return;
+window.addEventListener("message",e=>{const f=document.getElementById("lg-frame"),d=e.data;if(!f||e.source!==f.contentWindow||!d||(d.src!=="ptp-aa"&&d.src!=="ptp-lg"))return;
   const gp=gameProg();
   if(d.type==="ready")f.contentWindow.postMessage({src:"ptp-host",type:"init",scores:(gp.lg&&gp.lg[S.lg])||null,lang:S.lang},location.origin);
   else if(d.type==="save"&&Array.isArray(d.scores)){gp.lg=gp.lg||{};gp.lg[S.lg]=d.scores.slice(0,9).map(n=>Math.max(0,Math.min(3,+n||0)));saveGame()}
