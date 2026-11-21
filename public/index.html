@@ -6433,7 +6433,7 @@ function ipCard(s){
    ${act?`<details class="ipedit"><summary>Edit frequency and exit criteria</summary><form class="grid" data-ipform="${s.id}">
      <label class="f">Sessions per week<input type="number" name="sessions" min="1" max="7" value="${ip.sessions||3}"></label><label class="f">Minutes per session<input type="number" name="minutes" min="5" max="90" value="${ip.minutes||20}"></label>
      <label class="f" style="grid-column:1/-1">Exit criteria<textarea name="exit" rows="2" maxlength="400">${esc(ipExit(ip))}</textarea></label><div><button class="small" type="submit">Save plan details</button></div></form></details>`:""}
-   <div class="row">${act?`<button class="small" data-ipprint="${s.id}">🖨 Print lesson packet</button><button class="ghost small" data-ipletter="${s.id}" data-lang="en">✉ Parent letter</button><button class="ghost small" data-ipletter="${s.id}" data-lang="es">✉ Carta (español)</button>`:""}
+   <div class="row">${act?`<button class="small" data-ipprint="${s.id}">🖨 Print lesson packet</button><button class="small" data-ipe3="${s.id}">📄 IMP form (Appendix E.3)</button><button class="ghost small" data-ipletter="${s.id}" data-lang="en">✉ Parent letter</button><button class="ghost small" data-ipletter="${s.id}" data-lang="es">✉ Carta (español)</button>`:""}
     ${act&&st.k==="eligible"?`<button class="small" data-ipact="met" data-id="${s.id}">Criteria met: exit plan</button>`:""}${act&&due&&st.k!=="awaiting"?`<button class="${st.k==="eligible"?"ghost ":""}small" data-ipact="again" data-id="${s.id}">Run ${IP_WEEKS} more weeks</button>`:""}
     ${act&&st.k!=="eligible"?`<button class="ghost small" data-ipact="stop" data-id="${s.id}">Stop plan</button>`:""}
     <button class="ghost small" data-ipact="rebuild" data-id="${s.id}">${act?"Rebuild plan":"Start a new plan"}</button></div></div>`;
@@ -6445,6 +6445,7 @@ function wireIP(){
     try{await saveRoster(CUR.raw);await autoPrograms();flash("ip-scm","Saved.");render()}catch(er){document.getElementById("ip-scm").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save scores"}};
   app.querySelectorAll("[data-ipprint]").forEach(b=>b.onclick=()=>printLessons([view(b.dataset.ipprint)]));
   app.querySelectorAll("[data-ipletter]").forEach(b=>b.onclick=()=>printLetter(view(b.dataset.ipletter),b.dataset.lang));
+  app.querySelectorAll("[data-ipe3]").forEach(b=>b.onclick=()=>printImpE3(view(b.dataset.ipe3)));
   app.querySelectorAll("[data-ipform]").forEach(f=>f.onsubmit=async e=>{e.preventDefault();const r=raw(f.dataset.ipform),fd=new FormData(f);
     r.ip={...r.ip,sessions:Math.max(1,Math.min(7,+fd.get("sessions")||3)),minutes:Math.max(5,Math.min(90,+fd.get("minutes")||20)),exit:String(fd.get("exit")||"").trim().slice(0,400)};
     busy(e.submitter,"Saving…");try{await saveRoster(CUR.raw);render()}catch(er){S.err=er.message;render()}});
@@ -7204,6 +7205,40 @@ window.addEventListener("message",e=>{const f=document.getElementById("lg-frame"
 
 /* the older Grade 3 benchmark goes last, so new classes don’t pick it by accident */
 const testsOrdered=()=>[...TB.tests.filter(t=>t.id!=="a1"),...TB.tests.filter(t=>t.id==="a1")];
+
+/* ================= Official IMP form (MDE Appendix E.3): the same layout, filled in from the student's plan.
+   Teacher-only parts (core program, additional services, signatures, checklist marks) stay blank to complete by hand. ================= */
+function printImpE3(s){const ip=s.ip;if(!ip)return;const box=on=>on?"☑":"☐",line=`<span style="display:inline-block;min-width:220px;border-bottom:1px solid #555">&nbsp;</span>`,first=s.name.split(" ")[0];
+  const targets=ip.steps.filter(x=>x.lvl==="grade"),blocks=ip.steps.filter(x=>x.lvl!=="grade"),nm=c=>esc((LIBC[c]||{}).name||"");
+  const W=(()=>{try{return ipWeeks(s)}catch(e){return []}})();
+  const p1=`<section class="rp"><table><tr><th style="width:120px">APPENDIX E.3</th><th>Individualized Math Plan (IMP)</th></tr></table>
+   <table><tr><td><b>Student:</b> ${esc(s.name)}</td><td><b>Teacher:</b> ${esc(TEACHER)}</td><td><b>Grade:</b> ${esc(gLabel(gradeOf()))}</td><td><b>Date:</b> ${new Date().toLocaleDateString()}</td></tr></table>
+   <table><tr><th colspan="2">MATH INSTRUCTION PROGRAM</th></tr><tr><td style="width:55%">What evidence-based program will be used to deliver core math instruction (Tier I)?<br><br>${line}</td>
+    <td>Indicate the areas addressed by the core math program:<br>${["Number Sense","Numbers & Operations-Base Ten","Fractions/Decimals","Algebraic Thinking","Measurement/Data","Geometry","Problem Solving"].map(a=>`${box(false)} ${a}`).join("<br>")}</td></tr></table>
+   <table><tr><th colspan="3">INTERVENTION PLAN and PROGRESS MONITORING</th></tr><tr>
+    <td style="width:36%"><b>Target deficit area(s):</b><br>${targets.map(x=>`${esc(x.std)} ${nm(x.std)}`).join("<br>")}${blocks.length?`<br><i>Building blocks first:</i> ${blocks.map(x=>esc(x.std)).join(", ")}`:""}
+     <br><small>Identified by: benchmark/screener score ${ip.score}% (cut ${ip.cut}%) and practice data.</small><br><br><b>Intervention Type:</b><br>${box(false)} Small Group<br>${box(false)} One-on-One<br>${box(true)} Other: individualized skill plan in Path to Proficiency, ${ip.sessions||3}× a week, ${ip.minutes||20} min</td>
+    <td style="width:32%"><b>What evidence-based program will be used to deliver math intervention (Tier II/III)?</b><br>Path to Proficiency individualized plan: prerequisite lessons first, worked examples, practice with feedback, and checkpoints on each standard.<br><br><i>Additional supplemental materials (if applicable):</i><br>${line}</td>
+    <td><b>Expected Growth Target:</b><br>${ip.cut}% or higher on the next benchmark/screener; 70% or better weekly accuracy on plan standards by ${niceDay(ip.end)}.<br><br><b>Frequency</b> (progress monitoring):<br>${box(true)} Weekly<br>${box(false)} Biweekly<br><br><b>Exit Criteria:</b><br>${esc(ipExit(ip))}</td></tr></table>
+   <table><tr><th>ADDITIONAL SERVICES</th><th>PARENTAL SUPPORT (Parent Math-at-Home Plan)</th></tr><tr>
+    <td style="width:40%">Indicate any additional services:<br>${["Math Coach Support","Interventionist Support","Tutoring","Summer Learning","Other"].map(a=>`${box(false)} ${a}`).join("<br>")}</td>
+    <td>${box(true)} Math-at-Home Plan Provided<br><b>Recommended strategies for families:</b><ul style="margin:4px 0"><li>Ask ${esc(first)} to show one problem from practice and explain the steps.</li><li>Practice math facts for 5 minutes a day (car rides, dinner).</li>${targets.slice(0,2).map(x=>`<li>Talk about ${nm(x.std).toLowerCase()} in everyday life (${esc(x.std)}).</li>`).join("")}<li>Celebrate effort and mistakes that lead to learning.</li></ul></td></tr>
+    <tr><td><b>Written Parental Notification Received</b> ${box(false)}<br><br><b>PARENT SIGNATURE:</b> ${line}<br><br><b>DATE:</b> ${line}</td><td><b>Parent Math-at-Home Plan Received</b> ${box(false)}<br><br><b>PARENT SIGNATURE:</b> ${line}<br><br><b>DATE:</b> ${line}</td></tr></table>
+   ${W.length?`<p style="font-size:.85rem"><b>Progress monitoring so far</b> (weekly accuracy on plan standards): ${W.map(x=>`Week ${x.w+1}: ${x.acc}%`).join(" · ")}</p>`:""}</section>`;
+  const items=[["(a)","The student’s specific, diagnosed mathematics skill deficiencies as determined (or identified) by diagnostic assessment data and other correlating data points","Tier III Section 3B","Target deficit area(s), page 1"],
+   ["(b)","The goals and benchmarks for mathematics growth","Tier III Section 3B, 3D","Expected Growth Target, page 1"],
+   ["(c)","How mathematics progress will be monitored and evaluated","Tier III Section 3B, 3C, 3D","Frequency + weekly accuracy, page 1"],
+   ["(d)","The type of additional instructional services and interventions the student will receive","Tier III Section 3B","Intervention Type, page 1"],
+   ["(e)","The evidence-based mathematics instructional programming and intervention strategies the teacher will use to address identified mathematics deficits","Appendix E.3","Tier II/III program, page 1"],
+   ["(f)","The strategies the student’s family is encouraged to use in assisting the student to achieve mathematics competency","Appendix E.3","Math-at-Home Plan, page 1"],
+   ["(g)","Any additional services the teacher deems available and appropriate to accelerate the student’s mathematics skill development","Appendix E.3","Additional Services, page 1 (teacher marks)"]];
+  const p2=`<section class="rp"><table><tr><th style="width:170px">APPENDIX E.3 (continued)</th><th>Individual Math Plan/MTSS Alignment Checklist</th></tr></table>
+   <table><tr><td><b>Student:</b> ${esc(s.name)}</td><td><b>Teacher:</b> ${esc(TEACHER)}</td><td><b>Grade:</b> ${esc(gLabel(gradeOf()))}</td><td><b>Date:</b> ${new Date().toLocaleDateString()}</td></tr></table>
+   <p style="font-size:.85rem">Following the identification of a substantial mathematics deficiency, intensive mathematics instruction and intervention must be documented for each student in an Individualized Math Plan (IMP), which includes, at a minimum, the following documentation. Place a check mark in the box once you have completed documenting this piece in the MTSS documentation packet.</p>
+   <table><tr><th style="width:30px"></th><th>Required documentation</th><th style="width:160px">MTSS Documentation Packet</th><th style="width:170px">Filled in by PTP on page 1</th></tr>
+   ${items.map(([k,t,p,w])=>`<tr><td style="font-size:1.2rem">${box(false)}</td><td>${k} ${t}</td><td>${p}</td><td style="font-size:.8rem">${w}</td></tr>`).join("")}</table>
+   <p style="font-size:.75rem;color:#555">Pre-filled from Path to Proficiency data. Review and complete the blank fields before the Teacher Support Team meeting.</p></section>`;
+  printDoc(`IMP · ${s.name}`,p1+p2)}
 
 /* ================= Bigger text: one tap, remembered on this device ================= */
 const TKEY="p2p-bigtext";let BIG=(()=>{try{return localStorage.getItem(TKEY)==="1"}catch(e){return false}})();
