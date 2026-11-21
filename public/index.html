@@ -6018,8 +6018,10 @@ function arcade(){
    <div class="card arc-hero"><div class="top"><h2>🎮 ${t("Game Arcade")}</h2><span class="pill gold" style="font-size:1rem">🪙 ${n} ${t(n===1?"token":"tokens")}</span></div>
     <p>${t("One token = one game")} (${mins} ${t(mins===1?"minute":"minutes")}). ${n?t("Pick a game!"):t("Master a checkpoint to earn your next token.")}</p>
     <p class="muted" style="font-size:.85rem">${t("You earned")}: ${e.done} ${t("checkpoints")} · ${e.fl} ${t("fluency levels")} · ${e.stars} × 25 ${t("stars")}${g.bonus?` · ${g.bonus} ${t("bonus from your teacher")}`:""}</p></div>
+   ${lgCards()}<h2 style="margin:.6rem 0 0">🎮 ${t("Quick games")}</h2>
    <div class="arc-grid">${GAMES.map(G=>`<div class="card arc-game"><div class="arc-ico" aria-hidden="true">${G.ico}</div><h3>${t(G.name)}</h3><span class="pill">${t(G.kind)}</span><p class="muted">${t(G.desc)}</p>${g.best?.[G.id]?`<p style="font-size:.85rem">${t("Best")}: <b>${g.best[G.id]}</b></p>`:""}<button data-play="${G.id}" ${n?"":"disabled"}>${t("Play")} · 🪙 1</button></div>`).join("")}</div>`;
   document.getElementById("back").onclick=()=>{S.screen="home";render()};wireLang();
+  app.querySelectorAll("[data-lg]").forEach(b=>b.onclick=()=>{S.lg=b.dataset.lg;S.screen="lg";render()});
   app.querySelectorAll("[data-play]").forEach(b=>b.onclick=()=>{if(!tokensLeft())return;const gp=gameProg();gp.spent=(gp.spent||0)+1;saveGame();startGame(b.dataset.play)});
 }
 SCREENS.arcade=arcade;
@@ -7051,6 +7053,7 @@ function helpBuddy(pick){const list=realStudents();const tally={};list.forEach(s
   const g=genOf(k),pool=[...k.twins,...k.qs.map(n=>"q"+n)],slides=[];let tries=0;
   while(slides.length<4&&tries++<60){const base=g?`~${g}~${Math.floor(Math.random()*1e9)}`:pool[tries-1];if(!base)break;const bd=bdIdFor(base);if(!bd)continue;const q=getQ(bd);if(!q)continue;
     const l=bd.slice(bd.lastIndexOf("!")+1),mist=(q.steps[0]&&q.steps[0].say||"").replace(/^🦝 /,"");
+    if(q.type==="input"){slides.push({body:bodyHTML(q,null,"print"),ch:`<div class="hb-c">Buddy’s answer: <b>${esc(q._bdSaid)}</b> <span class="hb-tag">← Buddy</span></div>`,ans:esc(String(q.ans)),mist});continue}
     slides.push({body:bodyHTML(q,null,"print"),ch:q.choices.map((c,j)=>`<div class="hb-c" data-l="${L[j]}"><b>${L[j]}.</b> ${choiceInner(c)}${L[j]===l?' <span class="hb-tag">← Buddy</span>':""}</div>`).join(""),ans:q.ans,mist})}
   if(!slides.length){alert("Buddy needs multiple-choice questions with common mistakes, and this standard doesn’t have enough. Pick another standard.");return}
   const w=window.open("","_blank");if(!w){alert("Allow pop-ups to show the warm-up.");return}
@@ -7168,6 +7171,24 @@ function rpYear(){const X=S.ov.x,R=S.ov.raw||[],yr=schoolYear(),B=X.BM,P=X.plans
     ${rpTile(B.moved,"Moved to at or above the cut",B.two?`${B.grew} of ${B.two} students improved`:"")}${rpTile(P.met,"Plans met goal and exited",`${P.active} still active`)}${rpTile(tsHours(ts.mins),"Teacher time saved","this school year (estimate)")}${rpTile(X.mins?Math.round(X.mins/60).toLocaleString()+" hrs":"—","Student practice time","")}</div>
    <h2>By class</h2><table><tr><th>Class</th><th>Students</th>${WINS.map(w=>`<th>${w}</th>`).join("")}<th>On track now</th><th>Plans met</th></tr>${cls}</table>
    <p class="muted" style="font-size:.8rem">Benchmark scores are the ones teachers entered or imported. “On track” is estimated from practice, not a state test score.</p></section>`)}
+
+/* ================= Learning games (Arcade 2.0): free to play, every answer is practice on its standard ================= */
+const LGAMES=[{id:"aa",name:"Area Architect",ico:"🏗️",src:"arcade/area-architect/index.html",stds:["3.MD.5","3.MD.6","3.MD.7"],grades:[3,4],
+  desc:"Build a city with area: lay tiles, count square units, and multiply to design buildings."}];
+const lgGrade=()=>TESTID==="a1"?3:ACT&&ACT.grade?+ACT.grade:0;
+const lgFor=()=>LGAMES.filter(G=>G.grades.includes(lgGrade()));
+function lgCards(){const L=lgFor();if(!L.length)return "";return `<div class="card"><h2>🧠 ${t("Learning games")}</h2><p class="muted">${t("Free to play. Every answer counts as practice.")}</p>
+  <div class="arc-grid">${L.map(G=>`<div class="card arc-game"><div class="arc-ico" aria-hidden="true">${G.ico}</div><h3>${esc(G.name)}</h3><span class="pill">${G.stds.join(" · ")}</span><p class="muted">${t(G.desc)}</p><button data-lg="${G.id}">${t("Play")} · ${t("free")}</button></div>`).join("")}</div></div>`}
+function lgKid(std){const k=SKILLS.find(x=>x.std===std)||SKILLS.find(x=>x.std&&(x.std.startsWith(std)||std.startsWith(x.std)));return k?k.id:"lg:"+std}
+function lgScreen(){const G=LGAMES.find(x=>x.id===S.lg)||LGAMES[0];
+  app.innerHTML=`<iframe id="lg-frame" src="${G.src}" title="${esc(G.name)}" style="position:fixed;inset:0;width:100%;height:100%;border:0;background:#fff;z-index:20"></iframe>`}
+SCREENS.lg=lgScreen;
+window.addEventListener("message",e=>{const f=document.getElementById("lg-frame"),d=e.data;if(!f||e.source!==f.contentWindow||!d||d.src!=="ptp-aa")return;
+  const gp=gameProg();
+  if(d.type==="ready")f.contentWindow.postMessage({src:"ptp-host",type:"init",scores:(gp.lg&&gp.lg[S.lg])||null,lang:S.lang},location.origin);
+  else if(d.type==="save"&&Array.isArray(d.scores)){gp.lg=gp.lg||{};gp.lg[S.lg]=d.scores.slice(0,9).map(n=>Math.max(0,Math.min(3,+n||0)));saveGame()}
+  else if(d.type==="answer"&&typeof d.std==="string"&&S.student&&!S.demo){track(S.student.prog,lgKid(d.std.slice(0,12)),!!d.ok,+d.ms||0);save()}
+  else if(d.type==="exit"){S.screen="arcade";render()}});
 
 /* ================= Bigger text: one tap, remembered on this device ================= */
 const TKEY="p2p-bigtext";let BIG=(()=>{try{return localStorage.getItem(TKEY)==="1"}catch(e){return false}})();
@@ -8384,13 +8405,18 @@ function eaMake(id,g0){const m=String(id).match(/^!ea!(.+)!(v:(.+)|([A-E]))$/);i
    Every BD_EVERY practice questions, a regular question comes with Buddy's wrong answer (a real common mistake
    from the question's own explanations). The student finds the right answer; the walkthrough starts with Buddy's mistake. */
 const BD_EVERY=12,buddyOn=()=>S.demo||!(SB&&SB.cls&&SB.cls.buddy===false);
-function bdMake(id,g0){const m=String(id).match(/^!bd!(.+)!([A-E])$/);if(!m)return null;const base=g0(m[1]),l=m[2];
-  if(!base||base.type!=="mc"||!base.why||l===base.ans||!base.why[l])return null;const c=base.choices[L.indexOf(l)];if(typeof c!=="string")return null;
-  const clean=x=>String(x).replace(/<[^>]+>/g,"").trim().replace(/\.$/,""),said=clean(c),mist=clean(base.why[l]);if(!said||!mist)return null;
-  return {...base,_bd:true,parts:[...base.parts,`🦝 Buddy said the answer is ${said}. Buddy made a mistake! What is the right answer?`],
+function bdMake(id,g0){const m=String(id).match(/^!bd!(.+)!([^!]+)$/);if(!m)return null;const base=g0(m[1]),l=decodeURIComponent(m[2]);if(!base)return null;
+  const clean=x=>String(x).replace(/<[^>]+>/g,"").trim().replace(/\.$/,""),line=said=>`🦝 Buddy said the answer is ${said}. Buddy made a mistake! What is the right answer?`;
+  if(base.type==="input"){const w=base.whyIn&&base.whyIn[l];if(!w||String(l)===String(base.ans))return null;const mist=clean(w);if(!mist)return null;
+    return {...base,_bd:true,_bdSaid:l,parts:[...base.parts,line(l)],whyIn:{...base.whyIn,[l]:`That’s Buddy’s answer, and it has his mistake. ${mist}.`},steps:[{say:`🦝 Buddy’s mistake: ${mist}.`},...(base.steps||[])]}}
+  if(base.type!=="mc"||!base.why||l===base.ans||!base.why[l])return null;const c=base.choices[L.indexOf(l)];if(typeof c!=="string")return null;
+  const said=clean(c),mist=clean(base.why[l]);if(!said||!mist)return null;
+  return {...base,_bd:true,_bdSaid:said,parts:[...base.parts,line(said)],
     why:{...base.why,[l]:`That’s Buddy’s answer, and it has his mistake. ${mist}.`},steps:[{say:`🦝 Buddy’s mistake: ${mist}.`},...(base.steps||[])]}}
 {const g0=getQ;getQ=function(id){if(typeof id==="string"&&id.startsWith("!bd!")){if(QS[id])return QS[id];const q=bdMake(id,g0);if(q)QS[id]=q;return q}return g0(id)}}
-function bdIdFor(qid){if(typeof qid!=="string"||qid[0]==="!")return null;let q=null;try{q=getQ(qid)}catch(e){}if(!q||q.type!=="mc"||!q.why)return null;
+function bdIdFor(qid){if(typeof qid!=="string"||qid[0]==="!")return null;let q=null;try{q=getQ(qid)}catch(e){}if(!q)return null;
+  if(q.type==="input"&&q.whyIn){const ws=Object.keys(q.whyIn).filter(k=>String(k)!==String(q.ans)&&eaWhyOK(q.whyIn[k]));return ws.length?`!bd!${qid}!${encodeURIComponent(ws[Math.floor(Math.random()*ws.length)])}`:null}
+  if(q.type!=="mc"||!q.why)return null;
   const ws=Object.keys(q.why).filter(l=>l!==q.ans&&typeof q.choices[L.indexOf(l)]==="string"&&eaWhyOK(q.why[l]));return ws.length?`!bd!${qid}!${ws[Math.floor(Math.random()*ws.length)]}`:null}
 {const g0=getQ;getQ=function(id){if(typeof id==="string"&&id.startsWith("!ea!")){if(QS[id])return QS[id];const q=eaMake(id,g0);if(q)QS[id]=q;return q}return g0(id)}}
 /* a Think deeper question for a skill, or null when its question maker has no usable explanations */
