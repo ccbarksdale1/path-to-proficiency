@@ -783,7 +783,7 @@ How you teach:
     const merged = []; for (const m of msgs) { const last = merged[merged.length - 1]; if (last && last.role === m.role) last.content += "\n" + m.content; else merged.push({ ...m }) }
     if (merged[merged.length - 1].role !== "user") merged.push({ role: "user", content: "Can you help me more?" });
     const lang = b.lang === "es" ? "\nThe student is learning English. Reply in simple Spanish, and give key " + (+grade >= 14 ? "" : "math ") + "words in English too, like \"" + (+grade >= 14 ? "evidencia (evidence)" : "multiplicar (multiply)") + "\"." : "";
-    const reply = await claude({ model: FAST(), system: TUTOR_SYS(grade, who) + lang + "\n\n" + ctxText, messages: merged, max_tokens: 300 });
+    const reply = await claude({ model: FAST(), system: TUTOR_SYS(grade, "") + lang /* privacy: the student's name is never sent to the AI */ + "\n\n" + ctxText, messages: merged, max_tokens: 300 });
     let out = reply.trim();
     if (/^\[OFF\]/i.test(out)) {
       out = out.replace(/^\[OFF\]\s*/i, "");
