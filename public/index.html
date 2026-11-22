@@ -5240,7 +5240,7 @@ function tTests(){
   <div class="card"><h2>Import a test from a PDF</h2>
    ${TB.ai?`<p class="muted">Upload the test as a PDF. The AI reads each page, writes down every question, finds the standard, and solves it if there is no answer key. You check everything before it’s saved. Then the AI writes the key words, step-by-step breakdowns, and practice questions.</p>
    <form class="grid" id="pdf-f"><label class="f">Test name<input id="pdf-name" required maxlength="80" placeholder="Assessment 2"></label><label class="f">Grade<select id="pdf-grade">${["K","1","2","3","4","5","6","7","8"].map(g=>`<option ${g==="3"?"selected":""}>${g}</option>`).join("")}<option value="9">Algebra I</option></select></label>
-    <label class="f">PDF file<input type="file" id="pdf-file" accept="application/pdf,.pdf" required></label><button type="submit">Read the test</button></form>
+    <label class="f">PDF file<input type="file" id="pdf-file" accept="application/pdf,.pdf" required></label><p class="muted" style="margin:0;font-size:.85rem">🔒 Upload a <b>blank</b> test with no student names or answers. The pages are read by AI.</p><button type="submit">Read the test</button></form>
    <p class="muted" style="font-size:.85rem">Works best with a clear PDF (not a phone photo). Pictures in the test become written descriptions or simple drawings. Up to 40 pages.</p>`
    :`<p class="fb info">PDF import needs the AI. Ask the person who set up the site to add an Anthropic API key in Netlify (see the setup notes). CSV import below works without it.</p>`}
    <div id="pdf-prog"></div></div>
