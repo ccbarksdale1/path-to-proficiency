@@ -134,13 +134,14 @@ function multi(env = {}) {
   const raw = async (action, body, from = "10.1.1.1") => { const r = await router.handle(new Request("http://x/api/" + action, { method: "POST", body: JSON.stringify(body) }), from); return { status: r.status, text: await r.text() } };
   return { stores, router, call, raw, getStore };
 }
-async function district(m, id, name, people) {
-  const { setupKey } = await m.call("ownerDistrictCreate", { code: "owner-secret-1", id, name });
-  const s = await m.call("setup", { district: id, setupKey, code: "1234", name: people.teacher, schoolName: name + " Elementary" });
+async function district(m, id, name, people) { // a district with one school whose code is the district code + "-es"
+  await m.call("ownerDistrictCreate", { code: "owner-secret-1", id, name });
+  const sid = id + "-es", { setupKey } = await m.call("ownerSchoolCreate", { code: "owner-secret-1", id: sid, name: name + " Elementary", district: id });
+  const s = await m.call("setup", { school: sid, setupKey, code: "1234", name: people.teacher, schoolName: name + " Elementary" });
   const cls = (await m.call("classSave", { token: s.token, name: people.cls })).cls;
   await m.call("rosterSave", { token: s.token, classId: cls.id, students: people.students.map((n, i) => ({ name: n, code: String(people.base + i * 7) })) });
-  const roster = m.getStore("ptp-d-" + id).M.get("roster/" + cls.id).v.students;
-  return { id, T: s.token, cls, roster, setupKey };
+  const roster = m.getStore("ptp-d-" + sid).M.get("roster/" + cls.id).v.students;
+  return { id, sid, T: s.token, cls, roster, setupKey };
 }
 const ACTIONS = [...readFileSync(new URL("../netlify/functions/api/core.mjs", import.meta.url), "utf8").matchAll(/^  A\.(\w+) = /gm)].map(m => m[1]);
 async function twoDistricts() {
@@ -158,15 +159,21 @@ test("switch off: the router sends everything to the one school store, as before
   assert.deepEqual([...stores.keys()], ["p2p"]);
 });
 
-test("new district: setup needs the one-time key from the owner", async () => {
+test("new school: setup needs the one-time key from the owner", async () => {
   const m = multi();
-  const { setupKey } = await m.call("ownerDistrictCreate", { code: "owner-secret-1", id: "gamma", name: "Gamma" });
-  await rejects(m.call("setup", { district: "gamma", code: "1234", name: "Intruder" }), /setup key/);
-  await rejects(m.call("setup", { district: "gamma", setupKey: "wrong-key", code: "1234", name: "Intruder" }), /setup key/);
-  await m.call("setup", { district: "gamma", setupKey, code: "1234", name: "Real Admin" });
-  await rejects(m.call("setup", { district: "gamma", setupKey, code: "5678", name: "Again" }), /setup key/);
+  await m.call("ownerDistrictCreate", { code: "owner-secret-1", id: "gamma", name: "Gamma" });
+  const { setupKey } = await m.call("ownerSchoolCreate", { code: "owner-secret-1", id: "gamma-ms", name: "Gamma Middle", district: "gamma" });
+  const st = await m.call("status", { school: "gamma-ms" });
+  assert.equal(st.multi, true); assert.equal(st.needsKey, true); assert.equal(st.district, "Gamma");
+  await rejects(m.call("setup", { school: "gamma-ms", code: "1234", name: "Intruder" }), /setup key/);
+  await rejects(m.call("setup", { school: "gamma-ms", setupKey: "wrong-key", code: "1234", name: "Intruder" }), /setup key/);
+  await m.call("setup", { school: "gamma-ms", setupKey, code: "1234", name: "Real Admin" });
+  await rejects(m.call("setup", { school: "gamma-ms", setupKey, code: "5678", name: "Again" }), /setup key/);
   await rejects(m.call("ownerDistrictCreate", { code: "wrong", id: "delta", name: "Delta" }), /did not match/);
   await rejects(m.call("ownerDistrictCreate", { code: "owner-secret-1", id: "gamma", name: "Dup" }), /already used/);
+  await rejects(m.call("ownerSchoolCreate", { code: "owner-secret-1", id: "x-1", name: "No district", district: "nope" }), /district/);
+  const e = await rejects(m.call("status", {}), /school code/);
+  assert.equal(e.body.needSchool, true);
 });
 
 test("students sign in with just their class code; each district's data stays in its own store", async () => {
@@ -174,7 +181,7 @@ test("students sign in with just their class code; each district's data stays in
   const a = await m.call("studentLogin", { join: A.cls.join, code: A.roster[0].code });
   const b = await m.call("studentLogin", { join: B.cls.join, code: B.roster[0].code });
   assert.ok(a.token && b.token);
-  const alpha = JSON.stringify([...m.getStore("ptp-d-alpha").M.values()]), beta = JSON.stringify([...m.getStore("ptp-d-beta").M.values()]);
+  const alpha = JSON.stringify([...m.getStore("ptp-d-alpha-es").M.values()]), beta = JSON.stringify([...m.getStore("ptp-d-beta-es").M.values()]);
   assert.ok(alpha.includes("Avery Alpha") && !alpha.includes("Bailey Beta"));
   assert.ok(beta.includes("Bailey Beta") && !beta.includes("Avery Alpha"));
   await rejects(m.call("studentLogin", { join: A.cls.join, code: B.roster[0].code }));
@@ -184,7 +191,7 @@ test(`cross-district token: Alpha's teacher reaches none of Beta's data on any o
   const { m, A, B } = await twoDistricts();
   const leak = ["Bailey Beta", "Blake Beta", "Beta District", "Beta Room", B.cls.id, B.roster[0].id];
   for (const action of ACTIONS) {
-    const r = await m.raw(action, { token: A.T, classId: B.cls.id, id: B.cls.id, sid: B.roster[0].id, testId: "std3", wk: "2026-11-16", district: "beta", join: B.cls.join });
+    const r = await m.raw(action, { token: A.T, classId: B.cls.id, id: B.cls.id, sid: B.roster[0].id, testId: "std3", wk: "2026-11-16", school: B.sid, join: B.cls.join });
     for (const x of leak) assert.ok(!r.text.includes(x), `${action} leaked ${x}`);
   }
 });
@@ -192,7 +199,7 @@ test(`cross-district token: Alpha's teacher reaches none of Beta's data on any o
 test("forged token: editing a token to name another district fails its signature", async () => {
   const { m, A, B } = await twoDistricts();
   const [body, mac] = A.T.split("."), p = JSON.parse(Buffer.from(body, "base64url").toString());
-  const forged = Buffer.from(JSON.stringify({ ...p, d: "beta" })).toString("base64url") + "." + mac;
+  const forged = Buffer.from(JSON.stringify({ ...p, d: B.sid })).toString("base64url") + "." + mac;
   for (const action of ["boot", "classData", "rosterSave", "handList", "schoolExport"]) {
     const r = await m.raw(action, { token: forged, classId: B.cls.id, id: B.cls.id });
     assert.ok(r.status >= 400, action + " accepted a forged token");
@@ -205,20 +212,20 @@ test("forged token: editing a token to name another district fails its signature
 test("class codes are unique across districts and mapped in the registry", async () => {
   const { m, A, B } = await twoDistricts();
   const reg = m.getStore("ptp-registry");
-  assert.equal(reg.M.get("join/" + A.cls.join).v.d, "alpha");
-  assert.equal(reg.M.get("join/" + B.cls.join).v.d, "beta");
+  assert.equal(reg.M.get("join/" + A.cls.join).v.d, A.sid);
+  assert.equal(reg.M.get("join/" + B.cls.join).v.d, B.sid);
   // a code already held by Alpha can never be claimed for Beta
-  const hooksBeta = await m.router.handle(new Request("http://x/api/status", { method: "POST", body: JSON.stringify({ district: "beta" }) }), "1.1.1.1");
+  const hooksBeta = await m.router.handle(new Request("http://x/api/status", { method: "POST", body: JSON.stringify({ school: B.sid }) }), "1.1.1.1");
   assert.equal(hooksBeta.status, 200);
-  await reg.setJSON("join/TAKEN1", { d: "alpha" });
-  const r = await reg.setJSON("join/TAKEN1", { d: "beta" }, { onlyIfNew: true });
+  await reg.setJSON("join/TAKEN1", { d: A.sid });
+  const r = await reg.setJSON("join/TAKEN1", { d: B.sid }, { onlyIfNew: true });
   assert.equal(r.modified, false);
 });
 
 test("teacher scope: a second teacher can't open the first teacher's class", async () => {
   const { m, A } = await twoDistricts();
   const t2 = await m.call("teacherSave", { token: A.T, name: "Mr. Second", code: "4321" });
-  const second = await m.call("login", { district: "alpha", code: "4321" });
+  const second = await m.call("login", { school: A.sid, code: "4321" });
   await rejects(m.call("classData", { token: second.token, id: A.cls.id }));
   await rejects(m.call("rosterSave", { token: second.token, classId: A.cls.id, students: [] }));
   assert.ok(t2);
@@ -227,7 +234,7 @@ test("teacher scope: a second teacher can't open the first teacher's class", asy
 test("owner export across districts: no names, codes or class names from any district", async () => {
   const { m, A, B } = await twoDistricts();
   const r = await m.call("ownerResearchAll", { code: "owner-secret-1" }), txt = JSON.stringify(r);
-  assert.equal(r.districts.length, 2);
+  assert.equal(r.schools.length, 2);
   for (const x of ["Avery", "Bailey", "Alpha", "Beta", "alpha", "beta", A.cls.join, B.cls.join, A.roster[0].code, B.roster[0].id]) assert.ok(!txt.includes(x), "export leaked " + x);
 });
 
@@ -235,7 +242,7 @@ test("student scope: a student's save only ever touches their own work", async (
   const { m, A } = await twoDistricts();
   const a = await m.call("studentLogin", { join: A.cls.join, code: A.roster[0].code });
   await m.call("progSave", { token: a.token, sid: A.roster[1].id, studentId: A.roster[1].id, testId: "std3", prog: { skills: { k1: { status: "done", streak: 9 } } } });
-  const store = m.getStore("ptp-d-alpha").M;
+  const store = m.getStore("ptp-d-" + A.sid).M;
   assert.ok(store.has(`prog/${A.cls.id}/${A.roster[0].id}`), "saved to their own record");
   assert.ok(!store.has(`prog/${A.cls.id}/${A.roster[1].id}`), "classmate's record untouched");
   await rejects(m.call("classData", { token: a.token, id: A.cls.id }));
@@ -247,11 +254,13 @@ test("the shared registry holds no student data", async () => {
   for (const x of ["Avery", "Ari", "Bailey", "Blake", "Ms. Alpha", "Mr. Beta", "roster", "prog"]) assert.ok(!txt.includes(x), "registry holds " + x);
 });
 
-test("deleting a district removes its whole store and its class codes", async () => {
+test("deleting a school removes its whole store and its class codes", async () => {
   const { m, A, B } = await twoDistricts();
-  await rejects(m.call("ownerDistrictDelete", { code: "owner-secret-1", id: "alpha", confirm: "yes" }), /DELETE alpha/);
-  await m.call("ownerDistrictDelete", { code: "owner-secret-1", id: "alpha", confirm: "DELETE alpha" });
-  assert.equal(m.getStore("ptp-d-alpha").M.size, 0);
+  await rejects(m.call("ownerDistrictDelete", { code: "owner-secret-1", id: "alpha" }), /schools first/);
+  await rejects(m.call("ownerSchoolDelete", { code: "owner-secret-1", id: A.sid, confirm: "yes" }), /DELETE alpha-es/);
+  await m.call("ownerSchoolDelete", { code: "owner-secret-1", id: A.sid, confirm: "DELETE " + A.sid });
+  await m.call("ownerDistrictDelete", { code: "owner-secret-1", id: "alpha" });
+  assert.equal(m.getStore("ptp-d-" + A.sid).M.size, 0);
   assert.ok(!m.getStore("ptp-registry").M.has("join/" + A.cls.join));
   await rejects(m.call("studentLogin", { join: A.cls.join, code: A.roster[0].code }), /not found/);
   assert.ok((await m.call("studentLogin", { join: B.cls.join, code: B.roster[0].code })).token, "Beta still works");
@@ -260,9 +269,9 @@ test("deleting a district removes its whole store and its class codes", async ()
 test("brute force: wrong codes lock out, per district and per address", async () => {
   const { m } = await twoDistricts();
   let locked = false;
-  for (let i = 0; i < 15 && !locked; i++) { const r = await m.raw("login", { district: "alpha", code: "0000" }, "9.9.9.9"); if (r.status === 429) locked = true }
+  for (let i = 0; i < 15 && !locked; i++) { const r = await m.raw("login", { school: "alpha-es", code: "0000" }, "9.9.9.9"); if (r.status === 429) locked = true }
   assert.ok(locked, "Alpha locks after repeated wrong codes");
-  assert.equal((await m.raw("login", { district: "beta", code: "1234" }, "9.9.9.9")).status, 200, "Beta is not affected");
+  assert.equal((await m.raw("login", { school: "beta-es", code: "1234" }, "9.9.9.9")).status, 200, "Beta is not affected");
   let ownerLocked = false;
   for (let i = 0; i < 12 && !ownerLocked; i++) { const r = await m.raw("ownerDistricts", { code: "nope" }, "8.8.8.8"); if (r.status === 429) ownerLocked = true }
   assert.ok(ownerLocked, "owner code locks too");
@@ -272,7 +281,55 @@ test("nightly backups: one snapshot per district", async () => {
   const { m } = await twoDistricts();
   const keys = await m.router.snapshots();
   assert.equal(keys.length, 2);
-  assert.ok([...m.getStore("ptp-d-alpha").M.keys()].some(k => k.startsWith("backup/")));
+  assert.ok([...m.getStore("ptp-d-alpha-es").M.keys()].some(k => k.startsWith("backup/")));
+});
+
+test("district admin: sees every school in their own district, and nothing else", async () => {
+  const { m, A, B } = await twoDistricts();
+  const { setupKey } = await m.call("ownerSchoolCreate", { code: "owner-secret-1", id: "alpha-ms", name: "Alpha Middle", district: "alpha" });
+  await m.call("setup", { school: "alpha-ms", setupKey, code: "2468", name: "Mrs. Middle", schoolName: "Alpha Middle" });
+  await rejects(m.call("ownerDistrictAdmin", { code: "owner-secret-1", district: "alpha", name: "Dr. Super", adminCode: "12" }), /6 to 12/);
+  await m.call("ownerDistrictAdmin", { code: "owner-secret-1", district: "alpha", name: "Dr. Super", adminCode: "135791" });
+  await rejects(m.call("districtLogin", { districtCode: "alpha", code: "000000" }), /did not match/);
+  await rejects(m.call("districtLogin", { districtCode: "beta", code: "135791" }), /did not match/);
+  const da = await m.call("districtLogin", { districtCode: "alpha", code: "135791" });
+  const o = await m.call("districtOverview", { token: da.token }), txt = JSON.stringify(o);
+  assert.deepEqual(o.schools.map(s => s.id).sort(), ["alpha-es", "alpha-ms"]);
+  assert.ok(txt.includes("Alpha Room") && txt.includes("Ms. Alpha"));
+  for (const x of ["Beta", "Bailey", B.cls.id]) assert.ok(!txt.includes(x), "district overview leaked " + x);
+  assert.equal(o.schools.find(s => s.id === "alpha-es").classes[0].students, 2);
+});
+
+test("district admin tokens and school tokens can't be swapped", async () => {
+  const { m, A } = await twoDistricts();
+  await m.call("ownerDistrictAdmin", { code: "owner-secret-1", district: "alpha", name: "Dr. Super", adminCode: "135791" });
+  const da = await m.call("districtLogin", { districtCode: "alpha", code: "135791" });
+  for (const action of ["boot", "classData", "schoolExport"]) assert.ok((await m.raw(action, { token: da.token, id: A.cls.id })).status >= 400, action + " accepted a district token");
+  await rejects(m.call("districtOverview", { token: A.T }), /sign in/);
+  const [body, mac] = da.token.split("."), p = JSON.parse(Buffer.from(body, "base64url").toString());
+  await rejects(m.call("districtOverview", { token: Buffer.from(JSON.stringify({ ...p, g: "beta" })).toString("base64url") + "." + mac }), /sign in/);
+});
+
+test("removing a district admin ends their access", async () => {
+  const { m } = await twoDistricts();
+  await m.call("ownerDistrictAdmin", { code: "owner-secret-1", district: "alpha", name: "Dr. Super", adminCode: "135791" });
+  const da = await m.call("districtLogin", { districtCode: "alpha", code: "135791" });
+  await m.call("ownerDistrictAdmin", { code: "owner-secret-1", district: "alpha", name: "Dr. Super", adminCode: "975311" }); // code reset gives a new admin id
+  await rejects(m.call("districtOverview", { token: da.token }), /sign in/);
+  assert.ok((await m.call("districtLogin", { districtCode: "alpha", code: "975311" })).token);
+  const list = await m.call("ownerDistricts", { code: "owner-secret-1" });
+  assert.deepEqual(list.districts.find(d => d.id === "alpha").admins, ["Dr. Super"]);
+});
+
+test("owner manages one school's license on a multi-district site", async () => {
+  const { m, A, B } = await twoDistricts();
+  const g = await m.call("ownerGet", { code: "owner-secret-1", school: A.sid });
+  assert.equal(g.school, "Alpha District Elementary");
+  await m.call("ownerSet", { code: "owner-secret-1", school: A.sid, license: { plan: "Pilot", teachers: 5, students: 120 } });
+  assert.equal((await m.call("ownerGet", { code: "owner-secret-1", school: A.sid })).license.plan, "Pilot");
+  assert.notEqual((await m.call("ownerGet", { code: "owner-secret-1", school: B.sid })).license.plan, "Pilot");
+  const list = await m.call("ownerDistricts", { code: "owner-secret-1" });
+  assert.equal(list.districts.find(d => d.id === "alpha").schools[0].license.plan, "Pilot");
 });
 
 let failed = 0;

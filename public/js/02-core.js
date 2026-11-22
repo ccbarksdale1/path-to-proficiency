@@ -107,14 +107,17 @@ function scorePct(s){if(!s)return null;
 const SKEY="p2p-session",CKEY="p2p-class",OLDKEY="p2p-a1-v1";
 const ls={get(k,st=localStorage){try{return JSON.parse(st.getItem(k))}catch(e){return null}},set(k,v,st=localStorage){try{v==null?st.removeItem(k):st.setItem(k,JSON.stringify(v))}catch(e){}}};
 let TOKEN=null;
+/* multi-district sites: the school code a teacher typed is remembered on this device and sent with every request */
+const SITEKEY="ptp-school";
 async function api(action,body={}){
   if(DEMO_T&&TOKEN==="demo")return demoApi(action,body);
+  const site=ls.get(SITEKEY);
   let r;
-  try{r=await fetch("/api/"+action,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token:TOKEN,...body})})}
+  try{r=await fetch("/api/"+action,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token:TOKEN,...(site?{school:site}:{}),...body})})}
   catch(e){throw new Error("Can’t reach the school server. Check the internet and try again.")}
   let d={};try{d=await r.json()}catch(e){}
   if(r.status===401&&TOKEN&&action!=="login"&&action!=="studentLogin"){const m=d.error||"Please sign in again.";signOut();S.err=m;render();throw new Error(m)}
-  if(!r.ok)throw new Error(d.error||("The server had a problem ("+r.status+")."));
+  if(!r.ok){const er=new Error(d.error||("The server had a problem ("+r.status+")."));er.data=d;throw er}
   return d;
 }
 

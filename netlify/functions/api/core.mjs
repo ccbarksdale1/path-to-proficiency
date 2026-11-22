@@ -16,9 +16,9 @@ const joinCode = () => Array.from(crypto.randomBytes(6), b => JOIN_CHARS[b % JOI
 const today = () => new Date().toISOString().slice(0, 10);
 const str = (v, max = 200) => String(v ?? "").trim().slice(0, max);
 
-/* district + hooks are set only when the multi-district router runs this code for one district's store (see router.mjs).
+/* tenant + hooks are set only when the multi-district router runs this code for one school's own store (see router.mjs).
    With them unset, everything works exactly as the single-school site always has. */
-export function makeApi({ store, env, district = null, hooks = null }) {
+export function makeApi({ store, env, tenant = null, hooks = null }) {
   const getJ = async k => (await store.get(k, { type: "json" })) ?? null;
   const setJ = (k, v) => store.setJSON(k, v);
   const del = k => store.delete(k);
@@ -47,7 +47,7 @@ export function makeApi({ store, env, district = null, hooks = null }) {
 
   /* ---------- sessions ---------- */
   const sign = (school, payload) => {
-    const body = Buffer.from(JSON.stringify({ ...payload, ...(district ? { d: district } : {}), exp: Date.now() + 1000 * 60 * 60 * 12 })).toString("base64url");
+    const body = Buffer.from(JSON.stringify({ ...payload, ...(tenant ? { d: tenant } : {}), exp: Date.now() + 1000 * 60 * 60 * 12 })).toString("base64url");
     const mac = crypto.createHmac("sha256", school.secret).update(body).digest("base64url");
     return body + "." + mac;
   };
@@ -57,7 +57,7 @@ export function makeApi({ store, env, district = null, hooks = null }) {
     if (!body || !mac) return null;
     const want = crypto.createHmac("sha256", school.secret).update(body).digest("base64url");
     if (want.length !== mac.length || !crypto.timingSafeEqual(Buffer.from(want), Buffer.from(mac))) return null;
-    try { const p = JSON.parse(Buffer.from(body, "base64url").toString()); if (district && p.d !== district) return null; return p.exp > Date.now() ? p : null } catch { return null }
+    try { const p = JSON.parse(Buffer.from(body, "base64url").toString()); if (tenant && p.d !== tenant) return null; return p.exp > Date.now() ? p : null } catch { return null }
   };
 
   /* ---------- sign-in lockout: 10 wrong codes in 15 minutes locks that connection for 15 minutes ---------- */

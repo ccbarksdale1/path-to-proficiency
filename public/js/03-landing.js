@@ -197,7 +197,7 @@ function landing(){
    <p class="muted" style="font-size:.9rem">Already using it? <button class="linklike" data-go="stu">Student login</button> · <button class="linklike" data-go="tch">Teacher login</button></p></section>
   ${siteFooter()}`;
   const go={stu:()=>{S.mode="student";S.code="";S.err="";S.screen=ls.get(CKEY)?"signin":"joinclass";render()},
-    tch:async()=>{S.mode="teacher";S.code="";S.err="";try{const st=await api("status");S.screen=st.ready?"signin":"setup"}catch(e){S.screen="signin";S.err=e.message}render()},
+    tch:()=>teacherEntry(),
     tutor:()=>{S.tDone=false;S.screen="tutorApply";render()},
     tour:()=>startDemoSchool(true),lead:()=>{S.screen="lead";S.leadType="demo";S.leadDone=false;render()},
     ms:()=>{S.screen="mississippi";render()},found:()=>{S.screen="founding";render()},family:()=>{S.screen="lead";S.leadType="family";S.leadDone=false;render()},
@@ -220,6 +220,23 @@ function landing(){
 
 SCREENS.landing=landing;
 
+/* teacher sign-in: on a multi-district site the teacher first types their school code (remembered on this device) */
+async function teacherEntry(){S.mode="teacher";S.code="";S.err="";
+  try{const st=await api("status");S.multi=!!st.multi;S.siteInfo=st.multi?st:null;S.screen=st.ready?"signin":"setup"}
+  catch(e){if(e.data&&e.data.needSchool){S.multi=true;S.screen="schoolcode";S.err=ls.get(SITEKEY)?e.message:""}else{S.screen="signin";S.err=e.message}}
+  render()}
+function schoolcode(){
+  app.innerHTML=header(`<button class="ghost" id="back">Back</button>`)+`<div class="card" style="text-align:center;align-items:center">
+   <h2>Type your school code</h2><p class="muted">Your school admin or Path to Proficiency gave it to you, like <b>rh-bearden</b>. This device will remember it.</p>
+   <form id="scf" class="row" style="justify-content:center"><input id="scc" style="width:240px;text-align:center" maxlength="24" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="School code" value="${esc(ls.get(SITEKEY)||"")}"><button>Next</button></form>
+   <p class="err" role="alert">${esc(S.err)}</p>
+   <p class="muted" style="font-size:.85rem">District leader? <button class="link" id="to-da">Sign in to your district</button></p></div>`;
+  document.getElementById("back").onclick=()=>{S.screen="landing";S.err="";render()};
+  document.getElementById("to-da").onclick=()=>{S.screen="districtSignin";S.err="";render()};
+  const i=document.getElementById("scc");i.focus();
+  document.getElementById("scf").onsubmit=async e=>{e.preventDefault();const v=i.value.trim().toLowerCase();if(!v)return;ls.set(SITEKEY,v);await teacherEntry()};
+}
+SCREENS.schoolcode=schoolcode;
 function joinclass(){
   app.innerHTML=header(`<button class="ghost" id="back">Back</button>`)+`<div class="card" style="text-align:center;align-items:center">
    <p class="kicker">Your next adventure starts here!</p><h2>Type your class code</h2>
@@ -241,10 +258,12 @@ function signin(){
    <div class="code-dots" aria-label="${S.code.length} digits typed">${Array.from({length:teacherMode?Math.max(4,S.code.length):4},(_,i)=>`<span class="${i<S.code.length?'on':''}"></span>`).join("")}</div>
    <div class="pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-n="${n}">${n}</button>`).join("")}<button data-n="back" aria-label="Delete">⌫</button><button data-n="0">0</button><button data-n="go">Go</button></div>
    <p class="err" role="alert">${esc(S.err)}</p>
+   ${teacherMode&&S.siteInfo?`<p class="muted" style="font-size:.85rem">${esc(S.siteInfo.school.name)}${S.siteInfo.district?" · "+esc(S.siteInfo.district):""} · <button class="link" id="chg-school">Change school</button></p>`:""}
    ${teacherMode?`<p class="muted" style="font-size:.85rem">Forgot your code? <button class="link" id="forgot">Reset it</button></p>`:`<p class="muted" style="font-size:.85rem">Not your class? <button class="link" id="chg">Change class</button></p>`}</div>`;
   document.getElementById("back").onclick=()=>{S.screen="landing";S.err="";render()};
   const chg=document.getElementById("chg");if(chg)chg.onclick=()=>{S.screen="joinclass";S.join="";S.err="";render()};
   const fg=document.getElementById("forgot");if(fg)fg.onclick=()=>{S.screen="recover";S.err="";render()};
+  const cs=document.getElementById("chg-school");if(cs)cs.onclick=()=>{S.screen="schoolcode";S.err="";render()};
   app.querySelectorAll(".pad button").forEach(b=>b.onclick=async()=>{const n=b.dataset.n;S.err="";
     if(n==="back")S.code=S.code.slice(0,-1);
     else if(n==="go"){const code=S.code;S.code="";
@@ -264,7 +283,8 @@ function setup(){
   app.innerHTML=header(`<button class="ghost" id="back">Back</button>`,"Set up your school")+`<div class="card"><h2>Set up your school</h2>
    <p class="muted">This only happens once. You will be the school admin: you can add other teachers, give classes to them, and compare every class.</p>
    <form class="grid" id="sf">
-    <label class="f" style="grid-column:1/-1">School name<input id="s-school" required maxlength="80" placeholder="Lincoln Elementary"></label>
+    ${S.siteInfo&&S.siteInfo.needsKey?`<label class="f" style="grid-column:1/-1">Setup key from Path to Proficiency<input id="s-key" required autocomplete="off" spellcheck="false"></label>`:""}
+    <label class="f" style="grid-column:1/-1">School name<input id="s-school" required maxlength="80" placeholder="Lincoln Elementary" value="${esc(S.siteInfo?S.siteInfo.school.name:"")}"></label>
     <label class="f">Your name (what students see)<input id="s-name" required maxlength="60" placeholder="Mr. Barksdale"></label>
     <label class="f">Your teacher code (4 to 6 digits)<input id="s-code" inputmode="numeric" pattern="[0-9]{4,6}" required></label>
     <label class="f">Type the code again<input id="s-code2" inputmode="numeric" pattern="[0-9]{4,6}" required></label>
@@ -274,12 +294,15 @@ function setup(){
   document.getElementById("sf").onsubmit=async e=>{e.preventDefault();const v=id=>document.getElementById(id).value.trim();
     if(v("s-code")!==v("s-code2")){document.getElementById("s-err").textContent="The two codes are different.";return}
     busy(e.submitter,"Creating…");
-    try{startTeacher(await api("setup",{schoolName:v("s-school"),name:v("s-name"),code:v("s-code")}))}catch(er){S.err=er.message;render()}};
+    try{startTeacher(await api("setup",{schoolName:v("s-school"),name:v("s-name"),code:v("s-code"),...(document.getElementById("s-key")?{setupKey:v("s-key")}:{})}))}catch(er){S.err=er.message;render()}};
 }
 SCREENS.setup=setup;
 
 /* forgot the admin's teacher code: uses RESET_CODE from Netlify */
 function recover(){
+  if(S.multi){app.innerHTML=header(`<button class="ghost" id="back">Back</button>`,"Reset teacher code")+`<div class="card"><h2>Forgot your teacher code?</h2>
+    <p>Ask your school admin to set a new one for you under <b>Teachers</b>.</p><p class="muted">School admins who forgot their own code: contact Path to Proficiency and we will reset it after checking with your school.</p></div>`;
+    document.getElementById("back").onclick=()=>{S.screen="signin";S.mode="teacher";S.err="";render()};return}
   app.innerHTML=header(`<button class="ghost" id="back">Back</button>`,"Reset teacher code")+`<div class="card"><h2>Forgot your teacher code?</h2>
    <ol class="how"><li>In Netlify, open your project, then <b>Project configuration → Environment variables → Add a variable</b>.</li>
     <li>Name it <b>RESET_CODE</b> and give it a secret phrase you’ll remember (at least 6 characters). Tick “Contains secret values”.</li>

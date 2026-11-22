@@ -284,7 +284,7 @@ function licenseCard(){
 function owner(){
   const O=S.own||(S.own={});
   app.innerHTML=`<div class="top"><div class="brand">${LOGO}<div><h1>Path to Proficiency</h1><small>Site owner</small></div></div><button class="ghost" id="o-home">← Home</button></div>
-  ${O.d?`<div class="card"><div class="top"><h2>${esc(O.d.school)}</h2><span class="pill purple">${esc(O.d.license.plan)}</span></div>
+  ${O.multi&&!O.school?ownerMulti(O):O.multi&&O.school&&!O.d?`<div class="card"><p class="muted">Loading…</p></div>`:O.d?`${O.multi?`<div class="row"><button class="ghost small" id="o-back">← All districts</button></div>`:""}<div class="card"><div class="top"><h2>${esc(O.d.school)}</h2><span class="pill purple">${esc(O.d.license.plan)}</span></div>
      <p>Teachers: <b>${O.d.usedT}</b> of ${O.d.license.teachers} · Students: <b>${O.d.usedS}</b> of ${O.d.license.students}</p>
      <div class="tablewrap"><table class="roster"><thead><tr><th>Class</th><th>Teacher</th><th>Students</th></tr></thead><tbody>${O.d.classes.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.teacher)}</td><td>${c.n}${c.n>40?' <span class="pill gold">large</span>':""}</td></tr>`).join("")}</tbody></table></div></div>
    <form class="card" id="o-set"><h2>Set this school’s license</h2><div class="grid">
@@ -299,14 +299,65 @@ function owner(){
   :`<form class="card" id="o-in" style="max-width:460px"><h2>Owner sign-in</h2><p class="muted">Enter the OWNER_CODE you set in Netlify. Only the site owner can change license limits.</p>
      <label class="f">Owner code<input id="o-code" type="password" autocomplete="off" required></label><button type="submit">Sign in</button><p class="err" id="o-err" role="alert">${esc(O.err||"")}</p></form>`}`;
   document.getElementById("o-home").onclick=()=>{S.own=null;history.replaceState(null,"","/");S.screen="landing";render()};
+  if(O.multi)wireOwnerMulti(O);
+  const ob=document.getElementById("o-back");if(ob)ob.onclick=async()=>{O.school=null;O.d=null;O.dist=await api("ownerDistricts",{code:O.code});render()};
   const fi=document.getElementById("o-in");if(fi)fi.onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Checking…");const code=document.getElementById("o-code").value;
-    try{O.d=await api("ownerGet",{code});O.code=code;O.err="";render()}catch(er){O.err=er.message;render()}};
-  const orx=document.getElementById("o-res");if(orx)orx.onclick=async()=>{busy(orx,"Building…");try{const d=await api("ownerResearch",{code:O.code});const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:"application/json"}));a.download=`ptp-research-${d.made}.json`;document.body.append(a);a.click();a.remove();document.getElementById("o-rmsg").textContent=`Downloaded: ${d.classes.reduce((t,c)=>t+c.students.length,0)} students, no names.`}catch(er){document.getElementById("o-rmsg").textContent=er.message}orx.disabled=false;orx.textContent="⬇ Download research export"};
+    try{O.dist=await api("ownerDistricts",{code});O.multi=true;O.code=code;O.err="";render()}
+    catch(er){if(/Unknown action/.test(er.message)){try{O.d=await api("ownerGet",{code});O.code=code;O.err="";render()}catch(e2){O.err=e2.message;render()}}else{O.err=er.message;render()}}};
+  const orx=document.getElementById("o-res");if(orx)orx.onclick=async()=>{busy(orx,"Building…");try{const d=await api("ownerResearch",{code:O.code,...(O.school?{school:O.school}:{})});const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:"application/json"}));a.download=`ptp-research-${d.made}.json`;document.body.append(a);a.click();a.remove();document.getElementById("o-rmsg").textContent=`Downloaded: ${d.classes.reduce((t,c)=>t+c.students.length,0)} students, no names.`}catch(er){document.getElementById("o-rmsg").textContent=er.message}orx.disabled=false;orx.textContent="⬇ Download research export"};
   const fs=document.getElementById("o-set");if(fs)fs.onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Saving…");
-    try{await api("ownerSet",{code:O.code,license:{plan:document.getElementById("o-plan").value,teachers:+document.getElementById("o-t").value,students:+document.getElementById("o-s").value,expires:document.getElementById("o-e").value,note:document.getElementById("o-n").value}});
-      O.d=await api("ownerGet",{code:O.code});render();document.getElementById("o-msg").textContent="Saved."}catch(er){document.getElementById("o-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save license"}};
+    try{await api("ownerSet",{code:O.code,...(O.school?{school:O.school}:{}),license:{plan:document.getElementById("o-plan").value,teachers:+document.getElementById("o-t").value,students:+document.getElementById("o-s").value,expires:document.getElementById("o-e").value,note:document.getElementById("o-n").value}});
+      O.d=await api("ownerGet",{code:O.code,...(O.school?{school:O.school}:{})});render();document.getElementById("o-msg").textContent="Saved."}catch(er){document.getElementById("o-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save license"}};
 }
 SCREENS.owner=owner;
+
+/* ---------- owner dashboard on a multi-district site: districts, schools, setup keys, district admins ---------- */
+function ownerMulti(O){const D=O.dist.districts||[];
+  return `${O.flash?`<div class="card" style="border:2px solid var(--go)">${O.flash}</div>`:""}
+   <div class="card"><h2>Districts and schools</h2>${D.length?D.map(d=>`<div class="card" style="margin:.6rem 0"><div class="top"><h3 style="margin:0">${esc(d.name)} <span class="muted small">· code ${esc(d.id)}</span></h3><span class="muted small">District admins: ${d.admins.length?d.admins.map(esc).join(", "):"none yet"}</span></div>
+     ${d.schools.length?`<div class="tablewrap"><table class="roster"><thead><tr><th>School</th><th>Code</th><th>Status</th><th>Teachers</th><th>Classes</th><th>License</th><th></th></tr></thead><tbody>${d.schools.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(s.id)}</td><td>${s.ready?`<span class="pill go">Set up</span>`:`<span class="pill gold">Waiting for setup</span>`}</td><td>${s.teachers}</td><td>${s.classes}</td><td>${s.license?esc(s.license.plan||"")+" · "+(s.license.students||"")+" seats":"—"}</td><td>${s.ready?`<button class="ghost small" data-oschool="${esc(s.id)}">Manage</button>`:""}<button class="ghost small" data-odel="${esc(s.id)}">Delete</button></td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No schools yet.</p>`}</div>`).join(""):`<p class="muted">No districts yet. Add the first one below.</p>`}</div>
+   <div class="grid" style="align-items:start">
+    <form class="card" id="o-nd"><h3>New district</h3><label class="f">District name<input id="nd-name" required maxlength="100" placeholder="Cleveland School District"></label><label class="f">District code<input id="nd-id" required maxlength="24" placeholder="cleveland-sd" pattern="[a-z0-9][a-z0-9-]{1,23}"></label><button>Add district</button></form>
+    <form class="card" id="o-ns"><h3>New school</h3><label class="f">District<select id="ns-d" required>${D.map(d=>`<option value="${esc(d.id)}">${esc(d.name)}</option>`).join("")}</select></label><label class="f">School name<input id="ns-name" required maxlength="100" placeholder="RH Bearden Elementary"></label><label class="f">School code (teachers type this)<input id="ns-id" required maxlength="24" placeholder="rh-bearden" pattern="[a-z0-9][a-z0-9-]{1,23}"></label><button ${D.length?"":"disabled"}>Add school</button></form>
+    <form class="card" id="o-da"><h3>District admin</h3><p class="muted small">Adds an admin, or sets a new code for one with the same name.</p><label class="f">District<select id="da-d" required>${D.map(d=>`<option value="${esc(d.id)}">${esc(d.name)}</option>`).join("")}</select></label><label class="f">Name<input id="da-name" required maxlength="60" placeholder="Dr. Johnson"></label><label class="f">Admin code (6 to 12 digits)<input id="da-code" required inputmode="numeric" pattern="[0-9]{6,12}"></label><button ${D.length?"":"disabled"}>Save district admin</button></form>
+   </div>
+   <div class="card" style="max-width:720px"><h2>🔒 Research export, all schools (names removed)</h2><p class="muted">Random IDs for every district, school, class and student, new in each file. No names, codes or typed text.</p><div class="row"><button class="ghost" id="o-resall">⬇ Download research export</button><span class="muted" id="o-ramsg" role="status"></span></div></div>
+   <p class="err" role="alert">${esc(O.err||"")}</p>`}
+function wireOwnerMulti(O){const g=id=>document.getElementById(id),v=id=>g(id).value.trim(),reload=async(flash)=>{O.dist=await api("ownerDistricts",{code:O.code});O.flash=flash||"";O.err="";render()},
+  run=async(e,label,fn)=>{e.preventDefault();busy(e.submitter,label);try{await fn()}catch(er){O.err=er.message;render()}};
+  const nd=g("o-nd");if(nd)nd.onsubmit=e=>run(e,"Adding…",async()=>{await api("ownerDistrictCreate",{code:O.code,id:v("nd-id").toLowerCase(),name:v("nd-name")});await reload("District added.")});
+  const ns=g("o-ns");if(ns)ns.onsubmit=e=>run(e,"Adding…",async()=>{const r=await api("ownerSchoolCreate",{code:O.code,district:v("ns-d"),id:v("ns-id").toLowerCase(),name:v("ns-name")});
+    await reload(`<b>School added.</b> Give its first admin these, privately:<br>School code: <b>${esc(r.id)}</b><br>Setup key: <b style="font-family:monospace;font-size:1.1rem">${esc(r.setupKey)}</b><br><span class="muted">The setup key works once and is not shown again. Lost it? Delete the school and add it again.</span>`)});
+  const da=g("o-da");if(da)da.onsubmit=e=>run(e,"Saving…",async()=>{await api("ownerDistrictAdmin",{code:O.code,district:v("da-d"),name:v("da-name"),adminCode:v("da-code")});await reload("District admin saved. They sign in from Teacher login → Sign in to your district.")});
+  app.querySelectorAll("[data-oschool]").forEach(b=>b.onclick=async()=>{O.school=b.dataset.oschool;O.d=null;render();try{O.d=await api("ownerGet",{code:O.code,school:O.school});render()}catch(er){O.school=null;O.err=er.message;render()}});
+  app.querySelectorAll("[data-odel]").forEach(b=>b.onclick=async()=>{const id=b.dataset.odel,c=prompt(`This deletes every class, student and score in ${id}. It cannot be undone. Type DELETE ${id} to confirm.`);if(!c)return;
+    try{await api("ownerSchoolDelete",{code:O.code,id,confirm:c});await reload("School deleted.")}catch(er){O.err=er.message;render()}});
+  const ra=g("o-resall");if(ra)ra.onclick=async()=>{busy(ra,"Building…");try{const d=await api("ownerResearchAll",{code:O.code});const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:"application/json"}));a.download=`ptp-research-all-${d.made||"empty"}.json`;document.body.append(a);a.click();a.remove();g("o-ramsg").textContent=`Downloaded: ${d.schools.length} schools, no names.`}catch(er){g("o-ramsg").textContent=er.message}ra.disabled=false;ra.textContent="⬇ Download research export"}}
+
+/* ---------- district admins: every school in their district (multi-district sites) ---------- */
+function districtSignin(){
+  app.innerHTML=header(`<button class="ghost" id="back">Back</button>`,"District sign-in")+`<form class="card" id="dsf" style="max-width:480px"><h2>Sign in to your district</h2>
+   <p class="muted">For district leaders. Path to Proficiency gives you your district code and admin code.</p>
+   <label class="f">District code<input id="ds-d" required maxlength="24" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="cleveland-sd"></label>
+   <label class="f">Admin code<input id="ds-c" required type="password" inputmode="numeric" autocomplete="off"></label><button>Sign in</button>
+   <p class="err" role="alert">${esc(S.err)}</p></form>`;
+  document.getElementById("back").onclick=()=>{S.screen="schoolcode";S.err="";render()};
+  document.getElementById("dsf").onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Checking…");
+    try{const r=await api("districtLogin",{districtCode:document.getElementById("ds-d").value.trim().toLowerCase(),code:document.getElementById("ds-c").value.trim()});
+      S.da={token:r.token,name:r.name,district:r.district,data:null};S.err="";S.screen="districtHome";render();
+      S.da.data=await api("districtOverview",{token:r.token});render()}catch(er){S.err=er.message;render()}};
+}
+SCREENS.districtSignin=districtSignin;
+function districtHome(){const D=S.da;if(!D){S.screen="districtSignin";return render()}const d=D.data;
+  const sum=d?d.schools.reduce((t,s)=>{s.classes.forEach(c=>{t.st+=c.students;t.act+=c.active;t.n+=c.answers;t.ok+=c.accuracy==null?0:c.accuracy*c.answers/100;t.min+=c.minutes});return t},{st:0,act:0,n:0,ok:0,min:0}):null;
+  app.innerHTML=header(`<button class="ghost" id="ds-out">Sign out</button>`,`${esc(D.district.name)} · ${esc(D.name)}`)+(!d?`<div class="card"><p class="muted">Loading your schools…</p></div>`:`
+   <div class="card"><h2>${esc(D.district.name)}</h2><p class="muted">The last 7 days, since ${shortDate(d.since)}. Each school's teachers and students sign in to their own school.</p>
+    <div class="row" style="gap:8px"><span class="pill">${d.schools.length} school${d.schools.length===1?"":"s"}</span><span class="pill">${sum.st} students</span><span class="pill go">${sum.act} practiced this week</span><span class="pill">${sum.n} answers</span><span class="pill">${sum.n?Math.round(sum.ok/sum.n*100)+"% accuracy":"no answers yet"}</span><span class="pill">${sum.min} minutes</span></div></div>
+   ${d.schools.map(s=>`<div class="card"><div class="top"><h3 style="margin:0">${esc(s.name)}</h3>${s.ready?`<span class="muted small">${s.teachers} teacher${s.teachers===1?"":"s"} · ${s.classes.length} class${s.classes.length===1?"":"es"}</span>`:`<span class="pill gold">Not set up yet</span>`}</div>
+     ${s.classes.length?`<div class="tablewrap"><table class="roster"><thead><tr><th>Class</th><th>Teacher</th><th>Students</th><th>Practiced this week</th><th>Answers</th><th>Accuracy</th><th>Minutes</th></tr></thead><tbody>${s.classes.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.teacher)}</td><td>${c.students}</td><td>${c.active} of ${c.students}</td><td>${c.answers}</td><td>${c.accuracy==null?"—":c.accuracy+"%"}</td><td>${c.minutes}</td></tr>`).join("")}</tbody></table></div>`:s.ready?`<p class="muted">No classes yet.</p>`:""}</div>`).join("")}`);
+  document.getElementById("ds-out").onclick=()=>{S.da=null;S.screen="landing";render()};
+}
+SCREENS.districtHome=districtHome;
 
 /* ================= Sample school + guided tour (no login, nothing saved) =================
    A pretend school with made-up students. Their practice is simulated with the real question

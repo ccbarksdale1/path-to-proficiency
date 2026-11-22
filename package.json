@@ -6,8 +6,11 @@
     "@netlify/blobs": "^10.0.0"
   },
   "scripts": {
-    "test": "node tests/server.test.mjs && python3 tests/pages.test.py",
+    "test": "node tests/server.test.mjs && python3 tests/pages.test.py && python3 tests/multi.test.py",
     "test:server": "node tests/server.test.mjs",
-    "test:pages": "python3 tests/pages.test.py"
+    "test:pages": "python3 tests/pages.test.py",
+    "dev": "node tests/devserver.mjs 8790",
+    "dev:multi": "node tests/devserver.mjs 8790 --multi",
+    "test:multi": "python3 tests/multi.test.py"
   }
 }

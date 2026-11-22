@@ -28,3 +28,9 @@ Run `npm test` before every push.
 
 - `node tests/server.test.mjs`: every server action checked against a pretend in-memory store (no installs needed).
 - `python3 tests/pages.test.py`: a robot browser clicks through the sample school and the student demo (needs `pip install playwright` and `playwright install chromium`).
+- `python3 tests/multi.test.py`: the multi-district walk-through (owner, school setup key, teacher sign-in, district admin, single-school mode).
+- `npm run dev` or `npm run dev:multi`: a local copy of the site with the real server code and in-memory data (owner code `owner-dev`).
+
+## Multi-district mode (off until the switch-over)
+
+Set `MULTI_DISTRICT=on` in Netlify to turn it on. Each school then gets its own walled-off data store, grouped into districts in a small registry that holds no student data. The owner page (`/#owner`) creates districts, schools (with a one-time setup key for each school's first admin) and district admins. Teachers type their school code once per device; students still use only their class code. `HOME_SCHOOL` names the school whose admin reviews tutor applications and demo requests.
