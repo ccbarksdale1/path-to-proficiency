@@ -4502,7 +4502,7 @@ function topUp(sk,id,n=4){
   if(!pool.length)return;
   let guard=0;while(sk.queue.length<n&&guard++<50){const c=pool.filter(x=>!sk.queue.includes(x)),from=c.length?c:pool;sk.queue.push(from[Math.floor(Math.random()*from.length)])}
 }
-function newQ(){if(S.hand&&!S.demo)api("handLower",{}).catch(()=>{});S.help=null;S.helpClosed=null;S.wt=null;S.hand=false;S.lb=null;S.pf=null;S.ro=null;S.pit=null;S.evRes=null;S.rvKind=null;S.cnt=null;const cur=S.chkMode?null:curSkill(S.student),rv=(!S.demo||S.chkMode)&&pickReview(S.student),k=rv||cur;
+function newQ(){S.assisted=false;if(S.hand&&!S.demo)api("handLower",{}).catch(()=>{});S.help=null;S.helpClosed=null;S.wt=null;S.hand=false;S.lb=null;S.pf=null;S.ro=null;S.pit=null;S.evRes=null;S.rvKind=null;S.cnt=null;const cur=S.chkMode?null:curSkill(S.student),rv=(!S.demo||S.chkMode)&&pickReview(S.student),k=rv||cur;
   if(!k){S.chkMode=false;S.rvKind=null;S.screen="home";return false} // nothing left: check-ups finished, or the summit with nothing due
   const sk=S.student.prog.skills[k.id];S.rev=!!rv;S.rep=null;S.reopened=false;S.kwFade=false;confPick();
   if(rv){S.k=k.id;S.qid=(S.rvKind==="v"&&(evOf(sk).vn||0)>=1&&eaIdFor(k))||reviewQid(k); /* the second verify check-up is a Think deeper (DOK 3) question */S.q=viewQ(getQ(S.qid));S.step=step0(S.q);S.kwSkip=S.step===2;S.bare=S.step===2&&kwMode()!=="off";S.shownAt=Date.now();S.hl=new Set();S.sel=[];S.result=null;S.r=0;S.full=false;S.mastered=false;S.chat=null;stopPlay();return}
@@ -4630,7 +4630,8 @@ SCREENS.practice=practice;
 const LE=(en,es)=>S.lang==="es"?es:en;
 function wtSibling(){const sk=S.student.prog.skills[S.k];if(!sk)return null;topUp(sk,S.k);
   const id=(sk.queue||[]).find(x=>x!==S.qid&&x[0]!=="!"&&getQ(x)&&getQ(x).steps&&getQ(x).steps.length>1);return id?viewQ(getQ(id)):null}
-function helpOK(){return S.role==="student"&&!S.result&&S.step>=1&&!(S.rev&&S.rvKind)}
+function helpTried(){const p=S.student.prog,sk=p.skills[S.k];if(sk&&sk.redo===S.qid)return true;return (p.recent||[]).slice(-12).some(r=>r.k===S.k&&!r.ok)}
+function helpOK(){return S.role==="student"&&!S.result&&S.step>=1&&!(S.rev&&S.rvKind)&&(helpTried()||!!S.help)}
 function hlUnlock(lvl,ms){const qid=S.qid;setTimeout(()=>{if(S.help&&S.qid===qid&&S.help.lvl<lvl){S.help.lvl=lvl;if(S.screen==="practice"){const y=scrollY;render();scrollTo(0,y)}}},ms)}
 function helpHint(q){const st=q.steps||[];return st.length>=2?LE("Start here: ","Empieza así: ")+st[0].say:LE("Read the question again. What is it asking you to find?","Lee la pregunta otra vez. ¿Qué te pide encontrar?")}
 function helpCard(q){if(!helpOK())return"";const H=S.help;
@@ -4656,15 +4657,15 @@ function wireHelp(q){const g=id=>document.getElementById(id),re=()=>{const y=scr
   const o=g("hl-open");if(o)o.onclick=()=>{stopPlay();S.help={lvl:1,used:{},at:Date.now()};S.wt=null;re()};
   if(!S.help)return;
   const x=g("hl-x");if(x)x.onclick=()=>{stopPlay();if(S.wt)S.wt.playing=false;S.helpClosed=S.help;S.help=null;re()};
-  const go=g("wt-go");if(go)go.onclick=()=>{stopPlay();const sq=wtSibling();S.wt={q:sq,r:0,playing:!!sq};if(!sq){S.help.used[1]=1;S.help.lvl=Math.max(S.help.lvl,2);re();return}hlUnlock(2,20000);S.playing=true;wtPlay()};
+  const go=g("wt-go");if(go)go.onclick=()=>{stopPlay();S.help.used[1]=1;const sq=wtSibling();S.wt={q:sq,r:0,playing:!!sq};if(!sq){S.help.used[1]=1;S.help.lvl=Math.max(S.help.lvl,2);re();return}hlUnlock(2,20000);S.playing=true;wtPlay()};
   const pl=g("wt-play");if(pl)pl.onclick=()=>{const W=S.wt;if(W.playing){W.playing=false;stopPlay();re();return}if(W.r>=W.q.steps.length-1)W.r=0;W.playing=true;S.playing=true;wtPlay()};
   const hb=g("hl-hint");if(hb)hb.onclick=()=>{stopPlay();if(S.wt)S.wt.playing=false;S.help.used[2]=1;if(tutorOn())hlUnlock(3,8000);else hlUnlock(4,8000);re();if(TTS)speak(helpHint(q))};
   const hs=g("hl-say");if(hs)hs.onclick=()=>{stopPlay();speak(helpHint(q))};
   const sc=g("hl-scout");if(sc)sc.onclick=()=>{stopPlay();S.help.used[3]=1;S.chat={open:true,msgs:[],busy:false};re();document.getElementById("chat-in")?.focus()};
-  const hd=g("hl-hand");if(hd)hd.onclick=async()=>{busy(hd,"…");const k=SKILLS.find(z=>z.id===S.k)||{},U=S.help.used,tried=[U[1]&&"watched it solved",U[2]&&"used the hint",U[3]&&"asked Scout"].filter(Boolean);
-    try{if(!S.demo)await api("handRaise",{std:k.std||"",kname:k.name||"",tried});S.help.used[4]=1;S.hand=true;re()}catch(e){hd.disabled=false;hd.textContent=e.message}};
+  const hd=g("hl-hand");if(hd)hd.onclick=async()=>{const cd=(SB&&SB.cls&&+SB.cls.handCool||0)*60000,last=+(sessionStorage.getItem("ptp-hand-at")||0);if(cd&&Date.now()-last<cd){hd.textContent="⏳ "+LE(`You can ask again in ${Math.ceil((cd-(Date.now()-last))/60000)} min. Keep trying!`,`Puedes preguntar otra vez en ${Math.ceil((cd-(Date.now()-last))/60000)} min. ¡Sigue intentando!`);hd.disabled=true;return}busy(hd,"…");const k=SKILLS.find(z=>z.id===S.k)||{},U=S.help.used,tried=[U[1]&&"watched it solved",U[2]&&"used the hint",U[3]&&"asked Scout"].filter(Boolean);
+    try{if(!S.demo)await api("handRaise",{std:k.std||"",kname:k.name||"",tried});S.help.used[4]=1;S.hand=true;try{sessionStorage.setItem("ptp-hand-at",Date.now())}catch(e){}re()}catch(e){hd.disabled=false;hd.textContent=e.message}};
 }
-function helpRecord(p){const H=S.help||S.helpClosed;if(!H||!Object.keys(H.used).length)return;const d=dayKey(),h=(p.help3=p.help3||{}),x=h[d]||(h[d]={stuck:0,self:0,teacher:0});x.stuck++;S.hand?x.teacher++:x.self++;
+function helpRecord(p){const H=S.help||S.helpClosed;if(!H||!Object.keys(H.used).length)return;const rl=p.recent&&p.recent[p.recent.length-1];if(rl)rl.h=1;const d=dayKey(),h=(p.help3=p.help3||{}),x=h[d]||(h[d]={stuck:0,self:0,teacher:0});x.stuck++;S.hand?x.teacher++:x.self++;
   const ks=Object.keys(h).sort();if(ks.length>60)ks.slice(0,ks.length-60).forEach(k=>delete h[k]);
   if(S.hand&&!S.demo)api("handLower",{}).catch(()=>{});S.hand=false}
 /* teacher: live Hands up list (checks every 30 seconds, only while this page is open and on screen) */
@@ -4675,6 +4676,8 @@ function handsCard(){if((S.demo||DEMO_T)&&(!S.hands||S.hands.cid!==CUR.cls.id)){
   if((S.demo||DEMO_T)&&!self&&!tch){self=37;tch=6} /* sample school numbers */
   return `<div class="card" id="hands"><div class="top"><h2 style="margin:0">✋ Hands up ${L.length?`<span class="pill gold">${L.length}</span>`:""}</h2><span class="muted small">${S.demo||DEMO_T?"Sample school":"Updates every 30 seconds"}</span></div>
    ${L.length?`<ul class="hands">${L.map(h=>`<li><b>${esc(h.name)}</b> · ${esc(h.kname||h.std)} <span class="muted small">· ${Math.max(1,Math.round((Date.now()-h.at)/60000))} min · ${h.tried&&h.tried.length?esc(h.tried.join(", ")):"went straight to you"}</span> <button class="ghost small" data-hdone="${esc(h.sid)}">Done</button></li>`).join("")}</ul>`:`<p class="muted" style="margin:.3rem 0">No hands up. Students try “3 Before Me” first: watch it solved, a hint, then Scout.</p>`}
+   ${(()=>{const lean=CUR.students.map(s=>{const r=(s.prog.recent||[]).slice(-10);const h=r.filter(x=>x.h).length;let asks=0;Object.entries(s.prog.help3||{}).forEach(([d,x])=>{if(new Date(d+"T12:00:00").getTime()>=wk)asks+=x.teacher||0});return {s,h,n:r.length,asks}}).filter(x=>x.n>=6&&x.h>x.n/2);
+     return lean.length?`<p class="small" style="margin:.4rem 0 0"><b>Leans on help:</b> ${lean.map(x=>`${esc(x.s.name)} (help on ${x.h} of last ${x.n}${x.asks?`, asked you ${x.asks}×`:""})`).join(", ")}. <span class="muted">They may need a quick small group with you.</span></p>`:""})()}
    <p class="small" style="margin:.4rem 0 0"><b>Hands saved this week:</b> ${self} time${self===1?"":"s"} students got unstuck on their own · ${tch} asked you</p></div>`}
 async function pollHands(){if(S.tt!=="class"||!CUR||(S.tab||"class")!=="class"||document.visibilityState!=="visible"||!document.getElementById("hands")||S.demo||DEMO_T)return;
   try{const r=await api("handList",{classId:CUR.cls.id});const old=JSON.stringify(S.hands&&S.hands.list);S.hands={cid:CUR.cls.id,list:r.list};
@@ -4702,7 +4705,7 @@ function grade(q){
     (p.miss=p.miss||[]).push({q:S.qid,k:k.id,p:pick,t:Date.now()});if(p.miss.length>80)p.miss.splice(0,p.miss.length-80)}
   if(S.rev){gradeReview(q,ok);if(ok)p.stars++;badgeTrack(p,k,sk,ok,false);chirpTick(ok);save();render();return}
   if(sk.queue[0]===S.qid)sk.queue.shift();
-  S.fixed=false;if(ok){sk.streak++;p.stars++;if(sk.redo===S.qid){S.fixed=true;delete sk.redo}}
+  S.fixed=false;const HU=(S.help||S.helpClosed||{}).used||{};S.assisted=ok&&!!(HU[1]||HU[2]);if(ok){if(!S.assisted)sk.streak++;p.stars++;if(sk.redo===S.qid){S.fixed=true;delete sk.redo}}
   else{sk.streak=Math.max(0,(sk.streak||0)-2);sk.redo=S.qid;topUp(sk,k.id,3);sk.queue.splice(3,0,S.qid)} /* a miss costs 2 stars, not all of them; the missed question comes back as a redemption */ // comes back after 3 other questions, with the choices in a new order
   S.mastered=ok&&sk.streak>=MAST();
   if(S.mastered){sk.status="done";sk.doneAt=Date.now();delete sk.reopen;p.stars+=5;award(p,"trail");if(!curSkill(s))award(p,"summit")} // counts right away, even if they leave this page
@@ -4728,7 +4731,7 @@ function feedback(q){
   if(S.rev&&S.result==="right") return `<div class="fb go"><p style="display:flex;align-items:center"><span class="burst" aria-hidden="true"></span><b>${t(S.evRes==="verified"?"Verified! You showed you can do this on your own.":S.evRes==="retained"?"You still know it weeks later. That’s locked in!":S.evRes==="progress"?"Right, on your own! One more check-up on this one to verify it.":"Yes! You still remember this one.")}</b>&nbsp;+1 ★</p>
      ${S.full?stepsPlayer(q):`<button class="ghost small" id="see" style="align-self:flex-start">${t("See the breakdown")}</button>`}<button id="next">${t("Next question")}</button></div>`;
   if(S.result==="right") return `<div class="fb go"><p style="display:flex;align-items:center"><span class="burst" aria-hidden="true"></span><b>${t("Yes! That’s right.")}</b>&nbsp;+1 ★</p>
-     <p class="note" style="color:color-mix(in srgb,var(--go) 72%,var(--ink))">${S.fixed?"<b>You fixed it! You won a star back.</b> ":""}${S.mastered?`That makes ${MASTERY} stars. You reached the checkpoint!`:`${CHEERS[(sk.streak+Object.keys(S.student.prog.log).length)%CHEERS.length]} ${MASTERY-sk.streak} more ★ to reach the checkpoint.`}</p>${S.mastered&&gameOn()?`<p class="note" style="color:color-mix(in srgb,var(--go) 72%,var(--ink))">🪙 ${t("You earned a game token! Spend it in the Game Arcade.")}</p>`:""}${nb}${confNote(true)}
+     <p class="note" style="color:color-mix(in srgb,var(--go) 72%,var(--ink))">${S.assisted?`<b>${LE("Nice work using your help!","¡Buen trabajo usando tu ayuda!")}</b> ${LE("Now solve the next one on your own to move toward mastery.","Ahora resuelve la siguiente tú solo/a para avanzar al dominio.")}<br>`:""}${S.fixed?"<b>You fixed it! You won a star back.</b> ":""}${S.mastered?`That makes ${MASTERY} stars. You reached the checkpoint!`:`${CHEERS[(sk.streak+Object.keys(S.student.prog.log).length)%CHEERS.length]} ${MASTERY-sk.streak} more ★ to reach the checkpoint.`}</p>${S.mastered&&gameOn()?`<p class="note" style="color:color-mix(in srgb,var(--go) 72%,var(--ink))">🪙 ${t("You earned a game token! Spend it in the Game Arcade.")}</p>`:""}${nb}${confNote(true)}
      ${S.full?stepsPlayer(q):`<button class="ghost small" id="see" style="align-self:flex-start">${t("See the breakdown")}</button>`}
      <button id="next">${S.mastered?"See my badge":t("Next question")}</button></div>`;
   return `${scout(t(S.fast?"Whoa, that was fast! Did you work it out, or guess? Let’s slow down and learn from this one.":"Mistakes help us climb. Let’s learn from this one."))}
@@ -5144,6 +5147,7 @@ function tSettings(){
     <label class="f chk"><span><input type="checkbox" id="c-music" ${c.music!==false?"checked":""}> Students can turn on calm background music (off until a student picks a track)</span></label>
     <label class="f chk"><span><input type="checkbox" id="c-dokmix" ${c.dokmix!==false?"checked":""}> Match the state test mix: MAAP is about 75% DOK 2 and 25% DOK 1 and 3, so about 1 in 8 practice questions (and 1 question on 5-question exit tickets) is a “Think deeper” (DOK 3) question. When off, DOK 3 shows up only in check-ups.</span></label>
      <label class="f chk"><span><input type="checkbox" id="c-buddy" ${c.buddy!==false?"checked":""}> 🦝 Find Buddy’s Mistake: about 1 in 12 practice questions shows Buddy’s wrong answer (a real common mistake), and students find the right one</span></label>
+    <label class="f">✋ Hand cooldown (3 Before Me)<select id="c-hcool"><option value="0" ${!+c.handCool?"selected":""}>Off: students can ask again right away</option><option value="3" ${+c.handCool===3?"selected":""}>3 minutes between asks</option><option value="5" ${+c.handCool===5?"selected":""}>5 minutes between asks</option><option value="10" ${+c.handCool===10?"selected":""}>10 minutes between asks</option></select></label>
     <label class="f chk"><span><input type="checkbox" id="c-chal" ${c.chal!==false?"checked":""}> Challenge zone: once a standard is verified, students can try next-grade questions that build on it</span></label>
     <label class="f chk"><span><input type="checkbox" id="c-gofur" ${c.gofur!==false?"checked":""}> Go Further: after the summit, students can start the next grade’s standards</span></label>
     <label class="f chk"><span><input type="checkbox" id="c-flu" ${c.flu?.on!==false?"checked":""}> Fluency mode on</span></label>
@@ -5168,7 +5172,7 @@ async function saveClass(patch){const c=CUR.cls;const d=await api("classSave",{i
 function wireSettings(){
   const c=CUR.cls;
   document.getElementById("cs").onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Saving…");
-    const patch={name:document.getElementById("c-name").value,testId:document.getElementById("c-test").value,goal:+document.getElementById("c-goal").value,mastery:+document.getElementById("c-mast").value,tutor:document.getElementById("c-tutor").checked,chirp:document.getElementById("c-chirp").checked,music:document.getElementById("c-music").checked,chal:document.getElementById("c-chal").checked,dokmix:document.getElementById("c-dokmix").checked,buddy:document.getElementById("c-buddy").checked,gofur:document.getElementById("c-gofur").checked,kw:document.getElementById("c-kw").value,
+    const patch={name:document.getElementById("c-name").value,testId:document.getElementById("c-test").value,goal:+document.getElementById("c-goal").value,mastery:+document.getElementById("c-mast").value,tutor:document.getElementById("c-tutor").checked,chirp:document.getElementById("c-chirp").checked,music:document.getElementById("c-music").checked,chal:document.getElementById("c-chal").checked,dokmix:document.getElementById("c-dokmix").checked,buddy:document.getElementById("c-buddy").checked,handCool:+document.getElementById("c-hcool").value,gofur:document.getElementById("c-gofur").checked,kw:document.getElementById("c-kw").value,
       flu:{on:document.getElementById("c-flu").checked,n:+document.getElementById("c-fn").value,pass:+document.getElementById("c-fp").value,secs:Math.round(+document.getElementById("c-fs").value*60)},games:{on:document.getElementById("c-games").checked,mins:+document.getElementById("c-gm").value},ip:{on:document.getElementById("c-ip").checked,cut:+document.getElementById("c-ipc").value}};
     const ct=document.getElementById("c-t");if(ct)patch.teacherId=ct.value;
     try{const testChanged=patch.testId!==c.testId;await saveClass(patch);await openClass(c.id,"settings");flash("cs-msg",testChanged?`Saved. Students now practice ${testName(patch.testId)}.`:"Saved.");render()}

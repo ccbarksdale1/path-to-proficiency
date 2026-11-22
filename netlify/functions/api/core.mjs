@@ -80,7 +80,7 @@ export function makeApi({ store, env }) {
   /* ---------- helpers ---------- */
   const codeHash = (school, code) => sha(school.salt + ":" + code);
   const pubTeacher = t => ({ id: t.id, name: t.name, admin: !!t.admin });
-  const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false, music: c.music !== false, chal: c.chal !== false, gofur: c.gofur !== false, dokmix: c.dokmix !== false, buddy: c.buddy !== false, home: c.home || null, kw: ["on", "optional", "off"].includes(c.kw) ? c.kw : "auto",
+  const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false, music: c.music !== false, chal: c.chal !== false, gofur: c.gofur !== false, dokmix: c.dokmix !== false, buddy: c.buddy !== false, handCool: c.handCool || 0, home: c.home || null, kw: ["on", "optional", "off"].includes(c.kw) ? c.kw : "auto",
     flu: { on: c.flu?.on !== false, secs: c.flu?.secs || 180, pass: c.flu?.pass || 28, n: c.flu?.n || 30 },
     games: { on: c.games?.on !== false, mins: c.games?.mins || 3 },
     ip: { on: c.ip?.on !== false, cut: c.ip?.cut || 60 } });
@@ -316,6 +316,7 @@ How you teach:
       gofur: b.gofur === undefined ? c.gofur !== false : !!b.gofur, // Go Further: next grade after the summit
       dokmix: b.dokmix === undefined ? c.dokmix !== false : !!b.dokmix, // match the state test DOK mix
       buddy: b.buddy === undefined ? c.buddy !== false : !!b.buddy, // Find Buddy's Mistake in practice
+      handCool: b.handCool === undefined ? (c.handCool || 0) : [0, 3, 5, 10].includes(+b.handCool) ? +b.handCool : 0, // 3 Before Me: minutes between asks
       kw: ["auto", "on", "optional", "off"].includes(b.kw) ? b.kw : (c.kw || "auto"),
     });
     if (b.flu && typeof b.flu === "object") {
@@ -464,12 +465,18 @@ How you teach:
   A.handRaise = async b => {
     const { cls, st } = await studentCtx(b.token);
     const tried = (Array.isArray(b.tried) ? b.tried : []).slice(0, 3).map(x => str(x, 30));
-    await mutJ(`hands/${cls.id}`, v => ({ list: [...freshHands(v && v.list).filter(h => h.sid !== st.id), { sid: st.id, name: st.name, std: str(b.std, 12), kname: str(b.kname, 60), tried, at: Date.now() }].slice(-60) }));
+    const cool = (+cls.handCool || 0) * 60000;
+    await mutJ(`hands/${cls.id}`, v => {
+      const last = (v && v.last) || {};
+      if (cool && last[st.id] && Date.now() - last[st.id] < cool) bad(`You can ask again in ${Math.ceil((cool - (Date.now() - last[st.id])) / 60000)} min. Keep trying!`, 429);
+      last[st.id] = Date.now(); Object.keys(last).forEach(k => { if (Date.now() - last[k] > 864e5) delete last[k] });
+      return { list: [...freshHands(v && v.list).filter(h => h.sid !== st.id), { sid: st.id, name: st.name, std: str(b.std, 12), kname: str(b.kname, 60), tried, at: Date.now() }].slice(-60), last };
+    });
     return { ok: true };
   };
   A.handLower = async b => {
     const { cls, st } = await studentCtx(b.token);
-    await mutJ(`hands/${cls.id}`, v => v && v.list && v.list.some(h => h.sid === st.id) ? { list: freshHands(v.list).filter(h => h.sid !== st.id) } : undefined);
+    await mutJ(`hands/${cls.id}`, v => v && v.list && v.list.some(h => h.sid === st.id) ? { ...v, list: freshHands(v.list).filter(h => h.sid !== st.id) } : undefined);
     return { ok: true };
   };
   A.handList = async b => {
@@ -478,7 +485,7 @@ How you teach:
   };
   A.handDone = async b => {
     const ctx = await teacherCtx(b.token), c = myClass(ctx, b.classId), sid = str(b.sid, 20);
-    const v = await mutJ(`hands/${c.id}`, v => ({ list: freshHands(v && v.list).filter(h => h.sid !== sid) }));
+    const v = await mutJ(`hands/${c.id}`, v => ({ ...(v || {}), list: freshHands(v && v.list).filter(h => h.sid !== sid) }));
     return { list: v.list };
   };
   A.gameBonus = async b => {
