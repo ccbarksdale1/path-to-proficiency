@@ -16,7 +16,9 @@ const joinCode = () => Array.from(crypto.randomBytes(6), b => JOIN_CHARS[b % JOI
 const today = () => new Date().toISOString().slice(0, 10);
 const str = (v, max = 200) => String(v ?? "").trim().slice(0, max);
 
-export function makeApi({ store, env }) {
+/* district + hooks are set only when the multi-district router runs this code for one district's store (see router.mjs).
+   With them unset, everything works exactly as the single-school site always has. */
+export function makeApi({ store, env, district = null, hooks = null }) {
   const getJ = async k => (await store.get(k, { type: "json" })) ?? null;
   const setJ = (k, v) => store.setJSON(k, v);
   const del = k => store.delete(k);
@@ -45,7 +47,7 @@ export function makeApi({ store, env }) {
 
   /* ---------- sessions ---------- */
   const sign = (school, payload) => {
-    const body = Buffer.from(JSON.stringify({ ...payload, exp: Date.now() + 1000 * 60 * 60 * 12 })).toString("base64url");
+    const body = Buffer.from(JSON.stringify({ ...payload, ...(district ? { d: district } : {}), exp: Date.now() + 1000 * 60 * 60 * 12 })).toString("base64url");
     const mac = crypto.createHmac("sha256", school.secret).update(body).digest("base64url");
     return body + "." + mac;
   };
@@ -55,7 +57,7 @@ export function makeApi({ store, env }) {
     if (!body || !mac) return null;
     const want = crypto.createHmac("sha256", school.secret).update(body).digest("base64url");
     if (want.length !== mac.length || !crypto.timingSafeEqual(Buffer.from(want), Buffer.from(mac))) return null;
-    try { const p = JSON.parse(Buffer.from(body, "base64url").toString()); return p.exp > Date.now() ? p : null } catch { return null }
+    try { const p = JSON.parse(Buffer.from(body, "base64url").toString()); if (district && p.d !== district) return null; return p.exp > Date.now() ? p : null } catch { return null }
   };
 
   /* ---------- sign-in lockout: 10 wrong codes in 15 minutes locks that connection for 15 minutes ---------- */
@@ -300,7 +302,7 @@ How you teach:
     const testId = b.testId || c?.testId || (c ? "a1" : "std3"); // new classes start on Grade 3 standards, not the older benchmark
     if (!builtinIds.has(testId) && !(school.tests || []).some(t => t.id === testId)) bad("That test was not found.");
     if (!c) {
-      let j; do { j = joinCode() } while (school.classes.some(x => x.join === j));
+      let j; do { j = joinCode() } while (school.classes.some(x => x.join === j) || (hooks && !(await hooks.claimJoin(j)))); // class codes are unique across every district
       c = { id: "c" + rid(8), join: j, created: Date.now(), videos: {} };
       school.classes.push(c);
       await setJ("roster/" + c.id, { students: [] });
@@ -339,6 +341,7 @@ How you teach:
     for (const k of await listKeys("prog/" + c.id + "/")) await del(k);
     await del("roster/" + c.id); await del("hands/" + c.id);
     await del("plan/" + c.id).catch(() => {});
+    if (hooks && c.join) await hooks.releaseJoin(c.join);
     return boot(ctx);
   };
 
@@ -811,6 +814,7 @@ How you teach:
     const keep = new Set(Object.keys(d.data));
     for (const k of await listKeys("")) if (!/^(backup|fail|tutorfile|tapply)\//.test(k) && !keep.has(k)) await del(k);
     for (const [k, v] of Object.entries(d.data)) await setJ(k, v);
+    if (hooks) for (const c of d.data.school.classes || []) if (c.join) await hooks.claimJoin(c.join).catch(() => false);
     return { ok: true, restored: keep.size };
   };
   async function collect() {
