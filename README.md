@@ -34,3 +34,10 @@ Run `npm test` before every push.
 ## Multi-district mode (off until the switch-over)
 
 Set `MULTI_DISTRICT=on` in Netlify to turn it on. Each school then gets its own walled-off data store, grouped into districts in a small registry that holds no student data. The owner page (`/#owner`) creates districts, schools (with a one-time setup key for each school's first admin) and district admins. Teachers type their school code once per device; students still use only their class code. `HOME_SCHOOL` names the school whose admin reviews tutor applications and demo requests.
+
+### Switching the live site over (stage 4)
+
+1. Owner page (`/#owner`) → **Get ready for districts** → **Check (dry run)**. Writes nothing.
+2. **Copy now**. Copies today's school into its own store (`rh-bearden`) and adds the district, school and class codes to the registry. The old store is only read. Re-run any time before the switch; the card must say "The copy matches exactly."
+3. On a weekend or break: run **Copy now** one last time, then set `MULTI_DISTRICT=on` and `HOME_SCHOOL=rh-bearden` in Netlify and redeploy. Teachers and students sign in once more (teachers type the school code once per device).
+4. Undo: remove `MULTI_DISTRICT` and redeploy. The old store was never changed, so the site is exactly as it was before the switch (minus any work done after it). Keep the old store for 30 days.

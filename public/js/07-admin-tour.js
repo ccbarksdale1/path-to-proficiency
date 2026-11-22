@@ -295,7 +295,8 @@ function owner(){
      <label class="f" style="grid-column:1/-1">Note (invoice #, contact)<input id="o-n" maxlength="300" value="${esc(O.d.license.note||"")}"></label></div>
      <div class="row"><button type="submit">Save license</button><span class="muted" id="o-msg" role="status"></span></div></form>
    <div class="card" style="max-width:720px"><h2>🔒 Research export (names removed)</h2><p class="muted">A file for improving Path to Proficiency. Students and classes get random IDs that change with every export, so they can’t be matched back to people or to earlier files. Removed: names, sign-in codes, teacher and class names, accommodations, family updates, and everything students typed (Scout chats). Dates are rounded to the week. Classes under 5 students are grouped together.</p>
-    <div class="row"><button class="ghost" id="o-res">⬇ Download research export</button><span class="muted" id="o-rmsg" role="status"></span></div></div>`
+    <div class="row"><button class="ghost" id="o-res">⬇ Download research export</button><span class="muted" id="o-rmsg" role="status"></span></div></div>
+   ${O.multi?"":ownerMoveCard(O)}`
   :`<form class="card" id="o-in" style="max-width:460px"><h2>Owner sign-in</h2><p class="muted">Enter the OWNER_CODE you set in Netlify. Only the site owner can change license limits.</p>
      <label class="f">Owner code<input id="o-code" type="password" autocomplete="off" required></label><button type="submit">Sign in</button><p class="err" id="o-err" role="alert">${esc(O.err||"")}</p></form>`}`;
   document.getElementById("o-home").onclick=()=>{S.own=null;history.replaceState(null,"","/");S.screen="landing";render()};
@@ -305,11 +306,31 @@ function owner(){
     try{O.dist=await api("ownerDistricts",{code});O.multi=true;O.code=code;O.err="";render()}
     catch(er){if(/Unknown action/.test(er.message)){try{O.d=await api("ownerGet",{code});O.code=code;O.err="";render()}catch(e2){O.err=e2.message;render()}}else{O.err=er.message;render()}}};
   const orx=document.getElementById("o-res");if(orx)orx.onclick=async()=>{busy(orx,"Building…");try{const d=await api("ownerResearch",{code:O.code,...(O.school?{school:O.school}:{})});const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:"application/json"}));a.download=`ptp-research-${d.made}.json`;document.body.append(a);a.click();a.remove();document.getElementById("o-rmsg").textContent=`Downloaded: ${d.classes.reduce((t,c)=>t+c.students.length,0)} students, no names.`}catch(er){document.getElementById("o-rmsg").textContent=er.message}orx.disabled=false;orx.textContent="⬇ Download research export"};
+  wireOwnerMove(O);
   const fs=document.getElementById("o-set");if(fs)fs.onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Saving…");
     try{await api("ownerSet",{code:O.code,...(O.school?{school:O.school}:{}),license:{plan:document.getElementById("o-plan").value,teachers:+document.getElementById("o-t").value,students:+document.getElementById("o-s").value,expires:document.getElementById("o-e").value,note:document.getElementById("o-n").value}});
       O.d=await api("ownerGet",{code:O.code,...(O.school?{school:O.school}:{})});render();document.getElementById("o-msg").textContent="Saved."}catch(er){document.getElementById("o-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save license"}};
 }
 SCREENS.owner=owner;
+
+/* ---------- stage 4: copy this one-school site into its own school store, ready for the multi-district switch ----------
+   The old data is only read, never changed. "Check" writes nothing. "Copy now" can be run again any time before the switch. */
+function ownerMoveCard(O){const M=O.move||(O.move={d:"Cleveland School District",did:"cleveland-sd",s:O.d.school||"",sid:"rh-bearden"}),r=M.r;
+  const facts=f=>`${f.teachers} teachers · ${f.classes} classes · ${f.students} students · ${f.keys} saved items`;
+  return `<div class="card" style="max-width:720px"><h2>🏫 Get ready for districts</h2><p class="muted">Copies this school into its own walled-off space for the multi-district switch. Your current data is only read, never changed, and the live site keeps running as it is. <b>Check</b> writes nothing. <b>Copy now</b> can be run again any time before the switch to bring the copy up to date.</p>
+   <div class="grid"><label class="f">District name<input id="mv-d" maxlength="100" value="${esc(M.d)}"></label><label class="f">District code<input id="mv-did" maxlength="24" value="${esc(M.did)}"></label>
+   <label class="f">School name<input id="mv-s" maxlength="100" value="${esc(M.s)}"></label><label class="f">School code (teachers type this)<input id="mv-sid" maxlength="24" value="${esc(M.sid)}"></label></div>
+   <div class="row"><button class="ghost" id="mv-check">Check (dry run)</button><button id="mv-go">Copy now</button><span class="muted" id="mv-msg" role="status">${esc(M.msg||"")}</span></div>
+   ${r?`<div class="card" style="margin-top:.6rem;border:2px solid ${r.same?"var(--go)":"var(--gold, #e0a800)"}"><p><b>${r.same?"✅ The copy matches exactly.":r.dryRun?"Not copied yet, or out of date.":"⚠ The copy does not match yet."}</b>${r.dryRun?"":` Copied ${r.copied}, removed ${r.removed}.`}</p>
+     <p class="small">Now: ${facts(r.from)}<br>Copy: ${facts(r.to)}</p>
+     ${r.joinConflicts.length?`<p class="err">Class codes already used by another school: ${r.joinConflicts.map(esc).join(", ")}</p>`:""}
+     ${!r.same&&r.differences.length?`<details><summary class="small">What differs (first ${r.differences.length})</summary><p class="small muted">${r.differences.map(esc).join("<br>")}</p></details>`:""}</div>`:""}</div>`}
+function wireOwnerMove(O){const g=id=>document.getElementById(id);if(!g("mv-go"))return;
+  const go=async(btn,dryRun)=>{const M=O.move;M.d=g("mv-d").value.trim();M.did=g("mv-did").value.trim().toLowerCase();M.s=g("mv-s").value.trim();M.sid=g("mv-sid").value.trim().toLowerCase();
+    if(!dryRun&&!confirm(`Copy this school into ${M.sid} (district ${M.did})? Your current data is not changed.`))return;
+    busy(btn,dryRun?"Checking…":"Copying…");
+    try{M.r=await api("ownerMove",{code:O.code,districtId:M.did,districtName:M.d,schoolId:M.sid,schoolName:M.s,dryRun});M.msg=""}catch(er){M.msg=er.message}render()};
+  g("mv-check").onclick=()=>go(g("mv-check"),true);g("mv-go").onclick=()=>go(g("mv-go"),false)}
 
 /* ---------- owner dashboard on a multi-district site: districts, schools, setup keys, district admins ---------- */
 function ownerMulti(O){const D=O.dist.districts||[];

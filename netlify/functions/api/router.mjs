@@ -32,12 +32,12 @@ export function tokenTenant(token) {
 export function makeRouter({ getStore, env }) {
   const multi = env.MULTI_DISTRICT === "on";
   const single = () => makeApi({ store: getStore("p2p"), env });
-  if (!multi) return { multi, handle: (req, ip) => single()(req, ip), snapshots: async () => [await single().snapshot()] };
 
-  const reg = getStore("ptp-registry");
-  const getR = async k => (await reg.get(k, { type: "json" })) ?? null;
-  const setR = (k, v, o) => reg.setJSON(k, v, o);
-  const listR = async prefix => ((await reg.list({ prefix })).blobs || []).map(b => b.key);
+  let _reg = null; // opened only when needed, so a single-school site never touches the registry
+  const R = () => (_reg ||= getStore("ptp-registry"));
+  const getR = async k => (await R().get(k, { type: "json" })) ?? null;
+  const setR = (k, v, o) => R().setJSON(k, v, o);
+  const listR = async prefix => ((await R().list({ prefix })).blobs || []).map(b => b.key);
   const allR = async prefix => { const out = []; for (const k of await listR(prefix)) { const v = await getR(k); if (v) out.push(v) } return out };
   const schoolRec = async id => (ID.test(id || "") ? await getR("school/" + id) : null);
   const schoolStore = id => getStore(schoolStoreName(id));
@@ -48,7 +48,7 @@ export function makeRouter({ getStore, env }) {
       if (r && r.modified === false) { const cur = await getR(k); return !!cur && cur.d === id }
       return true;
     },
-    releaseJoin: async code => { const cur = await getR("join/" + code); if (cur && cur.d === id) await reg.delete("join/" + code) },
+    releaseJoin: async code => { const cur = await getR("join/" + code); if (cur && cur.d === id) await R().delete("join/" + code) },
   });
   const apiFor = id => makeApi({ store: schoolStore(id), env, tenant: id, hooks: hooksFor(id) });
 
@@ -56,7 +56,7 @@ export function makeRouter({ getStore, env }) {
   async function locked(scope, ip) {
     const k = `fail/${scope}-` + sha(scope + ip).slice(0, 24), f = (await getR(k)) || { n: 0, at: 0 };
     if (f.n >= 8 && Date.now() - f.at < 15 * 60 * 1000) no(429, "Too many tries. Wait 15 minutes.");
-    return { miss: () => setR(k, { n: f.n + 1, at: Date.now() }), clear: () => f.n ? reg.delete(k) : null };
+    return { miss: () => setR(k, { n: f.n + 1, at: Date.now() }), clear: () => f.n ? R().delete(k) : null };
   }
   async function regSecret() {
     let s = await getR("secret");
@@ -102,7 +102,7 @@ export function makeRouter({ getStore, env }) {
       const id = str(b.id, 24), d = await getR("district/" + id);
       if (!d) no(404, "That district was not found.");
       if ((await allR("school/")).some(s => s.district === id)) no(400, "Delete or move its schools first.");
-      await reg.delete("district/" + id);
+      await R().delete("district/" + id);
       return { ok: true };
     },
     async ownerDistrictAdmin(b) { // add a district admin, or reset one's code (matched by name)
@@ -132,9 +132,9 @@ export function makeRouter({ getStore, env }) {
       if (str(b.confirm, 40) !== "DELETE " + id) no(400, `Type DELETE ${id} to confirm.`);
       const st = schoolStore(id);
       for (const k of ((await st.list()).blobs || []).map(x => x.key)) await st.delete(k);
-      for (const k of await listR("join/")) { const j = await getR(k); if (j && j.d === id) await reg.delete(k) }
-      for (const k of await listR("host/")) { const h = await getR(k); if (h && h.d === id) await reg.delete(k) }
-      await reg.delete("school/" + id);
+      for (const k of await listR("join/")) { const j = await getR(k); if (j && j.d === id) await R().delete(k) }
+      for (const k of await listR("host/")) { const h = await getR(k); if (h && h.d === id) await R().delete(k) }
+      await R().delete("school/" + id);
       return { ok: true };
     },
     async ownerResearchAll(b, ip) {
@@ -188,6 +188,60 @@ export function makeRouter({ getStore, env }) {
     },
   };
 
+  /* ---------- moving today's one-school site into its own school store (stage 4) ----------
+     The old "p2p" store is only ever READ here, so turning MULTI_DISTRICT back off is always a full undo.
+     Before the switch (MULTI_DISTRICT off) the old store is the live one: the move can run as many times as needed
+     and each run makes the new store an exact copy again. After the switch the new store is live, so the move
+     only reports (dry run) or fills a still-empty school. */
+  const SKIP = /^fail\//; // sign-in lockout counters stay behind
+  async function storeFacts(st) {
+    const keys = ((await st.list()).blobs || []).map(b => b.key).filter(k => !SKIP.test(k)).sort();
+    const school = (await st.get("school", { type: "json" })) ?? null;
+    let students = 0;
+    for (const k of keys.filter(k => k.startsWith("roster/"))) students += (((await st.get(k, { type: "json" })) ?? {}).students || []).filter(x => !x.sample).length;
+    return { keys, school, facts: { keys: keys.length, teachers: school ? school.teachers.length : 0, classes: school ? school.classes.length : 0, students, joinCodes: school ? school.classes.filter(c => c.join).length : 0 } };
+  }
+  async function compare(srcSt, dstSt, src, dst) {
+    const a = new Set(src), b = new Set(dst), diff = [];
+    for (const k of src) {
+      if (!b.has(k)) { diff.push("missing " + k); continue }
+      const x = JSON.stringify((await srcSt.get(k, { type: "json" })) ?? null), y = JSON.stringify((await dstSt.get(k, { type: "json" })) ?? null);
+      if (x !== y) diff.push("different " + k);
+    }
+    for (const k of dst) if (!a.has(k)) diff.push("extra " + k);
+    return diff;
+  }
+  async function ownerMove(b) {
+    const dId = str(b.districtId, 24).toLowerCase(), dName = str(b.districtName, 100), sId = str(b.schoolId, 24).toLowerCase(), sName = str(b.schoolName, 100), dry = b.dryRun !== false;
+    if (!ID.test(dId) || !ID.test(sId)) no(400, "District and school codes: 2 to 24 lowercase letters, numbers or dashes.");
+    const src = getStore("p2p"), S0 = await storeFacts(src);
+    if (!S0.school) no(400, "There is no school on this site to move yet.");
+    const dist = await getR("district/" + dId), rec = await getR("school/" + sId);
+    if (!dist && !dName) no(400, "Type the district's name (it will be added).");
+    if (rec && !rec.movedFrom) no(409, "That school code is already used by a different school. Pick another code.");
+    if (rec && rec.district !== dId) no(409, `That school is already in the district ${rec.district}.`);
+    const dst = schoolStore(sId);
+    const D0 = await storeFacts(dst);
+    const joinConflicts = [];
+    for (const c of S0.school.classes) if (c.join) { const j = await getR("join/" + c.join); if (j && j.d !== sId) joinConflicts.push(c.join) }
+    const report = { dryRun: dry, live: multi ? "new school store" : "old one-school store", district: { id: dId, name: dist ? dist.name : dName, isNew: !dist }, school: { id: sId, name: sName || rec?.name || S0.school.name }, from: S0.facts, to: D0.facts, joinConflicts };
+    if (dry) { report.differences = await compare(src, dst, S0.keys, D0.keys); report.same = report.differences.length === 0; report.differences = report.differences.slice(0, 20); return report }
+    if (joinConflicts.length) no(409, "Some class codes already belong to another school: " + joinConflicts.join(", "));
+    if (multi && D0.school) no(409, "The site is already switched and this school is live. Only a dry run is allowed now, so nobody's new work is overwritten.");
+    if (!dist) await setR("district/" + dId, { id: dId, name: dName, created: Date.now(), salt: rid(16), admins: [] }, { onlyIfNew: true });
+    await setR("school/" + sId, { id: sId, name: report.school.name, district: dId, created: rec?.created || Date.now(), movedFrom: "p2p", movedAt: Date.now() });
+    let copied = 0, removed = 0;
+    for (const k of S0.keys) {
+      const v = (await src.get(k, { type: "json" })) ?? null; if (v === null) continue;
+      if (JSON.stringify((await dst.get(k, { type: "json" })) ?? null) !== JSON.stringify(v)) { await dst.setJSON(k, v); copied++ }
+    }
+    const keep = new Set(S0.keys);
+    for (const k of D0.keys) if (!keep.has(k)) { await dst.delete(k); removed++ }
+    for (const c of S0.school.classes) if (c.join) await setR("join/" + c.join, { d: sId, at: Date.now() });
+    const D1 = await storeFacts(dst), differences = await compare(src, dst, S0.keys, D1.keys);
+    return { ...report, copied, removed, to: D1.facts, same: differences.length === 0 && JSON.stringify(D1.facts) === JSON.stringify(S0.facts), differences: differences.slice(0, 20) };
+  }
+
   /* ---------- which school does this request belong to? ---------- */
   async function resolve(action, body, req) {
     if (body.token) return tokenTenant(body.token); // a token always decides (and is then verified by that school)
@@ -205,6 +259,8 @@ export function makeRouter({ getStore, env }) {
     let body = {};
     try { body = await req.clone().json() } catch { body = {} }
     try {
+      if (action === "ownerMove") { await ownerCheck(body, ip); return J(200, await ownerMove(body)) }
+      if (!multi) return single()(req, ip);
       if (OWNER_ACTIONS.has(action)) { await ownerCheck(body, ip); return J(200, await OWNER[action](body, ip)) }
       if (DISTRICT_ACTIONS.has(action)) return J(200, await DISTRICT[action](body, ip));
       const id = await resolve(action, body, req), rec = id && await schoolRec(id);
@@ -230,6 +286,7 @@ export function makeRouter({ getStore, env }) {
   }
 
   async function snapshots() {
+    if (!multi) return [await single().snapshot()];
     const keys = [];
     for (const s of await allR("school/")) {
       if ((await schoolStore(s.id).get("school", { type: "json" })) == null) continue;

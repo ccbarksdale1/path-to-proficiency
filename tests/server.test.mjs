@@ -332,6 +332,54 @@ test("owner manages one school's license on a multi-district site", async () => 
   assert.equal(list.districts.find(d => d.id === "alpha").schools[0].license.plan, "Pilot");
 });
 
+/* ---------- stage 4: moving today's one-school site into its own school store ---------- */
+test("move: dry run writes nothing; the copy is exact; re-running syncs; the switch keeps everyone's work; switching back undoes it", async () => {
+  const stores = new Map(), getStore = n => { if (!stores.has(n)) stores.set(n, memoryStore()); return stores.get(n) };
+  const mk = env => { const router = makeRouter({ getStore, env: { OWNER_CODE: "owner-secret-1", ...env } });
+    return async (action, body) => { const r = await router.handle(new Request("http://x/api/" + action, { method: "POST", body: JSON.stringify(body) }), "10.9.9.9"); const j = await r.json(); if (!r.ok) { const e = new Error(j.error || action); e.status = r.status; throw e } return j } };
+  const one = mk({}), MV = { code: "owner-secret-1", districtId: "cleveland-sd", districtName: "Cleveland School District", schoolId: "rh-bearden", schoolName: "RH Bearden Elementary" };
+  const s = await one("setup", { code: "1234", name: "Mr. Barksdale", schoolName: "RH Bearden" });
+  const cls = (await one("classSave", { token: s.token, name: "The OGs" })).cls;
+  await one("rosterSave", { token: s.token, classId: cls.id, students: ["Jada Smith", "Ben Quinn", "Ana Lopez"].map((name, i) => ({ name, code: String(5100 + i * 11) })) });
+  const st = await one("studentLogin", { join: cls.join, code: "5100" });
+  await one("progSave", { token: st.token, testId: "_flu", prog: { score: 7 } });
+  await one("backupNow", { token: s.token });
+
+  await rejects(one("ownerMove", { ...MV, code: "wrong" }), /did not match/);
+  const dry = await one("ownerMove", MV);
+  assert.equal(dry.dryRun, true); assert.equal(dry.same, false); assert.equal(dry.from.students, 3); assert.equal(dry.to.keys, 0);
+  assert.ok(!stores.has("ptp-d-rh-bearden") || stores.get("ptp-d-rh-bearden").M.size === 0, "dry run wrote school data");
+  assert.ok(!stores.has("ptp-registry") || ![...stores.get("ptp-registry").M.keys()].some(k => /^(school|district|join)\//.test(k)), "dry run wrote registry entries");
+
+  const before = JSON.stringify([...stores.get("p2p").M.entries()].map(([k, v]) => [k, v.v]));
+  const mv = await one("ownerMove", { ...MV, dryRun: false });
+  assert.equal(mv.same, true, JSON.stringify(mv.differences)); assert.deepEqual(mv.to, mv.from); assert.equal(mv.to.students, 3);
+  assert.equal(JSON.stringify([...stores.get("p2p").M.entries()].map(([k, v]) => [k, v.v])), before, "the old store changed");
+  assert.equal((await one("ownerMove", MV)).same, true);
+
+  await one("progSave", { token: st.token, testId: "_flu", prog: { score: 9 } }); // kids keep working before the switch
+  assert.equal((await one("ownerMove", MV)).same, false);
+  const again = await one("ownerMove", { ...MV, dryRun: false });
+  assert.equal(again.same, true); assert.ok(again.copied >= 1);
+
+  const many = mk({ MULTI_DISTRICT: "on" });
+  await rejects(many("classList", { token: s.token }), /sign in again/); // old sign-ins end once; everyone signs in again
+  const t2 = await many("login", { school: "rh-bearden", code: "1234" });
+  assert.ok(t2.token);
+  const st2 = await many("studentLogin", { join: cls.join, code: "5100" });
+  assert.ok(st2.token);
+  const raw = JSON.stringify([...getStore("ptp-d-rh-bearden").M.values()].map(x => x.v));
+  assert.ok(raw.includes("Jada Smith") && raw.includes('"score":9'));
+  const list = await many("ownerDistricts", { code: "owner-secret-1" });
+  assert.equal(list.districts[0].schools[0].classes, 1); assert.equal(list.districts[0].schools[0].ready, true); assert.equal(list.districts[0].schools[0].waitingForSetup, false);
+  await rejects(many("ownerMove", { ...MV, dryRun: false }), /already switched/);
+  assert.equal((await many("ownerMove", MV)).dryRun, true);
+  await rejects(many("ownerMove", { ...MV, schoolId: "other-es", dryRun: false, districtId: "cleveland-sd" }), /class codes already belong/);
+
+  const back = mk({}); // undo: switch off and the old store answers again, untouched
+  assert.ok((await back("login", { code: "1234" })).token);
+});
+
 let failed = 0;
 for (const t of tests) {
   try { await t.fn(); console.log("  ok   " + t.name) }
