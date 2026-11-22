@@ -145,6 +145,7 @@ input.num{font:inherit;font-size:1.4rem;width:120px;color:var(--ink);background:
 .err{color:var(--oops);min-height:1.5em}
 .tabs{display:flex;gap:8px;flex-wrap:wrap}
 .dd{position:relative}
+.pbar{display:inline-block;width:70px;height:8px;border-radius:9px;background:#e3e6ec;vertical-align:middle;overflow:hidden}.pbar i{display:block;height:100%;background:#1f8a5b}
 .hl-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}.hl-step{border:2px solid var(--rule);border-radius:14px;padding:10px 12px;background:var(--card)}
 .hl-step.locked{opacity:.55}.hl-step.used{border-color:color-mix(in srgb,var(--go) 45%,var(--rule))}.hl-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .hl-n{width:26px;height:26px;border-radius:50%;display:inline-grid;place-items:center;background:var(--ink);color:var(--card);font-weight:800;font-size:.85rem}.hl-step.used .hl-n{background:var(--go)}
@@ -4801,11 +4802,11 @@ async function openClass(id,tab){
   S.loading=false;render();
   if(CUR&&!S.err)autoPrograms();
 }
-const CLS_MENU=[["Progress",[["class","Class progress"],["why","Why they missed it"],["bd","Question breakdowns"],["items","Item analysis"],["fluency","Fluency"]]],["Plan & teach",[["plan","Station planner"],["mtss","MTSS"],["ip","Math plans (IMP)"]]],["Reports",[["bench","Benchmarks & reports"],["home","Family updates 🏠"],["badges","Badges"]]],["Class",[["setup","Students"],["settings","Class settings"]]]];
+const CLS_MENU=[["Progress",[["class","Class progress"],["why","Why they missed it"],["bd","Question breakdowns"],["items","Item analysis"],["fluency","Fluency"]]],["Plan & teach",[["pace","Pacing guide"],["plan","Station planner"],["mtss","MTSS"],["ip","Math plans (IMP)"]]],["Reports",[["bench","Benchmarks & reports"],["home","Family updates 🏠"],["badges","Badges"]]],["Class",[["setup","Students"],["settings","Class settings"]]]];
 const TOP_NAME={overview:"School overview",classes:"My classes",compare:"Compare classes",standards:"Standards",tests:"Tests",reports:"Reports",teachers:"Teachers / My account",tutors:"Tutors",leads:"School requests"};
 const NAVH=[
  ["Your class",[["See how my class is doing","class"],["Find who needs help right now","class"],["Print a Sub Day plan or Help Buddy cards","class"],["See off-topic Scout chats","class"],["See why students missed questions","why"],["Break down each test question","bd"],["Find the hardest test questions","items"],["Check math fact fluency","fluency"]]],
- ["Plan & teach",[["Plan small-group stations","plan"],["See MTSS tiers (Tier 2 and Tier 3)","mtss"],["Make or print an IMP (Individualized Math Plan)","ip"]]],
+ ["Plan & teach",[["Plan the rest of the year before the state test (pacing guide)","pace"],["Plan small-group stations","plan"],["See MTSS tiers (Tier 2 and Tier 3)","mtss"],["Make or print an IMP (Individualized Math Plan)","ip"]]],
  ["Scores & reports",[["Text parents a weekly update with a 5-minute home activity","home"],["Enter benchmark scores or import screener scores","bench"],["Print class or parent reports","bench"],["See student badges","badges"]]],
  ["Students & settings",[["Add students or print login cards","setup"],["Assign standards to students","setup"],["Set accommodations (read aloud, Spanish, extra time)","setup"],["Change the class test or turn on Buddy","settings"]]],
  ["Whole school",[["See the whole school at a glance","@overview"],["Compare my classes","@compare"],["Browse every standard with sample questions","@standards"],["Import a new test","@tests"],["Reports for principals and leaders","@reports"],["Change my password or account","@teachers"]]]];
@@ -4843,7 +4844,7 @@ function teacher(){
       <button class="ghost small" id="allc">← All classes</button></div>
       <div class="tabs ddnav" role="group" aria-label="Class pages">${CLS_MENU.map(([g,items])=>{const on=items.find(x=>x[0]===tab);return `<details class="dd"><summary class="${on?"on":""}">${g}${on?`: <b>${on[1]}</b>`:""} ▾</summary><div class="ddm">${items.map(([id,l])=>`<button class="small" data-tab="${id}" aria-pressed="${tab===id}">${l}</button>`).join("")}</div></details>`}).join("")}</div></div>`;
     const ipn=S.ipNew&&S.ipNew.length&&tab!=="ip"?`<div class="fb go" role="status"><p>📘 New individual plan${S.ipNew.length>1?"s":""} started for ${S.ipNew.map(esc).join(", ")} (scored below ${ipCfg().cut}%). <button class="link" data-tab="ip">See plans and print lessons</button></p></div>`:"";
-    body=tabs+ipn+({class:tClass,why:tWhy,plan:tPlanner,fluency:tFluency,mtss:tMtss,ip:tIP,bench:tBench,home:tFamily,badges:tBadges,bd:tBreak,items:()=>qualityCard()+tItems(),setup:tSetup,settings:tSettings})[tab]();
+    body=tabs+ipn+({class:tClass,why:tWhy,plan:tPlanner,fluency:tFluency,mtss:tMtss,ip:tIP,bench:tBench,home:tFamily,pace:tPace,badges:tBadges,bd:tBreak,items:()=>qualityCard()+tItems(),setup:tSetup,settings:tSettings})[tab]();
   } else body=({classes:tClasses,compare:tCompare,standards:tStandards,tests:tTests,reports:tReports,teachers:tTeachers,tutors:tTutors,leads:tLeads,overview:tOverview,class:tClasses})[tt]();
   app.innerHTML=demoBanner()+header(`<button class="ghost" id="out">${DEMO_T?"Leave sample school":"Sign out"}</button>`,`${TB.school.name} · ${TB.me.name}${isAdmin()?" (admin)":""}`)+nav+`<button class="navfab" id="navfab" aria-label="Find a page">🧭 Find a page</button>`+(S.err?`<div class="fb oops" role="alert"><p>${esc(S.err)}</p></div>`:"")+body;
   document.getElementById("out").onclick=signOut;document.getElementById("navfab").onclick=navHelp;
@@ -4854,7 +4855,7 @@ function teacher(){
   app.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;S.err="";S.mtssId=null;S.rcpt=null;S.xtNew=false;render();window.scrollTo(0,0)});
   const sdb=document.getElementById("sub-day");if(sdb)sdb.onclick=subDay;const hbb=document.getElementById("help-buddy");if(hbb)hbb.onclick=()=>helpBuddy((document.getElementById("hb-std")||{}).value);
   const cd=document.getElementById("csv-dl");if(cd)cd.onclick=()=>saveFile(`${CUR.cls.name.replace(/[^\w]+/g,"-")}-${new Date().toISOString().slice(0,10)}.csv`,classCSV());
-  if(tt==="class"&&CUR)({class:wireHands,why:wireMis,plan:wirePlanner,fluency:wireFluency,mtss:wireMtss,ip:wireIP,bench:wireBench,home:wireFamily,badges:wireBadges,bd:wireBreak,items:wireQuality,setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
+  if(tt==="class"&&CUR)({class:wireHands,why:wireMis,plan:wirePlanner,fluency:wireFluency,mtss:wireMtss,ip:wireIP,bench:wireBench,home:wireFamily,pace:wirePace,badges:wireBadges,bd:wireBreak,items:wireQuality,setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
   else ({classes:wireClasses,compare:wireCompare,standards:wireStandards,tests:wireTests,reports:wireReports,teachers:wireTeachers,tutors:wireTutors,leads:wireLeads,overview:wireOverview,class:wireClasses})[tt]();
   wireDemoBanner();if(DEMO_T){const o=document.getElementById("out");if(o)o.onclick=endDemoSchool}
 }
@@ -5523,6 +5524,60 @@ async function addPractice(t,n,onProg,onlyEmpty){
 }
 
 
+
+
+/* ---------- Pacing guide: the weeks left before the state test, with standards grouped the way teachers teach them ---------- */
+const PACE3=[
+ {id:"mult",name:"What multiplication and division mean",stds:["3.OA.1","3.OA.2","3.OA.3","3.OA.4"],how:"together",wt:"major",wk:3,why:"These four are one idea: equal groups. Teach groups, arrays and sharing side by side so kids see division as the other half of multiplication."},
+ {id:"facts",name:"Properties and fact strategies",stds:["3.OA.5","3.OA.6","3.OA.7","3.NBT.3"],how:"together",wt:"major",wk:3,why:"Turn-around and break-apart strategies are how kids learn their facts. Multiplying by 10s fits here because it uses the same facts."},
+ {id:"area",name:"Area and its link to multiplication",stds:["3.MD.5a","3.MD.5b","3.MD.6","3.MD.7a","3.MD.7b","3.MD.7c","3.MD.7d"],how:"together",wt:"major",wk:3,why:"Area is multiplication you can see. Teach it right after facts: rows times columns, then breaking a rectangle apart (the break-apart property again)."},
+ {id:"frac",name:"Fractions",stds:["3.G.2","3.NF.1","3.NF.2a","3.NF.2b","3.NF.3a","3.NF.3b","3.NF.3c","3.NF.3d"],how:"together",wt:"major",wk:4,why:"Start with equal parts of shapes (3.G.2), then unit fractions, the number line, equivalence and comparing. Denominators stay 2, 3, 4, 6 and 8."},
+ {id:"two",name:"Two-step problems and patterns",stds:["3.OA.8","3.OA.9"],how:"together",wt:"major",wk:2,why:"Best after multiplication and addition are solid, because two-step problems use all four operations. Patterns in the times table fit here."},
+ {id:"pv",name:"Rounding, adding and subtracting",stds:["3.NBT.1","3.NBT.2"],how:"together",wt:"support",wk:2,why:"Rounding helps kids check if a sum or difference makes sense. Keep 3.NBT.2 going as daily fluency all year."},
+ {id:"perim",name:"Perimeter",stds:["3.MD.8"],how:"alone",wt:"support",wk:1,why:"Teach on its own after area, so kids can compare the two: area covers the inside, perimeter goes around."},
+ {id:"data",name:"Graphs and line plots",stds:["3.MD.3","3.MD.4"],how:"embed",wt:"support",wk:1.5,why:"Easy to fold into other units: scaled graphs practice multiplication, and line plots with halves and fourths practice fractions."},
+ {id:"meas",name:"Time, liquid volume and mass",stds:["3.MD.1","3.MD.2"],how:"alone",wt:"extra",wk:1.5,why:"Short, hands-on lessons that stand on their own. Good for the week before a break."},
+ {id:"shape",name:"Shapes and quadrilaterals",stds:["3.G.1"],how:"alone",wt:"extra",wk:1,why:"A quick unit on its own. Sorting shapes by their sides and angles."}];
+const PACE_HOW={together:"Teach together",alone:"Teach on its own",embed:"Fold into other units"},PACE_WT={major:"Major work",support:"Supporting",extra:"Additional"};
+const paceKey=()=>"ptp-pace-"+CUR.cls.id;
+function paceCfg(){let c={};try{c=JSON.parse(localStorage.getItem(paceKey())||"{}")}catch(e){}const y=new Date().getMonth()>=6?new Date().getFullYear()+1:new Date().getFullYear();
+  const dw=new Date().getDay(),nx=weekOf(dayKey(Date.now()+(dw===0?1:dw===6?2:0)*864e5));return {test:c.test||`${y}-04-26`,off:c.off??3,start:c.start||nx}}
+function paceStdMastery(code){const ks=SKILLS.filter(k=>k.std===code||k.std.startsWith(code));if(!ks.length)return null;const st=CUR.students;if(!st.length)return null;
+  let d=0,n=0;st.forEach(s=>ks.forEach(k=>{n++;if(s.prog.skills[k.id]?.status==="done")d++}));return d/n}
+function pacePlan(){const cfg=paceCfg(),wkMs=7*864e5,start=new Date(cfg.start+"T12:00:00"),test=new Date(cfg.test+"T12:00:00");
+  const weeks=Math.max(0,Math.floor((test-start)/wkMs)),avail=Math.max(0,weeks-(+cfg.off||0));
+  const b=PACE3.map((x,i)=>{const ms=x.stds.map(paceStdMastery).filter(v=>v!=null),m=ms.length?ms.reduce((a,v)=>a+v,0)/ms.length:null;
+    const done=m!=null&&m>=.8;return {...x,i,m,done,need:done?1:x.wk}});
+  /* order: major work not yet mastered first (in teaching order), then supporting, then additional, then quick reviews of mastered units */
+  const rank=x=>(x.done?3:0)+(x.wt==="major"?0:x.wt==="support"?1:2)*0.1+x.i*0.001;
+  const order=b.filter(x=>x.how!=="embed").sort((a,c)=>rank(a)-rank(c)),embed=b.filter(x=>x.how==="embed");
+  const need=order.reduce((a,x)=>a+x.need,0),scale=need>avail&&avail>0?avail/need:1;
+  const lens=order.map(x=>Math.max(1,Math.round(x.need)));let tot=lens.reduce((a,v)=>a+v,0);
+  /* too many weeks: shorten the least essential units first (additional, then supporting, then the longest major units), never below 1 week */
+  const pri=x=>x.done?0:x.wt==="extra"?1:x.wt==="support"?2:3;
+  while(avail>0&&tot>avail){let bi=-1;order.forEach((x,i)=>{if(lens[i]>1&&(bi<0||pri(x)<pri(order[bi])||(pri(x)===pri(order[bi])&&lens[i]>=lens[bi])))bi=i});if(bi<0)break;lens[bi]--;tot--}
+  let w=0;const rows=order.map((x,i)=>{const len=lens[i],r={...x,len,from:w,to:w+len};w+=len;return r});
+  return {cfg,weeks,avail,need,scale,rows,embed,start}}
+function tPace(){const g=SKILLS[0]&&SKILLS[0].std.split(".")[0];
+  if(g!=="3")return `<div class="card"><h2>📅 Pacing guide</h2><p class="muted">The pacing guide is ready for grade 3 math now. Other grades are coming next.</p></div>`;
+  const P=pacePlan(),{cfg}=P,wd=(n,end)=>{const d=new Date(P.start.getTime()+n*7*864e5-(end?3*864e5:0));return `${d.getMonth()+1}/${d.getDate()}`},pct=m=>m==null?"—":Math.round(m*100)+"%";
+  const bar=m=>m==null?"":`<span class="pbar" aria-hidden="true"><i style="width:${Math.round(m*100)}%"></i></span>`;
+  return `<div class="card"><h2>📅 Pacing guide · Grade 3 math</h2>
+   <p class="muted">The weeks left before the state test, with standards grouped the way they are best taught. It moves standards your class has already mastered to a quick review at the end, using your class’s real practice data. Major work follows the 2025 Mississippi CCR Standards for grade 3 (multiplication and division, fractions, and area). Check your district’s pacing calendar and MDE’s MAAP blueprint for exact point weights.</p>
+   <div class="row"><label class="f">Start week<input type="date" id="pc-start" value="${cfg.start}"></label><label class="f">State test date<input type="date" id="pc-test" value="${cfg.test}"></label><label class="f">Weeks off (breaks, testing)<input type="number" id="pc-off" min="0" max="20" value="${cfg.off}" style="width:90px"></label><button class="ghost small" id="pc-print">🖨 Print</button></div>
+   <p style="margin:.4rem 0 0"><b>${P.avail} teaching weeks</b> left (${P.weeks} weeks minus ${cfg.off} off). The plan needs about <b>${Math.round(P.need*2)/2} weeks</b>.${P.scale<1?` <span class="pill gold">Tight: each unit is shortened to fit. Consider folding graphs into other units and keeping measurement lessons short.</span>`:P.avail-P.need>=2?` <span class="pill go">You have about ${Math.round((P.avail-P.need)*2)/2} extra weeks for review and test practice.</span>`:""}</p></div>
+   <div class="card"><div class="tablewrap"><table class="roster"><thead><tr><th>Weeks</th><th>Unit</th><th>Standards</th><th>How</th><th>Class mastery</th></tr></thead><tbody>
+   ${P.rows.map(r=>`<tr><td style="white-space:nowrap"><b>${wd(r.from)}–${wd(r.to,1)}</b><br><span class="muted small">${r.len} wk</span></td>
+     <td><b>${esc(r.name)}</b> <span class="pill ${r.wt==="major"?"purple":""}">${PACE_WT[r.wt]}</span>${r.done?` <span class="pill go">Mostly mastered: quick review</span>`:""}<br><span class="muted small">${esc(r.why)}</span></td>
+     <td>${r.stds.join(", ")}</td><td>${PACE_HOW[r.how]}</td><td>${pct(r.m)} ${bar(r.m)}</td></tr>`).join("")}
+   </tbody></table></div>
+   ${P.embed.map(e=>`<p><b>Fold in all year:</b> ${esc(e.name)} (${e.stds.join(", ")}). ${esc(e.why)} Class mastery: ${pct(e.m)}.</p>`).join("")}
+   <p><b>Every day, all year:</b> 5 minutes of fact fluency (3.OA.7, multiply and divide within 100) and adding and subtracting within 1,000 (3.NBT.2). These are the two grade 3 fluency standards.</p>
+   <p class="muted small">Dates run week after week and do not skip holidays, so slide a unit past each break. Teaching order is a recommendation: change it to match your district calendar and your students.</p></div>`}
+function wirePace(){const g=id=>document.getElementById(id);if(!g("pc-test"))return;
+  const save=()=>{const c={start:g("pc-start").value||paceCfg().start,test:g("pc-test").value||paceCfg().test,off:Math.max(0,Math.min(20,+g("pc-off").value||0))};try{localStorage.setItem(paceKey(),JSON.stringify(c))}catch(e){}const y=scrollY;render();scrollTo(0,y)};
+  ["pc-start","pc-test","pc-off"].forEach(id=>g(id).onchange=save);
+  g("pc-print").onclick=()=>{const card=[...app.querySelectorAll(".card")].slice(-2).map(c=>c.outerHTML).join("");printDoc(`Pacing guide · ${CUR.cls.name}`,`<h1>Pacing guide · ${esc(CUR.cls.name)}</h1>`+card.replace(/<input[^>]*>/g,"").replace(/<button[^>]*>.*?<\/button>/g,""))}}
 
 /* ---------- PTP Bridge: family updates with a five-minute home activity ---------- */
 const HACT=()=>window.PTP_HOME||{};
