@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="theme-color" content="#1f2a44"/>
+<title>Clue Detective | Path to Proficiency Game Arcade</title>
+<style>
+:root{--ink:#1f2433;--muted:#667085;--deep:#1f2a44;--gold:#f6c453;--mint:#3fb58f;--red:#e25d5d;--sky:#e8f1ff;--paper:#fffdf8;--line:#e5e1d8;--hl:#ffe680;font-family:Trebuchet MS,Verdana,Arial,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#f3efe4,#e7eefb);color:var(--ink);min-height:100vh}
+button,input{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible{outline:4px solid #e9a64c;outline-offset:3px}
+header{background:var(--deep);color:#fff;display:flex;align-items:center;gap:12px;padding:12px 18px}
+header .ico{font-size:30px}header strong{display:block;letter-spacing:.08em;font-size:13px;opacity:.8}header h1{margin:0;font-size:22px}
+.wrap{max-width:860px;margin:0 auto;padding:14px 14px 90px}
+.map{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px}
+.case{flex:0 0 auto;width:74px;border-radius:14px;border:2px solid var(--line);background:#fff;padding:6px 4px;text-align:center;font-size:12px;font-weight:700;color:var(--ink)}
+.case.on{border-color:var(--deep);background:var(--deep);color:#fff}.case[disabled]{opacity:.45;cursor:not-allowed}.case .st{display:block;font-size:13px;color:#d49b12;letter-spacing:1px}.case.on .st{color:var(--gold)}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:22px;box-shadow:0 14px 36px rgba(31,42,68,.10);padding:18px 18px 20px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.area{font-size:12px;font-weight:800;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.ctitle{margin:2px 0 0;font-size:21px}.pdots{display:flex;gap:6px}.pdots i{width:14px;height:14px;border-radius:50%;background:var(--line);display:block}.pdots i.d{background:var(--mint)}.pdots i.c{background:var(--gold)}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 6px}.steps span{font-size:12px;font-weight:800;padding:5px 10px;border-radius:999px;background:#eef0f4;color:var(--muted)}.steps span.c{background:var(--deep);color:#fff}.steps span.d{background:#d7f3e8;color:#1c7a59}
+.story{font-size:21px;line-height:1.9;background:#fff;border:2px dashed #d9d3c4;border-radius:16px;padding:14px 16px;margin:10px 0}
+.sent{display:inline;border-radius:8px;padding:2px 3px;border:0;background:none;color:inherit;text-align:left;line-height:inherit;font-size:inherit}
+button.sent{background:#f4f6fb;box-shadow:inset 0 0 0 2px #dfe4ee;margin:2px 0}button.sent:hover{background:#eaf0ff}
+.sent.q{background:var(--hl);box-shadow:none}.sent.bad{animation:shake .35s}
+.num{display:inline-block;min-width:44px;text-align:center;font-weight:800;border-radius:10px;padding:0 6px;border:2px solid transparent;background:none;color:inherit;font-size:inherit;line-height:1.5}
+button.num{border-color:#9aa8c7;background:#eef3ff}button.num.sel{background:var(--deep);border-color:var(--deep);color:#fff}
+.num.need{border-color:var(--mint);background:#dff6ec}.num.extra{text-decoration:line-through;color:#9a9a9a}
+.ask{font-size:18px;font-weight:800;margin:12px 0 8px}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.opt{border:2px solid var(--line);background:#fff;border-radius:14px;padding:12px 14px;font-weight:800;font-size:18px;text-align:left;color:var(--ink)}.opt:hover{border-color:#9aa8c7}
+.opt.no{border-color:var(--red);background:#fdeeee;opacity:.7}.opt.yes{border-color:var(--mint);background:#dff6ec}
+.go{background:var(--deep);color:#fff;border:0;border-radius:999px;padding:12px 22px;font-weight:800;font-size:17px}.go:disabled{opacity:.4}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.ans{width:150px;font-size:22px;font-weight:800;padding:10px 12px;border-radius:12px;border:2px solid #9aa8c7;text-align:center}
+.eqshow{font-size:22px;font-weight:800;background:#fff;border:2px solid var(--line);border-radius:12px;padding:8px 14px}
+.chirp{display:flex;gap:10px;align-items:flex-start;margin-top:14px}.chirp .b{font-size:34px;line-height:1}
+.bub{background:#fff;border:2px solid var(--line);border-radius:16px;padding:10px 14px;font-size:16px;line-height:1.45;flex:1}.bub.ok{border-color:var(--mint);background:#effaf5}.bub.oops{border-color:#f0b4b4;background:#fff5f5}
+.ov[hidden]{display:none}.ov{position:fixed;inset:0;background:rgba(20,26,40,.55);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal{background:var(--paper);border-radius:22px;padding:22px;max-width:420px;width:100%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.35)}.modal .big{font-size:54px}.modal .stars{font-size:34px;color:#d49b12;letter-spacing:4px}
+.note{font-size:12px;color:var(--muted);text-align:center;margin-top:16px}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@media(max-width:600px){.story{font-size:18px}.ctitle{font-size:18px}.opt{font-size:16px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head><body>
+<header><span class="ico" aria-hidden="true">🔍</span><div><strong>PATH TO PROFICIENCY · GAME ARCADE</strong><h1>Clue Detective</h1></div></header>
+<div class="wrap">
+ <div class="map" id="map" aria-label="Cases"></div>
+ <div class="card" id="card"></div>
+ <div class="note" id="note">Read like a detective: find the question, find the clues that matter, then solve.</div>
+</div>
+<div class="ov" id="ov" hidden><div class="modal" role="dialog" aria-modal="true" id="modal"></div></div>
+<script>
+(()=>{
+const R=(a,b)=>a+Math.floor(Math.random()*(b-a+1)),pick=a=>a[R(0,a.length-1)],shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=R(0,i);[a[i],a[j]]=[a[j],a[i]]}return a},cap=s=>s[0].toUpperCase()+s.slice(1);
+const $=id=>document.getElementById(id);
+const NAMES=[["Jada","she"],["Marcus","he"],["Aaliyah","she"],["Tyrone","he"],["Maria","she"],["Ethan","he"],["Kiara","she"],["DeShawn","he"],["Lily","she"],["Carlos","he"],["Nia","she"],["Jamal","he"],["Ava","she"],["Malik","he"]];
+const two=()=>{const a=pick(NAMES);let b;do b=pick(NAMES);while(b===a);return [a,b]};
+const N=(v,need=true)=>({n:v,need});
+const ACT={join:"Putting together ➕",take:"Taking away ➖",compare:"Comparing ⚖️",groups:"Equal groups ✖️",share:"Sharing equally ➗"};
+const ACTWHY={join:"two amounts are being put together",take:"some are given away, used up, or taken away",compare:"two amounts are being compared",groups:"there are equal groups",share:"a total is being split into equal groups"};
+const EXTRAS=[x=>["The bus ride to school takes ",N(x,false)," minutes."],x=>["It was ",N(x,false)," degrees outside that day."],x=>["The class has ",N(x,false)," windows."],x=>["Recess lasted ",N(x,false)," minutes."]];
+const G={
+ join(){const [[A],[B]]=two(),it=pick(["pecans","cans","tickets","bottle caps","stickers"]),a=R(120,480),b=R(110,420);
+  return {std:"3.NBT.2",act:"join",s:[[A," collected ",N(a)," ",it,"."],[B," collected ",N(b)," ",it,"."],["How many ",it," did they collect in all?"]],eq:`${a} + ${b}`,wr:[`${a} − ${b}`,`${a} × ${b}`,`${b} − ${a}`],ans:a+b,work:`${a} + ${b} = ${a+b}`}},
+ take(){const [[A,p],[B]]=two(),it=pick(["stickers","baseball cards","beads","pennies"]),a=R(300,900),b=R(100,a-60);
+  return {std:"3.NBT.2",act:"take",s:[[A," had ",N(a)," ",it,"."],[cap(p)," gave ",N(b)," of them to ",B,"."],["How many ",it," does ",A," have now?"]],eq:`${a} − ${b}`,wr:[`${a} + ${b}`,`${b} − ${a}`,`${a} × ${b}`],ans:a-b,work:`${a} − ${b} = ${a-b}`}},
+ cmpDiff(){const [[A],[B]]=two(),a=R(300,800),b=R(100,a-40);
+  return {std:"3.NBT.2",act:"compare",s:[[A," scored ",N(a)," points in the reading game."],[B," scored ",N(b)," points."],["How many more points did ",A," score than ",B,"?"]],eq:`${a} − ${b}`,wr:[`${a} + ${b}`,`${b} − ${a}`,`${a} × ${b}`],ans:a-b,work:`${a} − ${b} = ${a-b}`,
+   tip:`“How many more” means find the difference between the two amounts, so subtract.`}},
+ cmpMore(){const [[A],[B]]=two(),it=pick(["marbles","seashells","crayons","rocks"]),a=R(200,700),b=R(20,150);
+  return {std:"3.NBT.2",act:"compare",s:[[A," has ",N(a)," ",it,"."],["That is ",N(b)," more than ",B," has."],["How many ",it," does ",B," have?"]],eq:`${a} − ${b}`,wr:[`${a} + ${b}`,`${b} − ${a}`,`${a} × ${b}`],ans:a-b,work:`${a} − ${b} = ${a-b}`,
+   trap:`Watch out! The word “more” is a trap here. ${A} has MORE, so ${B} has FEWER. That means subtract.`}},
+ cmpFewer(){const [[A],[B]]=two(),a=R(150,600),b=R(20,150);
+  return {std:"3.NBT.2",act:"compare",s:[[A," read ",N(a)," pages this month."],["That is ",N(b)," fewer pages than ",B," read."],["How many pages did ",B," read?"]],eq:`${a} + ${b}`,wr:[`${a} − ${b}`,`${b} − ${a}`,`${a} × ${b}`],ans:a+b,work:`${a} + ${b} = ${a+b}`,
+   trap:`Watch out! The word “fewer” is a trap here. ${A} read FEWER, so ${B} read MORE. That means add.`}},
+ groups(){const [c,one,th,v]=pick([["shelves","shelf","books","holds"],["tables","table","chairs","has"],["bags","bag","oranges","has"],["rows","row","seats","has"],["boxes","box","crayons","holds"]]),g=R(3,9);let n;do n=R(3,9);while(n===g);
+  return {std:"3.OA.3",act:"groups",s:[["The classroom has ",N(g)," ",c,"."],["Each ",one," ",v," ",N(n)," ",th,"."],["How many ",th," are there in all?"]],eq:`${g} × ${n}`,wr:[`${g} + ${n}`,`${n} − ${g}`,`${g} ÷ ${n}`],ans:g*n,work:`${g} × ${n} = ${g*n}`}},
+ share(){const [[A,p]]=two(),it=pick(["crayons","grapes","cookies","pencils","cards"]),g=R(2,9);let n;do n=R(2,9);while(n===g);const t=g*n;
+  return {std:"3.OA.3",act:"share",s:[[A," has ",N(t)," ",it,"."],[cap(p)," shares them equally among ",N(g)," friends."],["How many ",it," does each friend get?"]],eq:`${t} ÷ ${g}`,wr:[`${t} × ${g}`,`${t} − ${g}`,`${t} + ${g}`],ans:n,work:`${t} ÷ ${g} = ${n} because ${g} × ${n} = ${t}`}},
+ two1(){const [[A,p]]=two(),g=R(3,8);let n;do n=R(4,9);while(n===g);let b;do b=R(2,g*n-2);while(b===g||b===n);
+  return {std:"3.OA.8",act:"groups",two:1,s:[[A," bought ",N(g)," packs of juice boxes."],["Each pack has ",N(n)," juice boxes."],[cap(p)," gave ",N(b)," juice boxes to friends."],["How many juice boxes does ",A," have left?"]],eq:`${g} × ${n} − ${b}`,wr:[`${g} + ${n} − ${b}`,`${g} × ${n} + ${b}`,`${g} × ${b} − ${n}`],ans:g*n-b,work:`Step 1: ${g} × ${n} = ${g*n}. Step 2: ${g*n} − ${b} = ${g*n-b}`}},
+ two2(){const [[A,p]]=two(),a=R(20,60),b=R(10,40);let c;do c=R(5,a+b-5);while(c===a||c===b);
+  return {std:"3.OA.8",act:"join",two:1,s:[[A," had ",N(a)," dollars."],[cap(p)," earned ",N(b)," more dollars raking leaves."],["Then ",p," spent ",N(c)," dollars at the store."],["How many dollars does ",A," have now?"]],eq:`${a} + ${b} − ${c}`,wr:[`${a} + ${b} + ${c}`,`${a} − ${b} − ${c}`,`${a} × ${b} − ${c}`],ans:a+b-c,work:`Step 1: ${a} + ${b} = ${a+b}. Step 2: ${a+b} − ${c} = ${a+b-c}`}},
+ two3(){const g=R(2,6);let n;do n=R(3,8);while(n===g);let x;do x=R(2,9);while(x===g||x===n);
+  return {std:"3.OA.8",act:"groups",two:1,s:[["Coach Lee made ",N(g)," teams for field day."],["Each team has ",N(n)," players."],["Then ",N(x)," more players joined."],["How many players are there now?"]],eq:`${g} × ${n} + ${x}`,wr:[`${g} + ${n} + ${x}`,`${g} × ${n} − ${x}`,`${g} × ${x} + ${n}`],ans:g*n+x,work:`Step 1: ${g} × ${n} = ${g*n}. Step 2: ${g*n} + ${x} = ${g*n+x}`}}
+};
+const CASES=[
+ ["Main Street","The Pecan Count",["join","take"],0],["Main Street","The Sticker Swap",["join","take"],0],["Main Street","The Extra Clue",["join","take"],.7],
+ ["Comparison Corner","Who Has More?",["cmpDiff","cmpMore"],0],["Comparison Corner","The Word Trap",["cmpMore","cmpFewer"],0],["Comparison Corner","Trap and Clue",["cmpDiff","cmpMore","cmpFewer"],.6],
+ ["Equal Groups Gardens","Rows and Rows",["groups"],0],["Equal Groups Gardens","Fair Shares",["share"],0],["Equal Groups Gardens","Groups or Shares?",["groups","share"],.6],
+ ["Two-Step Station","Two Steps Ahead",["two1","two2"],0],["Two-Step Station","Field Day Mystery",["two1","two2","two3"],.4],["Two-Step Station","The Master Case",["join","take","cmpMore","cmpFewer","groups","share","two1","two2","two3"],.6]];
+function make(kind,extra){const p=G[kind]();p.kind=kind;
+  if(Math.random()<extra){const used=new Set(p.s.flat().filter(x=>x&&x.n!=null).map(x=>x.n));let x;do x=R(7,40);while(used.has(x));const ex=pick(EXTRAS)(x);p.s.splice(R(1,p.s.length-1),0,ex);p.wr[2]=`${p.eq} + ${x}`}
+  p.qi=p.s.length-1;p.need=p.s.flat().filter(x=>x&&x.n!=null&&x.need).length;
+  p.opts=shuf([p.eq,...[...new Set(p.wr)].filter(w=>w!==p.eq).slice(0,3)]);return p}
+
+/* ---- state, saving ---- */
+const EMB=window.parent!==window,KEY="ptp-clue-detective";
+const post=o=>{if(EMB)try{window.parent.postMessage({src:"ptp-lg",...o},location.origin)}catch(e){}};
+let stars=Array(12).fill(0);try{if(!EMB){const s=JSON.parse(localStorage.getItem(KEY)||"null");if(Array.isArray(s))stars=s.slice(0,12).map(v=>+v||0)}}catch(e){}
+const persist=()=>{if(EMB)post({type:"save",scores:stars.slice()});else try{localStorage.setItem(KEY,JSON.stringify(stars))}catch(e){}};
+const unlocked=()=>{let i=0;while(i<11&&stars[i])i++;return i};
+let ci=0,probs=[],pi=0,P=null,step=0,miss=0,pmiss=0,sel=new Set(),msg="",mcls="",tried=new Set(),t0=Date.now();
+
+function startCase(i){ci=i;const c=CASES[i];probs=[0,1,2].map(()=>make(pick(c[2]),c[3]));pi=0;miss=0;startProb()}
+function startProb(){P=probs[pi];step=0;pmiss=0;sel=new Set();tried=new Set();t0=Date.now();
+  msg=pi===0?`New case, detective! First, tap the sentence that asks the <b>question</b>.`:`Next clue! Tap the <b>question</b> sentence.`;mcls="";render()}
+const oops=t=>{miss++;pmiss++;msg=t;mcls="oops"};
+const good=t=>{msg=t;mcls="ok"};
+
+function storyHTML(){let k=0;return P.s.map((sent,si)=>{
+  const body=sent.map(x=>{if(typeof x==="string")return x;const id=k++;
+    if(step===1)return `<button class="num${sel.has(id)?" sel":""}" data-n="${id}" aria-pressed="${sel.has(id)}">${x.n}</button>`;
+    return `<span class="num${step>1?(x.need?" need":" extra"):""}">${x.n}</span>`}).join("");
+  if(step===0)return `<button class="sent" data-s="${si}">${body}</button> `;
+  return `<span class="sent${si===P.qi?" q":""}">${body}</span> `}).join("")}
+function numList(){return P.s.flat().filter(x=>x&&x.n!=null)}
+
+function render(){
+  const c=CASES[ci],u=unlocked();
+  $("map").innerHTML=CASES.map((x,i)=>`<button class="case${i===ci?" on":""}" data-c="${i}" ${i>u?"disabled":""} aria-label="Case ${i+1}: ${x[1]}${stars[i]?`, ${stars[i]} stars`:""}">Case ${i+1}<span class="st">${"★".repeat(stars[i])+"☆".repeat(3-stars[i])}</span></button>`).join("");
+  const steps=[P.two?"Find the question":"Find the question","Find the clues","What's happening?","Pick the equation","Solve"];
+  let area="";
+  if(step===0)area=`<p class="ask">🔎 Tap the sentence that asks the question.</p>`;
+  else if(step===1)area=`<p class="ask">🔎 Tap the numbers you NEED to answer the question. Skip any extra clues.</p><div class="row"><button class="go" id="nDone" ${sel.size?"":"disabled"}>These are my clues</button></div>`;
+  else if(step===2)area=`<p class="ask">${P.two?"🧩 This case takes two steps. What happens <u>first</u>?":"🧩 What is happening in this story?"}</p><div class="opts">${Object.entries(ACT).map(([k,l])=>`<button class="opt${tried.has(k)?" no":""}" data-a="${k}" ${tried.has(k)?"disabled":""}>${l}</button>`).join("")}</div>`;
+  else if(step===3)area=`<p class="ask">✏️ Which equation solves the case?</p><div class="opts">${P.opts.map((o,i)=>`<button class="opt${tried.has(o)?" no":""}" data-e="${i}" ${tried.has(o)?"disabled":""}>${o} = ?</button>`).join("")}</div>`;
+  else if(step===4)area=`<p class="ask">🧮 Solve it!</p><div class="row"><span class="eqshow">${P.eq} =</span><input class="ans" id="ans" inputmode="numeric" autocomplete="off" aria-label="Your answer"><button class="go" id="chk">Check</button></div>`;
+  else area=`<div class="row"><span class="eqshow">${P.eq} = ${P.ans}</span><button class="go" id="nxt">${pi<2?"Next clue →":"Close the case 🔒"}</button></div>`;
+  $("card").innerHTML=`<div class="top"><div><div class="area">${c[0]} · Case ${ci+1}</div><h2 class="ctitle">${c[1]}</h2></div>
+    <div class="pdots" aria-label="Story ${pi+1} of 3">${[0,1,2].map(i=>`<i class="${i<pi||(i===pi&&step===5)?"d":i===pi?"c":""}"></i>`).join("")}</div></div>
+   <div class="steps">${steps.map((s,i)=>`<span class="${i<step?"d":i===step?"c":""}">${i+1}. ${s}</span>`).join("")}</div>
+   <div class="story" id="story">${storyHTML()}</div>${area}
+   <div class="chirp" aria-live="polite"><span class="b" aria-hidden="true">🐦</span><div class="bub ${mcls}"><b>Chirp:</b> ${msg}</div></div>`;
+  wire();
+}
+function wire(){
+  document.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>startCase(+b.dataset.c));
+  document.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{const si=+b.dataset.s;
+    if(si===P.qi){step=1;good(`Yes! That sentence asks what we need to find. Now tap the <b>numbers we need</b>.`)}
+    else{oops(`That sentence gives a clue, but it does not ask anything. The question sentence usually starts with “How many” and ends with a question mark.`);render();const e=document.querySelector(`[data-s="${si}"]`);if(e)e.classList.add("bad");return}
+    render()});
+  document.querySelectorAll("[data-n]").forEach(b=>b.onclick=()=>{const id=+b.dataset.n;sel.has(id)?sel.delete(id):sel.add(id);render()});
+  const nd=$("nDone");if(nd)nd.onclick=()=>{const L=numList(),pickedExtra=[...sel].filter(i=>!L[i].need),missed=L.filter((x,i)=>x.need&&!sel.has(i));
+    if(pickedExtra.length){oops(`Look again at <b>${L[pickedExtra[0]].n}</b>. Does it help answer the question? That number is extra information. Good detectives ignore it.`);sel.delete(pickedExtra[0])}
+    else if(missed.length){oops(`Close! You still need ${missed.length===1?"one more number":missed.length+" more numbers"}. Every number that tells about the question is a clue.`)}
+    else{step=2;good(L.some(x=>!x.need)?`Great detective work! You found the clues and skipped the extra one. ${P.two?"This case has two steps.":""}`:`You found all the clues!${P.two?" This case has two steps.":""}`)}
+    render()};
+  document.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;
+    if(a===P.act){step=3;tried=new Set();good(`Right! ${cap(ACTWHY[a])}.${P.trap?" Now be careful picking the equation…":""}`)}
+    else{tried.add(a);oops(`Not quite. Reread the story. ${P.act==="compare"?"Is anything being given away, or are two amounts being compared?":P.two?"Think about what happens in the first two sentences.":"Picture what is happening to the things in the story."}`)}
+    render()});
+  document.querySelectorAll("[data-e]").forEach(b=>b.onclick=()=>{const o=P.opts[+b.dataset.e];
+    if(o===P.eq){step=4;tried=new Set();good(P.tip||`Yes! ${P.eq} matches the story. Now solve it.`)}
+    else{tried.add(o);oops(P.trap||(P.two?`Check both steps. ${P.work.split(".")[0]}. What happens next?`:`That equation does not match the story. ${cap(ACTWHY[P.act])}, so think about which operation fits.`))}
+    render()});
+  const ck=$("chk"),inp=$("ans");if(inp){inp.focus();inp.onkeydown=e=>{if(e.key==="Enter")ck.click()}}
+  if(ck)ck.onclick=()=>{const v=parseInt(inp.value.replace(/[^\d]/g,""),10);if(isNaN(v))return;
+    if(v===P.ans){step=5;post({type:"answer",std:P.std,ok:pmiss<=1,ms:Date.now()-t0});good(`Case cracked! ${P.work}. ${pmiss===0?"Perfect detective work!":"You stuck with it. That's what detectives do!"}`)}
+    else{oops(`Not yet. Check your work: ${P.two?P.work.split(".")[0]+".":`try solving ${P.eq} one place at a time.`}`)}
+    render()};
+  const nx=$("nxt");if(nx)nx.onclick=()=>{if(pi<2){pi++;startProb()}else finish()};
+}
+function finish(){const st=miss<=1?3:miss<=4?2:1;stars[ci]=Math.max(stars[ci],st);persist();
+  $("modal").innerHTML=`<div class="big">🕵️</div><h2>Case ${ci+1} closed!</h2><div class="stars">${"★".repeat(st)+"☆".repeat(3-st)}</div><p>${st===3?"A perfect investigation!":st===2?"Great work, detective!":"Case solved! Play again to earn more stars."}</p>
+   <div class="row" style="justify-content:center">${ci<11?`<button class="go" id="mNext">Next case →</button>`:""}<button class="go" id="mAgain" style="background:#667085">Play again</button></div>`;
+  $("ov").hidden=false;
+  const n=$("mNext");if(n)n.onclick=()=>{$("ov").hidden=true;startCase(ci+1)};$("mAgain").onclick=()=>{$("ov").hidden=true;startCase(ci)}}
+
+if(EMB){$("note").textContent="Path to Proficiency learning game · Every answer counts as practice · Your stars save to your account";
+  const b=document.createElement("button");b.textContent="← Back to the arcade";b.style.cssText="position:fixed;left:10px;bottom:10px;z-index:40;padding:10px 16px;border-radius:999px;border:0;background:#1f2a44;color:#fff;font-weight:900;box-shadow:0 6px 18px #0004;cursor:pointer";b.onclick=()=>post({type:"exit"});document.body.append(b);
+  window.addEventListener("message",e=>{if(e.source!==window.parent||!e.data||e.data.src!=="ptp-host"||e.data.type!=="init")return;const sc=e.data.scores;if(Array.isArray(sc))sc.slice(0,12).forEach((v,i)=>stars[i]=Math.max(0,Math.min(3,+v||0)));startCase(unlocked())});
+  startCase(0);post({type:"ready"})}
+else startCase(unlocked());
+})();
+</script></body></html>
