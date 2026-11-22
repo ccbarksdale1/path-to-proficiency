@@ -287,6 +287,7 @@ function owner(){
   ${O.multi&&!O.school?ownerMulti(O):O.multi&&O.school&&!O.d?`<div class="card"><p class="muted">Loading…</p></div>`:O.d?`${O.multi?`<div class="row"><button class="ghost small" id="o-back">← All districts</button></div>`:""}<div class="card"><div class="top"><h2>${esc(O.d.school)}</h2><span class="pill purple">${esc(O.d.license.plan)}</span></div>
      <p>Teachers: <b>${O.d.usedT}</b> of ${O.d.license.teachers} · Students: <b>${O.d.usedS}</b> of ${O.d.license.students}</p>
      <div class="tablewrap"><table class="roster"><thead><tr><th>Class</th><th>Teacher</th><th>Students</th></tr></thead><tbody>${O.d.classes.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.teacher)}</td><td>${c.n}${c.n>40?' <span class="pill gold">large</span>':""}</td></tr>`).join("")}</tbody></table></div></div>
+   ${ownerInsightsCard(O)}
    <form class="card" id="o-set"><h2>Set this school’s license</h2><div class="grid">
      <label class="f">Plan name<input id="o-plan" maxlength="40" value="${esc(O.d.license.plan)}" placeholder="School, Small school, Pilot…"></label>
      <label class="f">Teacher seats<input id="o-t" type="number" min="1" max="500" value="${O.d.license.teachers}"></label>
@@ -301,17 +302,73 @@ function owner(){
      <label class="f">Owner code<input id="o-code" type="password" autocomplete="off" required></label><button type="submit">Sign in</button><p class="err" id="o-err" role="alert">${esc(O.err||"")}</p></form>`}`;
   document.getElementById("o-home").onclick=()=>{S.own=null;history.replaceState(null,"","/");S.screen="landing";render()};
   if(O.multi)wireOwnerMulti(O);
-  const ob=document.getElementById("o-back");if(ob)ob.onclick=async()=>{O.school=null;O.d=null;O.dist=await api("ownerDistricts",{code:O.code});render()};
+  const ob=document.getElementById("o-back");if(ob)ob.onclick=async()=>{O.school=null;O.d=null;O.ins=null;O.dist=await api("ownerDistricts",{code:O.code});render()};
   const fi=document.getElementById("o-in");if(fi)fi.onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Checking…");const code=document.getElementById("o-code").value;
     try{O.dist=await api("ownerDistricts",{code});O.multi=true;O.code=code;O.err="";render()}
     catch(er){if(/Unknown action/.test(er.message)){try{O.d=await api("ownerGet",{code});O.code=code;O.err="";render()}catch(e2){O.err=e2.message;render()}}else{O.err=er.message;render()}}};
   const orx=document.getElementById("o-res");if(orx)orx.onclick=async()=>{busy(orx,"Building…");try{const d=await api("ownerResearch",{code:O.code,...(O.school?{school:O.school}:{})});const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:"application/json"}));a.download=`ptp-research-${d.made}.json`;document.body.append(a);a.click();a.remove();document.getElementById("o-rmsg").textContent=`Downloaded: ${d.classes.reduce((t,c)=>t+c.students.length,0)} students, no names.`}catch(er){document.getElementById("o-rmsg").textContent=er.message}orx.disabled=false;orx.textContent="⬇ Download research export"};
-  wireOwnerMove(O);
+  wireOwnerMove(O);wireOwnerInsights(O);
   const fs=document.getElementById("o-set");if(fs)fs.onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Saving…");
     try{await api("ownerSet",{code:O.code,...(O.school?{school:O.school}:{}),license:{plan:document.getElementById("o-plan").value,teachers:+document.getElementById("o-t").value,students:+document.getElementById("o-s").value,expires:document.getElementById("o-e").value,note:document.getElementById("o-n").value}});
       O.d=await api("ownerGet",{code:O.code,...(O.school?{school:O.school}:{})});render();document.getElementById("o-msg").textContent="Saved."}catch(er){document.getElementById("o-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save license"}};
 }
 SCREENS.owner=owner;
+
+/* ---------- owner insights: how schools use PTP, for renewals and selling. Counts only, no student names. ---------- */
+const nfmt=n=>n==null?"—":Number(n).toLocaleString();
+const pct=(a,b)=>b?Math.round(a/b*100):0;
+function insightKpis(t,g,seats){return `<div class="kpis small">
+  <div class="kpi go"><b>${nfmt(t.active7)}</b><span>Active this week</span><small>of ${nfmt(t.students)} students (${pct(t.active7,t.students)}%)</small></div>
+  <div class="kpi"><b>${nfmt(t.active30)}</b><span>Active, last 30 days</span><small>${pct(t.active30,t.students)}% of students</small></div>
+  <div class="kpi"><b>${nfmt(t.answers30)}</b><span>Questions, last 30 days</span><small>${nfmt(t.answers)} all time</small></div>
+  <div class="kpi ${t.accuracy30>=70?"go":"gold"}"><b>${t.accuracy30==null?"—":t.accuracy30+"%"}</b><span>Accuracy, last 30 days</span></div>
+  <div class="kpi"><b>${nfmt(Math.round(t.minutes/60))}</b><span>Hours practiced</span><small>${nfmt(Math.round(t.minutes30/60))} in the last 30 days</small></div>
+  <div class="kpi go"><b>${nfmt(t.mastered)}</b><span>Skills mastered</span>${t.mastered30!=null?`<small>${nfmt(t.mastered30)} in the last 30 days</small>`:""}</div>
+  ${g?`<div class="kpi go"><b>${g.first}% → ${g.recent}%</b><span>Growth in accuracy</span><small>first 40 vs latest 40 answers, ${g.students} students</small></div>`:""}
+  ${t.stuck!=null?`<div class="kpi"><b>${pct(t.selfSolved,t.stuck)}%</b><span>Solved it on their own</span><small>3 Before Me: ${nfmt(t.selfSolved)} of ${nfmt(t.stuck)} times stuck</small></div>`:""}
+  <div class="kpi"><b>${nfmt(t.scout)}</b><span>Questions asked to Scout</span></div>
+  ${seats?`<div class="kpi ${seats.used/seats.max>=.9?"oops":""}"><b>${pct(seats.used,seats.max)}%</b><span>Student seats used</span><small>${nfmt(seats.used)} of ${nfmt(seats.max)}</small></div>`:""}</div>`}
+function weekBars(W){if(!W||!W.length)return"";const mx=Math.max(1,...W.map(w=>w.active));
+  return `<h3 style="margin:.8rem 0 .3rem">Active students each week</h3><div style="display:flex;align-items:flex-end;gap:6px;height:120px;padding:4px 0;border-bottom:1px solid var(--rule)">${W.map(w=>`<div title="Week of ${w.week}: ${w.active} students, ${w.answers} questions" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%"><small style="font-size:.7rem">${w.active}</small><div style="width:100%;background:var(--blue);border-radius:6px 6px 0 0;height:${Math.max(3,Math.round(w.active/mx*90))}px"></div></div>`).join("")}</div>
+  <div style="display:flex;gap:6px">${W.map(w=>`<small class="muted" style="flex:1;text-align:center;font-size:.65rem">${w.week.slice(5).replace("-","/")}</small>`).join("")}</div>`}
+const daysTo=d=>d?Math.ceil((Date.parse(d+"T12:00:00")-Date.now())/864e5):null;
+function renewPill(lic){const n=daysTo(lic&&lic.expires);if(n==null)return"";return n<0?`<span class="pill oops">License ended ${-n} days ago</span>`:n<=60?`<span class="pill gold">Renews in ${n} days</span>`:`<span class="pill">Renews ${esc(lic.expires)}</span>`}
+function ownerInsightsCard(O){const I=O.ins;
+  if(!I)return `<div class="card"><h2>📈 How this school uses PTP</h2><p class="muted">${O.insErr?esc(O.insErr):"Loading…"}</p></div>`;
+  return `<div class="card" id="o-ins"><div class="top"><h2>📈 How ${esc(I.school)} uses PTP</h2>${renewPill(I.license)}</div>
+   ${insightKpis(I.totals,I.growth,I.license?{used:I.seats.students,max:I.license.students}:null)}
+   ${weekBars(I.weeks)}
+   <h3 style="margin:.8rem 0 .3rem">By class</h3><div class="tablewrap"><table class="roster"><thead><tr><th>Class</th><th>Teacher</th><th>Students</th><th>Active this week</th><th>Questions (30 days)</th><th>Accuracy</th><th>Skills mastered</th><th>Last active</th></tr></thead><tbody>${I.classes.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.teacher)}</td><td>${c.students}</td><td>${c.active7}${c.students&&!c.active7?' <span class="pill gold">quiet</span>':""}</td><td>${nfmt(c.answers30)}</td><td>${c.accuracy30==null?"—":c.accuracy30+"%"}</td><td>${c.mastered}</td><td>${esc(c.lastActive||"—")}</td></tr>`).join("")}</tbody></table></div>
+   <div class="row" style="margin-top:.6rem"><button class="ghost" id="o-impact">🖨 Impact report</button><label class="small"><input type="checkbox" id="o-anon"> Hide the school's name (to show other districts)</label><button class="ghost" id="o-csv">⬇ Spreadsheet</button></div>
+   <p class="muted small">Counts only. Students are never named here. "Quiet" means students on the roster but no practice this week, a good reason to check in with that teacher.</p></div>`}
+function ownerAllCard(O){const A=O.all;
+  if(!A)return `<div class="card"><h2>📈 All schools</h2><p class="muted">${O.insErr?esc(O.insErr):"Loading…"}</p></div>`;
+  const dn=id=>(A.districts.find(d=>d.id===id)||{}).name||id,R=A.schools.filter(s=>s.ready);
+  return `<div class="card" id="o-ins"><h2>📈 All schools</h2><p class="muted">${A.totals.schools} ${A.totals.schools===1?"school":"schools"} using PTP</p>
+   ${insightKpis(A.totals,null,null)}
+   ${R.length?`<div class="tablewrap"><table class="roster"><thead><tr><th>District</th><th>School</th><th>Students</th><th>Active this week</th><th>Active (30 days)</th><th>Questions (30 days)</th><th>Accuracy</th><th>Growth</th><th>Seats used</th><th>License</th></tr></thead><tbody>${R.map(s=>`<tr><td>${esc(dn(s.district))}</td><td><b>${esc(s.school)}</b></td><td>${s.totals.students}</td><td>${s.totals.active7} (${pct(s.totals.active7,s.totals.students)}%)</td><td>${s.totals.active30}</td><td>${nfmt(s.totals.answers30)}</td><td>${s.totals.accuracy30==null?"—":s.totals.accuracy30+"%"}</td><td>${s.growth?s.growth.first+"% → "+s.growth.recent+"%":"—"}</td><td>${s.license?pct(s.seats.students,s.license.students)+"%":"—"}</td><td>${s.license?esc(s.license.plan):""} ${renewPill(s.license)}</td></tr>`).join("")}</tbody></table></div>`:""}
+   <div class="row" style="margin-top:.6rem"><button class="ghost" id="o-impact">🖨 Impact report</button><button class="ghost" id="o-csv">⬇ Spreadsheet</button></div></div>`}
+function impactReport(O){const I=O.all||O.ins,anon=!!document.getElementById("o-anon")?.checked,t=I.totals,g=I.growth,w=window.open("","_blank");if(!w){alert("Allow pop-ups to print.");return}
+  const who=O.all?`${t.schools} ${t.schools===1?"school":"schools"}`:anon?"A Mississippi elementary school":esc(I.school),when=new Date(I.made).toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"});
+  const line=(b,s)=>`<div class="kpi"><b>${b}</b><span>${s}</span></div>`;
+  w.document.write(`<!doctype html><meta charset="utf-8"><title>Path to Proficiency impact report</title>${pageCSS()}<style>html,body{background:#fff}body{padding:24px}.card{box-shadow:none;border:1px solid #ccc}.kpis{grid-template-columns:repeat(3,1fr)}</style>
+   <div class="wrap" style="max-width:820px"><div class="top"><div class="brand">${LOGO}<div><h1>Path to Proficiency</h1><small>Impact report · ${when}</small></div></div></div>
+   <div class="card"><h2>${who}</h2><div class="kpis">
+    ${line(nfmt(t.students),"students using PTP")}${line(pct(t.active30,t.students)+"%","practiced in the last 30 days")}${line(nfmt(t.answers),"math questions answered")}
+    ${line(nfmt(Math.round(t.minutes/60)),"hours of practice")}${line(nfmt(t.mastered),"skills mastered")}${g?line(g.first+"% → "+g.recent+"%","accuracy growth ("+g.students+" students)"):line(t.accuracy30==null?"—":t.accuracy30+"%","accuracy, last 30 days")}
+    ${t.stuck?line(pct(t.selfSolved,t.stuck)+"%","of the time, stuck students solved it on their own"):""}${line(nfmt(t.scout),"questions answered by Scout, the AI tutor")}</div>
+   ${O.ins&&!O.all?weekBars(I.weeks):""}</div>
+   <p class="muted small">Counts only, with no student names. Growth compares each student's first 40 answers with their latest 40, for students with at least 80 answers.</p></div><script>setTimeout(()=>print(),400)<\/script>`);w.document.close()}
+function insightsCSV(O){const rows=O.all?[["District","School","Students","Active this week","Active 30 days","Questions 30 days","Accuracy 30 days","Growth first %","Growth recent %","Skills mastered","Hours","Scout questions","Seats","Plan","Renews"],...O.all.schools.filter(s=>s.ready).map(s=>[(O.all.districts.find(d=>d.id===s.district)||{}).name||s.district,s.school,s.totals.students,s.totals.active7,s.totals.active30,s.totals.answers30,s.totals.accuracy30??"",s.growth?.first??"",s.growth?.recent??"",s.totals.mastered,Math.round(s.totals.minutes/60),s.totals.scout,s.license?.students??"",s.license?.plan??"",s.license?.expires??""])]
+    :[["Class","Teacher","Students","Active this week","Active 30 days","Questions 30 days","Accuracy 30 days","Minutes 30 days","Skills mastered","Last active"],...O.ins.classes.map(c=>[c.name,c.teacher,c.students,c.active7,c.active30,c.answers30,c.accuracy30??"",c.minutes30,c.mastered,c.lastActive])];
+  const csv=rows.map(r=>r.map(x=>{x=String(x??"");return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x}).join(",")).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`ptp-insights-${new Date().toISOString().slice(0,10)}.csv`;document.body.append(a);a.click();a.remove()}
+function wireOwnerInsights(O){
+  const need=O.multi&&!O.school?!O.all&&!O.insBusy:O.d&&!O.ins&&!O.insBusy;
+  if(need){O.insBusy=true;O.insErr="";const school=O.school;
+    api(O.multi&&!O.school?"ownerInsightsAll":"ownerInsights",{code:O.code,...(school?{school}:{})}).then(d=>{if(O.multi&&!O.school)O.all=d;else if(O.school===school)O.ins=d}).catch(er=>{O.insErr=er.message}).finally(()=>{O.insBusy=false;if(S.screen==="owner")render()})}
+  const ip=document.getElementById("o-impact");if(ip)ip.onclick=()=>impactReport(O.multi&&!O.school?{all:O.all}:{ins:O.ins});
+  const cv=document.getElementById("o-csv");if(cv)cv.onclick=()=>insightsCSV(O.multi&&!O.school?{all:O.all}:{ins:O.ins})}
 
 /* ---------- stage 4: copy this one-school site into its own school store, ready for the multi-district switch ----------
    The old data is only read, never changed. "Check" writes nothing. "Copy now" can be run again any time before the switch. */
@@ -335,6 +392,7 @@ function wireOwnerMove(O){const g=id=>document.getElementById(id);if(!g("mv-go")
 /* ---------- owner dashboard on a multi-district site: districts, schools, setup keys, district admins ---------- */
 function ownerMulti(O){const D=O.dist.districts||[];
   return `${O.flash?`<div class="card" style="border:2px solid var(--go)">${O.flash}</div>`:""}
+   ${ownerAllCard(O)}
    <div class="card"><h2>Districts and schools</h2>${D.length?D.map(d=>`<div class="card" style="margin:.6rem 0"><div class="top"><h3 style="margin:0">${esc(d.name)} <span class="muted small">· code ${esc(d.id)}</span></h3><span class="muted small">District admins: ${d.admins.length?d.admins.map(esc).join(", "):"none yet"}</span></div>
      ${d.schools.length?`<div class="tablewrap"><table class="roster"><thead><tr><th>School</th><th>Code</th><th>Status</th><th>Teachers</th><th>Classes</th><th>License</th><th></th></tr></thead><tbody>${d.schools.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(s.id)}</td><td>${s.ready?`<span class="pill go">Set up</span>`:`<span class="pill gold">Waiting for setup</span>`}</td><td>${s.teachers}</td><td>${s.classes}</td><td>${s.license?esc(s.license.plan||"")+" · "+(s.license.students||"")+" seats":"—"}</td><td>${s.ready?`<button class="ghost small" data-oschool="${esc(s.id)}">Manage</button>`:""}<button class="ghost small" data-odel="${esc(s.id)}">Delete</button></td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No schools yet.</p>`}</div>`).join(""):`<p class="muted">No districts yet. Add the first one below.</p>`}</div>
    <div class="grid" style="align-items:start">
@@ -350,7 +408,7 @@ function wireOwnerMulti(O){const g=id=>document.getElementById(id),v=id=>g(id).v
   const ns=g("o-ns");if(ns)ns.onsubmit=e=>run(e,"Adding…",async()=>{const r=await api("ownerSchoolCreate",{code:O.code,district:v("ns-d"),id:v("ns-id").toLowerCase(),name:v("ns-name")});
     await reload(`<b>School added.</b> Give its first admin these, privately:<br>School code: <b>${esc(r.id)}</b><br>Setup key: <b style="font-family:monospace;font-size:1.1rem">${esc(r.setupKey)}</b><br><span class="muted">The setup key works once and is not shown again. Lost it? Delete the school and add it again.</span>`)});
   const da=g("o-da");if(da)da.onsubmit=e=>run(e,"Saving…",async()=>{await api("ownerDistrictAdmin",{code:O.code,district:v("da-d"),name:v("da-name"),adminCode:v("da-code")});await reload("District admin saved. They sign in from Teacher login → Sign in to your district.")});
-  app.querySelectorAll("[data-oschool]").forEach(b=>b.onclick=async()=>{O.school=b.dataset.oschool;O.d=null;render();try{O.d=await api("ownerGet",{code:O.code,school:O.school});render()}catch(er){O.school=null;O.err=er.message;render()}});
+  app.querySelectorAll("[data-oschool]").forEach(b=>b.onclick=async()=>{O.school=b.dataset.oschool;O.d=null;O.ins=null;render();try{O.d=await api("ownerGet",{code:O.code,school:O.school});render()}catch(er){O.school=null;O.err=er.message;render()}});
   app.querySelectorAll("[data-odel]").forEach(b=>b.onclick=async()=>{const id=b.dataset.odel,c=prompt(`This deletes every class, student and score in ${id}. It cannot be undone. Type DELETE ${id} to confirm.`);if(!c)return;
     try{await api("ownerSchoolDelete",{code:O.code,id,confirm:c});await reload("School deleted.")}catch(er){O.err=er.message;render()}});
   const ra=g("o-resall");if(ra)ra.onclick=async()=>{busy(ra,"Building…");try{const d=await api("ownerResearchAll",{code:O.code});const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:"application/json"}));a.download=`ptp-research-all-${d.made||"empty"}.json`;document.body.append(a);a.click();a.remove();g("o-ramsg").textContent=`Downloaded: ${d.schools.length} schools, no names.`}catch(er){g("o-ramsg").textContent=er.message}ra.disabled=false;ra.textContent="⬇ Download research export"}}

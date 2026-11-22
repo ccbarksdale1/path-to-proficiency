@@ -520,6 +520,55 @@ How you teach:
     school.license = { plan: str(x.plan, 40) || "School", teachers: Math.max(1, Math.min(500, Math.round(+x.teachers || 1))), students: Math.max(1, Math.min(20000, Math.round(+x.students || 1))), expires: /^\d{4}-\d{2}-\d{2}$/.test(String(x.expires || "")) ? String(x.expires) : "", note: str(x.note, 300), updated: Date.now() };
     await saveSchool(school); return { ok: true, license: school.license } };
 
+  /* site owner only: how this school is using PTP, for renewals and selling. Counts only: no student names or codes. */
+  A.ownerInsights = async (b, ip) => { await ownerCheck(b, ip); const school = await loadSchool(); if (!school) bad("This site is not set up yet.", 404);
+    const DAY = 864e5, now = Date.now(), dayOf = t => new Date(t).toISOString().slice(0, 10), d7 = dayOf(now - 7 * DAY), d30 = dayOf(now - 30 * DAY);
+    const wk = d => { const x = new Date(d + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() - (x.getUTCDay() + 6) % 7); return x.toISOString().slice(0, 10) };
+    const weeks = {}, T = { students: 0, active7: 0, active30: 0, answers: 0, answers30: 0, correct30: 0, minutes: 0, minutes30: 0, mastered: 0, mastered30: 0, scout: 0, stuck: 0, selfSolved: 0, teacherHelp: 0 };
+    const grow = { n: 0, first: 0, last: 0 }, classes = [];
+    for (const c of school.classes) {
+      const roster = (((await getJ("roster/" + c.id)) || {}).students || []).filter(x => !x.sample);
+      const C = { name: c.name, teacher: school.teachers.find(t => t.id === c.teacherId)?.name || "", students: roster.length, active7: 0, active30: 0, answers30: 0, accuracy30: null, minutes30: 0, mastered: 0, lastActive: "" };
+      let ok30 = 0;
+      for (const st of roster) {
+        const all = (await getJ(`prog/${c.id}/${st.id}`)) || {}, byDay = {};
+        let a7 = false, a30 = false;
+        for (const [tid, pr] of Object.entries(all)) {
+          if (!pr || typeof pr !== "object") continue;
+          if (pr.tutor) T.scout += pr.tutor.total || 0;
+          for (const x of Object.values(pr.help3 || {})) { T.stuck += x.stuck || 0; T.selfSolved += x.self || 0; T.teacherHelp += x.teacher || 0 }
+          for (const sk of Object.values(pr.skills || {})) if (sk && sk.status === "done") { C.mastered++; T.mastered++; if (sk.doneAt && dayOf(sk.doneAt) >= d30) T.mastered30++ }
+          for (const [day, x] of Object.entries(pr.days || {})) for (const v of Object.values(x || {})) {
+            if (!v || !v.n) continue;
+            const d = (byDay[day] ||= { n: 0, ok: 0 }); d.n += v.n; d.ok += v.ok || 0;
+            T.answers += v.n; T.minutes += (v.ms || 0) / 60000;
+            const w = (weeks[wk(day)] ||= { active: new Set(), answers: 0 }); w.active.add(c.id + "/" + st.id); w.answers += v.n;
+            if (day >= d30) { a30 = true; C.answers30 += v.n; ok30 += v.ok || 0; C.minutes30 += (v.ms || 0) / 60000; T.answers30 += v.n; T.correct30 += v.ok || 0; T.minutes30 += (v.ms || 0) / 60000 }
+            if (day >= d7) a7 = true;
+            if (day > C.lastActive) C.lastActive = day;
+          }
+        }
+        if (a7) { C.active7++; T.active7++ } if (a30) { C.active30++; T.active30++ }
+        /* growth: accuracy over a student's first 40 answers vs their most recent 40 (only students with 80+ answers) */
+        const days = Object.keys(byDay).sort(), total = days.reduce((t, d) => t + byDay[d].n, 0);
+        if (total >= 80) {
+          const take = list => { let n = 0, ok = 0; for (const d of list) { if (n >= 40) break; n += byDay[d].n; ok += byDay[d].ok } return n ? ok / n : 0 };
+          grow.n++; grow.first += take(days); grow.last += take([...days].reverse());
+        }
+      }
+      T.students += roster.length; C.accuracy30 = C.answers30 ? Math.round(ok30 / C.answers30 * 100) : null; C.minutes30 = Math.round(C.minutes30);
+      classes.push(C);
+    }
+    const lic = license(school), wkList = Object.keys(weeks).sort().slice(-12);
+    return {
+      school: school.name, made: now, license: lic, seats: { teachers: school.teachers.length, students: T.students },
+      totals: { ...T, minutes: Math.round(T.minutes), minutes30: Math.round(T.minutes30), accuracy30: T.answers30 ? Math.round(T.correct30 / T.answers30 * 100) : null },
+      growth: grow.n ? { students: grow.n, first: Math.round(grow.first / grow.n * 100), recent: Math.round(grow.last / grow.n * 100) } : null,
+      weeks: wkList.map(w => ({ week: w, active: weeks[w].active.size, answers: weeks[w].answers })),
+      classes,
+    };
+  };
+
   /* site owner only: a de-identified research export for improving PTP. Random IDs per export, no names, codes, free text or accommodations; dates rounded to the week; classes under 5 students grouped. */
   A.ownerResearch = async (b, ip) => { await ownerCheck(b, ip); const school = await loadSchool(); if (!school) bad("This site is not set up yet.", 404);
     const salt = crypto.randomBytes(16).toString("hex"), pid = (k, x) => k + sha(salt + x).slice(0, 10);

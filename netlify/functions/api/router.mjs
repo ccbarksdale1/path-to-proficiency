@@ -16,7 +16,7 @@ const str = (v, max = 200) => String(v ?? "").trim().slice(0, max);
 const rid = (n = 10) => crypto.randomBytes(16).toString("base64url").replace(/[^A-Za-z0-9]/g, "").slice(0, n);
 /* public forms with no school (tutor applications, demo requests) land in the home school, where the site admin reviews them today */
 const HOME_ACTIONS = new Set(["tutorApply", "tutorFile", "leadAdd"]);
-const OWNER_ACTIONS = new Set(["ownerDistricts", "ownerDistrictCreate", "ownerDistrictDelete", "ownerDistrictAdmin", "ownerSchoolCreate", "ownerSchoolDelete", "ownerResearchAll"]);
+const OWNER_ACTIONS = new Set(["ownerDistricts", "ownerDistrictCreate", "ownerDistrictDelete", "ownerDistrictAdmin", "ownerSchoolCreate", "ownerSchoolDelete", "ownerResearchAll", "ownerInsightsAll"]);
 const DISTRICT_ACTIONS = new Set(["districtLogin", "districtOverview"]);
 
 export const schoolStoreName = id => "ptp-d-" + id;
@@ -136,6 +136,17 @@ export function makeRouter({ getStore, env }) {
       for (const k of await listR("host/")) { const h = await getR(k); if (h && h.d === id) await R().delete(k) }
       await R().delete("school/" + id);
       return { ok: true };
+    },
+    async ownerInsightsAll(b, ip) { // every school's usage, grouped by district, plus totals: for renewals and selling
+      const districts = await allR("district/"), schools = [];
+      for (const s of await allR("school/")) {
+        const res = await apiFor(s.id)(new Request("http://x/api/ownerInsights", { method: "POST", body: JSON.stringify({ code: b.code }) }), ip);
+        if (!res.ok) { schools.push({ id: s.id, name: s.name, district: s.district, ready: false }); continue }
+        schools.push({ id: s.id, district: s.district, ready: true, ...(await res.json()) });
+      }
+      const sum = k => schools.reduce((t, s) => t + (s.totals?.[k] || 0), 0), ans30 = sum("answers30");
+      return { made: Date.now(), districts: districts.map(d => ({ id: d.id, name: d.name })), schools,
+        totals: { schools: schools.filter(s => s.ready).length, students: sum("students"), active7: sum("active7"), active30: sum("active30"), answers: sum("answers"), answers30: ans30, accuracy30: ans30 ? Math.round(sum("correct30") / ans30 * 100) : null, minutes: sum("minutes"), mastered: sum("mastered"), scout: sum("scout") } };
     },
     async ownerResearchAll(b, ip) {
       const salt = rid(16), schools = [];

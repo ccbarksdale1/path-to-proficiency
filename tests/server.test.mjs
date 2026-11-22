@@ -332,6 +332,33 @@ test("owner manages one school's license on a multi-district site", async () => 
   assert.equal(list.districts.find(d => d.id === "alpha").schools[0].license.plan, "Pilot");
 });
 
+test("owner insights: usage, mastery and growth as counts only, never names or codes", async () => {
+  const s = await school({ OWNER_CODE: "owner-secret-1" });
+  const day = n => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+  const days = {}; for (let i = 0; i < 10; i++) days[day(40 - i * 4)] = { "3.OA.1": { n: 10, ok: 3 + Math.floor(i * 0.7), ms: 120000 } };
+  s.store.M.set(`prog/${s.cls.id}/${s.roster[0].id}`, { v: { a1: { days, skills: { k1: { status: "done", doneAt: Date.now() - 2 * 864e5 }, k2: { status: "todo" } }, tutor: { total: 12 }, help3: { [day(3)]: { stuck: 4, self: 3, teacher: 1 } } } }, e: "x" });
+  s.store.M.set(`prog/${s.cls.id}/${s.roster[1].id}`, { v: { a1: { days: { [day(1)]: { "3.OA.1": { n: 5, ok: 5, ms: 60000 } } } } }, e: "y" });
+  await rejects(s.call("ownerInsights", { code: "nope" }), /did not match/);
+  const r = await s.call("ownerInsights", { code: "owner-secret-1" });
+  assert.equal(r.totals.students, 6); assert.equal(r.totals.active7, 2); assert.equal(r.totals.active30, 2);
+  assert.equal(r.totals.answers, 105); assert.equal(r.totals.mastered, 1); assert.equal(r.totals.mastered30, 1);
+  assert.equal(r.totals.scout, 12); assert.equal(r.totals.selfSolved, 3);
+  assert.equal(r.growth.students, 1); assert.ok(r.growth.recent > r.growth.first);
+  assert.equal(r.classes[0].active7, 2); assert.equal(r.classes[0].mastered, 1);
+  const text = JSON.stringify(r);
+  for (const st of s.roster) { assert.ok(!text.includes(st.name), "leaked a name"); assert.ok(!text.includes('"' + st.code + '"'), "leaked a code"); assert.ok(!text.includes(st.id), "leaked an id") }
+});
+
+test("owner insights across districts: every school, grouped, with totals", async () => {
+  const { m, A, B } = await twoDistricts();
+  const r = await m.call("ownerInsightsAll", { code: "owner-secret-1" });
+  assert.equal(r.schools.length, 2); assert.equal(r.totals.schools, 2); assert.equal(r.totals.students, 4);
+  assert.deepEqual(r.districts.map(d => d.id).sort(), ["alpha", "beta"]);
+  for (const n of ["Avery Alpha", "Bailey Beta"]) assert.ok(!JSON.stringify(r).includes(n));
+  await rejects(m.call("ownerInsightsAll", { code: "wrong" }), /did not match/);
+  await rejects(m.call("ownerInsights", { token: A.T, code: "x" }), /did not match/); // a teacher can't open it either
+});
+
 /* ---------- stage 4: moving today's one-school site into its own school store ---------- */
 test("move: dry run writes nothing; the copy is exact; re-running syncs; the switch keeps everyone's work; switching back undoes it", async () => {
   const stores = new Map(), getStore = n => { if (!stores.has(n)) stores.set(n, memoryStore()); return stores.get(n) };
