@@ -517,6 +517,31 @@ How you teach:
     school.license = { plan: str(x.plan, 40) || "School", teachers: Math.max(1, Math.min(500, Math.round(+x.teachers || 1))), students: Math.max(1, Math.min(20000, Math.round(+x.students || 1))), expires: /^\d{4}-\d{2}-\d{2}$/.test(String(x.expires || "")) ? String(x.expires) : "", note: str(x.note, 300), updated: Date.now() };
     await saveSchool(school); return { ok: true, license: school.license } };
 
+  /* site owner only: a de-identified research export for improving PTP. Random IDs per export, no names, codes, free text or accommodations; dates rounded to the week; classes under 5 students grouped. */
+  A.ownerResearch = async (b, ip) => { await ownerCheck(b, ip); const school = await loadSchool(); if (!school) bad("This site is not set up yet.", 404);
+    const salt = crypto.randomBytes(16).toString("hex"), pid = (k, x) => k + sha(salt + x).slice(0, 10);
+    const wk = t => { if (!t) return null; const d = new Date(t); d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7); return d.toISOString().slice(0, 10) };
+    const classes = [];
+    for (const c of school.classes) {
+      const r = (await getJ("roster/" + c.id)) || { students: [] }, st = (r.students || []).filter(x => !x.sample), students = [];
+      for (const s of st) {
+        const all = (await getJ(`prog/${c.id}/${s.id}`)) || {}, tests = {};
+        for (const [tid, p] of Object.entries(all)) {
+          if (tid[0] === "_" || !p || !p.skills) continue;
+          const skills = {}; for (const [k, v] of Object.entries(p.skills)) skills[k] = { status: v.status || null, streak: v.streak || 0, doneWeek: wk(v.doneAt) };
+          const weeks = {}; for (const [d, x] of Object.entries(p.days || {})) { const w = wk(Date.parse(d + "T12:00:00Z")); for (const [k, v] of Object.entries(x || {})) { const a = ((weeks[w] ||= {})[k] ||= { n: 0, ok: 0, ms: 0 }); a.n += v.n || 0; a.ok += v.ok || 0; a.ms += v.ms || 0 } }
+          const help = {}; for (const [d, x] of Object.entries(p.help3 || {})) { const w = wk(Date.parse(d + "T12:00:00Z")), a = (help[w] ||= { stuck: 0, self: 0, teacher: 0 }); a.stuck += x.stuck || 0; a.self += x.self || 0; a.teacher += x.teacher || 0 }
+          tests[tid] = { skills, weeks, help, badges: Object.keys(p.badges || {}),
+            misses: (p.miss || []).map(m => ({ q: m.q, k: m.k, pick: m.p, week: wk(m.t) })),
+            questions: Object.fromEntries(Object.entries(p.log || {}).map(([q, l]) => [q, { tries: l.tries || 0, right: l.right || 0, first: l.first ?? null }])) };
+        }
+        students.push({ id: pid("s", s.id), tests, scores: s.scores && typeof s.scores === "object" ? s.scores : null, missed: s.missed && typeof s.missed === "object" ? s.missed : null });
+      }
+      classes.push({ id: st.length < 5 ? "small" : pid("c", c.id), testId: c.testId || "a1", students });
+    }
+    return { made: wk(Date.now()), note: "De-identified: random IDs per export; no names, codes, accommodations, family updates or typed text; dates rounded to the week.", classes };
+  };
+
   /* ---------- tutors & consultants: public application, reviewed by the site admin ---------- */
   const T_STATUS = ["new", "reviewing", "interview", "approved", "contract", "signed", "active", "declined"];
   const T_TRAVEL = ["virtual", "15", "30", "60", "state"];

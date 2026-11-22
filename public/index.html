@@ -145,6 +145,7 @@ input.num{font:inherit;font-size:1.4rem;width:120px;color:var(--ink);background:
 .err{color:var(--oops);min-height:1.5em}
 .tabs{display:flex;gap:8px;flex-wrap:wrap}
 .dd{position:relative}
+ul.cel{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}ul.cel select{margin-top:4px;max-width:100%}
 .pbar{display:inline-block;width:70px;height:8px;border-radius:9px;background:#e3e6ec;vertical-align:middle;overflow:hidden}.pbar i{display:block;height:100%;background:#1f8a5b}
 .hl-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}.hl-step{border:2px solid var(--rule);border-radius:14px;padding:10px 12px;background:var(--card)}
 .hl-step.locked{opacity:.55}.hl-step.used{border-color:color-mix(in srgb,var(--go) 45%,var(--rule))}.hl-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -4807,12 +4808,12 @@ async function openClass(id,tab){
   S.loading=false;render();
   if(CUR&&!S.err)autoPrograms();
 }
-const CLS_MENU=[["Progress",[["class","Class progress"],["why","Why they missed it"],["bd","Question breakdowns"],["items","Item analysis"],["fluency","Fluency"]]],["Plan & teach",[["pace","Pacing guide"],["plan","Station planner"],["mtss","MTSS"],["ip","Math plans (IMP)"]]],["Reports",[["bench","Benchmarks & reports"],["home","Family updates 🏠"],["badges","Badges"]]],["Class",[["setup","Students"],["settings","Class settings"]]]];
+const CLS_MENU=[["Progress",[["class","Class progress"],["why","Why they missed it"],["bd","Question breakdowns"],["items","Item analysis"],["fluency","Fluency"]]],["Plan & teach",[["pace","Pacing guide"],["plan","Station planner"],["mtss","MTSS"],["ip","Math plans (IMP)"]]],["Reports",[["bench","Benchmarks & reports"],["home","Family updates 🏠"],["celebrate","Celebrate 🎉"],["badges","Badges"]]],["Class",[["setup","Students"],["settings","Class settings"]]]];
 const TOP_NAME={overview:"School overview",classes:"My classes",compare:"Compare classes",standards:"Standards",tests:"Tests",reports:"Reports",teachers:"Teachers / My account",tutors:"Tutors",leads:"School requests"};
 const NAVH=[
  ["Your class",[["See how my class is doing","class"],["Find who needs help right now","class"],["Print a Sub Day plan or Help Buddy cards","class"],["See off-topic Scout chats","class"],["See why students missed questions","why"],["Break down each test question","bd"],["Find the hardest test questions","items"],["Check math fact fluency","fluency"]]],
  ["Plan & teach",[["Plan the rest of the year before the state test (pacing guide)","pace"],["Plan small-group stations","plan"],["See MTSS tiers (Tier 2 and Tier 3)","mtss"],["Make or print an IMP (Individualized Math Plan)","ip"]]],
- ["Scores & reports",[["Text parents a weekly update with a 5-minute home activity","home"],["Enter benchmark scores or import screener scores","bench"],["Print class or parent reports","bench"],["See student badges","badges"]]],
+ ["Scores & reports",[["Text parents a weekly update with a 5-minute home activity","home"],["Enter benchmark scores or import screener scores","bench"],["Print class or parent reports","bench"],["Celebrate students and print certificates","celebrate"],["See student badges","badges"]]],
  ["Students & settings",[["Add students or print login cards","setup"],["Assign standards to students","setup"],["Set accommodations (read aloud, Spanish, extra time)","setup"],["Change the class test or turn on Buddy","settings"]]],
  ["Whole school",[["See the whole school at a glance","@overview"],["Compare my classes","@compare"],["Browse every standard with sample questions","@standards"],["Import a new test","@tests"],["Reports for principals and leaders","@reports"],["Change my password or account","@teachers"]]]];
 function navWhere(){const tt=S.tt||"classes";if(tt==="class"&&CUR){const t=S.tab||"class",g=CLS_MENU.find(g=>g[1].some(x=>x[0]===t));return `My classes › ${esc(CUR.cls.name)} › ${g[0]} › ${g[1].find(x=>x[0]===t)[1]}`}return TOP_NAME[tt]||"My classes"}
@@ -4849,7 +4850,7 @@ function teacher(){
       <button class="ghost small" id="allc">← All classes</button></div>
       <div class="tabs ddnav" role="group" aria-label="Class pages">${CLS_MENU.map(([g,items])=>{const on=items.find(x=>x[0]===tab);return `<details class="dd"><summary class="${on?"on":""}">${g}${on?`: <b>${on[1]}</b>`:""} ▾</summary><div class="ddm">${items.map(([id,l])=>`<button class="small" data-tab="${id}" aria-pressed="${tab===id}">${l}</button>`).join("")}</div></details>`}).join("")}</div></div>`;
     const ipn=S.ipNew&&S.ipNew.length&&tab!=="ip"?`<div class="fb go" role="status"><p>📘 New individual plan${S.ipNew.length>1?"s":""} started for ${S.ipNew.map(esc).join(", ")} (scored below ${ipCfg().cut}%). <button class="link" data-tab="ip">See plans and print lessons</button></p></div>`:"";
-    body=tabs+ipn+({class:tClass,why:tWhy,plan:tPlanner,fluency:tFluency,mtss:tMtss,ip:tIP,bench:tBench,home:tFamily,pace:tPace,badges:tBadges,bd:tBreak,items:()=>qualityCard()+tItems(),setup:tSetup,settings:tSettings})[tab]();
+    body=tabs+ipn+({class:tClass,why:tWhy,plan:tPlanner,fluency:tFluency,mtss:tMtss,ip:tIP,bench:tBench,home:tFamily,celebrate:tCelebrate,pace:tPace,badges:tBadges,bd:tBreak,items:()=>qualityCard()+tItems(),setup:tSetup,settings:tSettings})[tab]();
   } else body=({classes:tClasses,compare:tCompare,standards:tStandards,tests:tTests,reports:tReports,teachers:tTeachers,tutors:tTutors,leads:tLeads,overview:tOverview,class:tClasses})[tt]();
   app.innerHTML=demoBanner()+header(`<button class="ghost" id="out">${DEMO_T?"Leave sample school":"Sign out"}</button>`,`${TB.school.name} · ${TB.me.name}${isAdmin()?" (admin)":""}`)+nav+`<button class="navfab" id="navfab" aria-label="Find a page">🧭 Find a page</button>`+(S.err?`<div class="fb oops" role="alert"><p>${esc(S.err)}</p></div>`:"")+body;
   document.getElementById("out").onclick=signOut;document.getElementById("navfab").onclick=navHelp;
@@ -4860,7 +4861,7 @@ function teacher(){
   app.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;S.err="";S.mtssId=null;S.rcpt=null;S.xtNew=false;render();window.scrollTo(0,0)});
   const sdb=document.getElementById("sub-day");if(sdb)sdb.onclick=subDay;const hbb=document.getElementById("help-buddy");if(hbb)hbb.onclick=()=>helpBuddy((document.getElementById("hb-std")||{}).value);
   const cd=document.getElementById("csv-dl");if(cd)cd.onclick=()=>saveFile(`${CUR.cls.name.replace(/[^\w]+/g,"-")}-${new Date().toISOString().slice(0,10)}.csv`,classCSV());
-  if(tt==="class"&&CUR)({class:wireHands,why:wireMis,plan:wirePlanner,fluency:wireFluency,mtss:wireMtss,ip:wireIP,bench:wireBench,home:wireFamily,pace:wirePace,badges:wireBadges,bd:wireBreak,items:wireQuality,setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
+  if(tt==="class"&&CUR)({class:wireHands,why:wireMis,plan:wirePlanner,fluency:wireFluency,mtss:wireMtss,ip:wireIP,bench:wireBench,home:wireFamily,celebrate:wireCelebrate,pace:wirePace,badges:wireBadges,bd:wireBreak,items:wireQuality,setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
   else ({classes:wireClasses,compare:wireCompare,standards:wireStandards,tests:wireTests,reports:wireReports,teachers:wireTeachers,tutors:wireTutors,leads:wireLeads,overview:wireOverview,class:wireClasses})[tt]();
   wireDemoBanner();if(DEMO_T){const o=document.getElementById("out");if(o)o.onclick=endDemoSchool}
 }
@@ -5586,6 +5587,40 @@ function wirePace(){const g=id=>document.getElementById(id);if(!g("pc-test"))ret
   const save=()=>{const c={start:g("pc-start").value||paceCfg().start,test:g("pc-test").value||paceCfg().test,off:Math.max(0,Math.min(20,+g("pc-off").value||0))};CUR.cls.pace=c;const y=scrollY;render();scrollTo(0,y);if(!(S.demo||DEMO_T))saveClass({pace:c}).catch(e=>{try{localStorage.setItem(paceKey(),JSON.stringify(c))}catch(x){}})};
   ["pc-start","pc-test","pc-off"].forEach(id=>g(id).onchange=save);
   g("pc-print").onclick=()=>{const card=[...app.querySelectorAll(".card")].slice(-2).map(c=>c.outerHTML).join("");printDoc(`Pacing guide · ${CUR.cls.name}`,`<h1>Pacing guide · ${esc(CUR.cls.name)}</h1>`+card.replace(/<input[^>]*>/g,"").replace(/<button[^>]*>.*?<\/button>/g,""))}}
+
+
+/* ---------- Celebrate these kids: this week's wins, with printable certificates ---------- */
+function celebWins(s){const p=s.prog,wk=Date.now()-7*864e5,wk2=Date.now()-14*864e5,out=[];
+  SKILLS.forEach(k=>{const x=p.skills[k.id];if(x&&x.status==="done"&&(x.doneAt||0)>=wk)out.push({ico:"🏆",t:`mastering ${/^[A-Z][a-z]/.test(k.name)?k.name[0].toLowerCase()+k.name.slice(1):k.name}`,w:5})});
+  let a={n:0,ok:0},b={n:0,ok:0};const dset=new Set();Object.entries(p.days||{}).forEach(([d,x])=>{const t=new Date(d+"T12:00:00").getTime();Object.values(x).forEach(v=>{if(t>=wk){a.n+=v.n;a.ok+=v.ok;if(v.n)dset.add(d)}else if(t>=wk2){b.n+=v.n;b.ok+=v.ok}})});
+  if(a.n>=10&&b.n>=10){const up=Math.round(a.ok/a.n*100-b.ok/b.n*100);if(up>=10)out.push({ico:"📈",t:`raising their accuracy ${up} points this week`,w:4})}
+  Object.entries(p.badges||{}).forEach(([id,t])=>{if(t>=wk){const bi=badgeInfo(id);if(bi)out.push({ico:bi.m||"🎖",t:`earning the ${bi.name} badge`,w:3})}});
+  let self=0;Object.entries(p.help3||{}).forEach(([d,x])=>{if(new Date(d+"T12:00:00").getTime()>=wk)self+=x.self||0});if(self>=2)out.push({ico:"💪",t:`getting unstuck on their own ${self} times`,w:3});
+  const m=minsOf(p,null,wk);if(m>=60)out.push({ico:"⏱",t:`practicing ${m} minutes this week`,w:2});
+  if(dset.size>=4)out.push({ico:"📅",t:`practicing ${dset.size} days this week`,w:2});
+  if(s.raw?.prog?._home?.done?.[famWk()])out.push({ico:"🏠",t:"doing a home mission with their family",w:2});
+  return out.sort((x,y)=>y.w-x.w)}
+function tCelebrate(){const C=S.cel||(S.cel={pick:{},off:{}}),list=CUR.students.filter(s=>!isSample(s.raw||s)||S.demo||DEMO_T).map(s=>({s,w:celebWins(s)})),yes=list.filter(x=>x.w.length).sort((a,b)=>b.w.reduce((t,x)=>t+x.w,0)-a.w.reduce((t,x)=>t+x.w,0)),no=list.filter(x=>!x.w.length);
+  return `<div class="card"><h2>🎉 Celebrate these kids</h2><p class="muted">This week’s wins, from each student’s practice: skills mastered, growth, badges, effort, getting unstuck on their own, and home missions. Pick the win for each certificate, then print. Celebrate in front of the class!</p>
+   ${yes.length?`<div class="row"><button id="cel-print">🖨 Print ${yes.filter(x=>!C.off[x.s.id]).length} certificate${yes.filter(x=>!C.off[x.s.id]).length===1?"":"s"}</button><button class="ghost small" id="cel-all">Select all</button><button class="ghost small" id="cel-none">Select none</button></div>`:""}</div>
+   ${yes.length?`<div class="card"><ul class="cel">${yes.map(({s,w})=>{const i=Math.min(C.pick[s.id]||0,w.length-1);return `<li><label class="chk" style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" data-cel="${s.id}" ${C.off[s.id]?"":"checked"}><span><b>${esc(s.name)}</b> ${w[i].ico}<br>
+      <select data-celw="${s.id}" aria-label="Win for ${esc(s.name)}’s certificate">${w.map((x,j)=>`<option value="${j}" ${j===i?"selected":""}>${x.ico} ${esc(cap1(x.t))}</option>`).join("")}</select></span></label></li>`}).join("")}</ul></div>`
+     :`<div class="card"><p class="muted">No wins logged yet this week. Wins show up as students practice.</p></div>`}
+   ${no.length&&yes.length?`<div class="card"><p class="small" style="margin:0"><b>Not on the list this week:</b> ${no.map(x=>esc(x.s.name)).join(", ")}. <span class="muted">Look for a small win to celebrate with them too.</span></p></div>`:""}`}
+const cap1=t=>t.charAt(0).toUpperCase()+t.slice(1);
+function wireCelebrate(){const C=S.cel||(S.cel={pick:{},off:{}}),re=()=>{const y=scrollY;render();scrollTo(0,y)};
+  app.querySelectorAll("[data-cel]").forEach(x=>x.onchange=()=>{x.checked?delete C.off[x.dataset.cel]:C.off[x.dataset.cel]=1;re()});
+  app.querySelectorAll("[data-celw]").forEach(x=>x.onchange=()=>{C.pick[x.dataset.celw]=+x.value;re()});
+  const all=document.getElementById("cel-all");if(all)all.onclick=()=>{C.off={};re()};
+  const none=document.getElementById("cel-none");if(none)none.onclick=()=>{CUR.students.forEach(s=>C.off[s.id]=1);re()};
+  const pr=document.getElementById("cel-print");if(pr)pr.onclick=()=>{const day=new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+    const certs=CUR.students.map(s=>({s,w:celebWins(s)})).filter(x=>x.w.length&&!C.off[x.s.id]).map(({s,w})=>{const x=w[Math.min(C.pick[s.id]||0,w.length-1)];
+      return `<div class="cert"><div class="cert-in"><div class="cert-stars">⭐ ⭐ ⭐</div><div class="cert-t">Certificate of Achievement</div><div class="cert-s">proudly presented to</div><div class="cert-n">${esc(s.name.replace(" (sample)",""))}</div><div class="cert-s">for</div><div class="cert-r">${x.ico} ${esc(cap1(x.t))}</div>
+       <div class="cert-f"><span>${esc(day)}</span><span>${esc(TB.me.name)}<br><small>${esc(CUR.cls.name)} · ${esc(TB.school.name)}</small></span></div><div class="cert-p">Path to Proficiency</div></div></div>`}).join("");
+    printDoc("Certificates · "+CUR.cls.name,`<style>@page{size:landscape;margin:.4in}.cert{break-after:page;page-break-after:always;height:7.2in;display:flex}.cert:last-child{break-after:auto}
+      .cert-in{flex:1;border:10px double #1f6f4a;border-radius:18px;padding:.45in .6in;text-align:center;display:flex;flex-direction:column;justify-content:center;gap:.12in;font-family:Lexend,system-ui,sans-serif;color:#1d2433;background:#fffdf5}
+      .cert-stars{font-size:28px;letter-spacing:8px}.cert-t{font-family:Fredoka,Lexend,sans-serif;font-size:44px;font-weight:700;color:#1f6f4a}.cert-s{font-size:18px;color:#555;font-style:italic}.cert-n{font-family:Fredoka,Lexend,sans-serif;font-size:52px;font-weight:700;border-bottom:3px solid #f6c453;display:inline-block;margin:0 auto;padding:0 .3in}
+      .cert-r{font-size:26px;font-weight:700}.cert-f{display:flex;justify-content:space-between;margin-top:.25in;font-size:16px;text-align:left}.cert-f span:last-child{text-align:right;border-top:2px solid #333;padding-top:4px;min-width:2.6in}.cert-p{font-size:12px;color:#888;margin-top:.1in}</style>${certs}`)}}
 
 /* ---------- PTP Bridge: family updates with a five-minute home activity ---------- */
 const HACT=()=>window.PTP_HOME||{};
@@ -6814,12 +6849,15 @@ function owner(){
      <label class="f">Student seats<input id="o-s" type="number" min="1" max="20000" value="${O.d.license.students}"></label>
      <label class="f">Renews on (optional)<input id="o-e" type="date" value="${esc(O.d.license.expires||"")}"></label>
      <label class="f" style="grid-column:1/-1">Note (invoice #, contact)<input id="o-n" maxlength="300" value="${esc(O.d.license.note||"")}"></label></div>
-     <div class="row"><button type="submit">Save license</button><span class="muted" id="o-msg" role="status"></span></div></form>`
+     <div class="row"><button type="submit">Save license</button><span class="muted" id="o-msg" role="status"></span></div></form>
+   <div class="card" style="max-width:720px"><h2>🔒 Research export (names removed)</h2><p class="muted">A file for improving Path to Proficiency. Students and classes get random IDs that change with every export, so they can’t be matched back to people or to earlier files. Removed: names, sign-in codes, teacher and class names, accommodations, family updates, and everything students typed (Scout chats). Dates are rounded to the week. Classes under 5 students are grouped together.</p>
+    <div class="row"><button class="ghost" id="o-res">⬇ Download research export</button><span class="muted" id="o-rmsg" role="status"></span></div></div>`
   :`<form class="card" id="o-in" style="max-width:460px"><h2>Owner sign-in</h2><p class="muted">Enter the OWNER_CODE you set in Netlify. Only the site owner can change license limits.</p>
      <label class="f">Owner code<input id="o-code" type="password" autocomplete="off" required></label><button type="submit">Sign in</button><p class="err" id="o-err" role="alert">${esc(O.err||"")}</p></form>`}`;
   document.getElementById("o-home").onclick=()=>{S.own=null;history.replaceState(null,"","/");S.screen="landing";render()};
   const fi=document.getElementById("o-in");if(fi)fi.onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Checking…");const code=document.getElementById("o-code").value;
     try{O.d=await api("ownerGet",{code});O.code=code;O.err="";render()}catch(er){O.err=er.message;render()}};
+  const orx=document.getElementById("o-res");if(orx)orx.onclick=async()=>{busy(orx,"Building…");try{const d=await api("ownerResearch",{code:O.code});const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:"application/json"}));a.download=`ptp-research-${d.made}.json`;document.body.append(a);a.click();a.remove();document.getElementById("o-rmsg").textContent=`Downloaded: ${d.classes.reduce((t,c)=>t+c.students.length,0)} students, no names.`}catch(er){document.getElementById("o-rmsg").textContent=er.message}orx.disabled=false;orx.textContent="⬇ Download research export"};
   const fs=document.getElementById("o-set");if(fs)fs.onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Saving…");
     try{await api("ownerSet",{code:O.code,license:{plan:document.getElementById("o-plan").value,teachers:+document.getElementById("o-t").value,students:+document.getElementById("o-s").value,expires:document.getElementById("o-e").value,note:document.getElementById("o-n").value}});
       O.d=await api("ownerGet",{code:O.code});render();document.getElementById("o-msg").textContent="Saved."}catch(er){document.getElementById("o-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save license"}};
