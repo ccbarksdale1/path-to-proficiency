@@ -16,3 +16,9 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), geolocation=(), microphone=()"
+
+# PTP Bridge family activity pages: /home/3oa7 etc.
+[[redirects]]
+  from = "/home/*"
+  to = "/home/index.html"
+  status = 200

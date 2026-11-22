@@ -80,7 +80,7 @@ export function makeApi({ store, env }) {
   /* ---------- helpers ---------- */
   const codeHash = (school, code) => sha(school.salt + ":" + code);
   const pubTeacher = t => ({ id: t.id, name: t.name, admin: !!t.admin });
-  const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false, music: c.music !== false, chal: c.chal !== false, gofur: c.gofur !== false, dokmix: c.dokmix !== false, buddy: c.buddy !== false, kw: ["on", "optional", "off"].includes(c.kw) ? c.kw : "auto",
+  const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false, music: c.music !== false, chal: c.chal !== false, gofur: c.gofur !== false, dokmix: c.dokmix !== false, buddy: c.buddy !== false, home: c.home || null, kw: ["on", "optional", "off"].includes(c.kw) ? c.kw : "auto",
     flu: { on: c.flu?.on !== false, secs: c.flu?.secs || 180, pass: c.flu?.pass || 28, n: c.flu?.n || 30 },
     games: { on: c.games?.on !== false, mins: c.games?.mins || 3 },
     ip: { on: c.ip?.on !== false, cut: c.ip?.cut || 60 } });
@@ -436,6 +436,29 @@ How you teach:
   };
 
   /* arcade: teacher gives every student in a class bonus game tokens */
+  /* PTP Bridge: the teacher sends a family update; the student can then mark the home mission done (+1 game token, once a week) */
+  A.homeMark = async b => {
+    const ctx = await teacherCtx(b.token), { school } = ctx;
+    const c = myClass(ctx, b.classId), wk = str(b.wk, 10), sid = str(b.sid, 20), std = str(b.std, 12);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(wk)) bad("That week was not found.");
+    const roster = (await getJ("roster/" + c.id)) || { students: [] };
+    if (!roster.students.some(x => x.id === sid)) bad("That student was not found.", 404);
+    if (!c.home || c.home.wk !== wk) c.home = { wk, picks: {} };
+    c.home.picks[sid] = { std, lang: b.lang === "es" ? "es" : "en", at: Date.now() };
+    await saveSchool(school);
+    return { home: c.home };
+  };
+  A.homeDone = async b => {
+    const { cls, st } = await studentCtx(b.token);
+    const wk = str(b.wk, 10);
+    if (!cls.home || cls.home.wk !== wk || !cls.home.picks || !cls.home.picks[st.id]) bad("There is no home mission this week.");
+    let first = false;
+    await mutJ(`prog/${cls.id}/${st.id}`, all => { all = all || {}; const h = all._home || { done: {} }; h.done = h.done || {};
+      if (!h.done[wk]) { first = true; h.done[wk] = Date.now(); const g = all._game || { spent: 0, bonus: 0, best: {} }; g.bonus = (g.bonus || 0) + 1; all._game = g;
+        const ks = Object.keys(h.done).sort(); if (ks.length > 30) ks.slice(0, ks.length - 30).forEach(k => delete h.done[k]) }
+      all._home = h; return all });
+    return { ok: true, first };
+  };
   A.gameBonus = async b => {
     const ctx = await teacherCtx(b.token);
     const c = myClass(ctx, b.classId);
@@ -587,7 +610,8 @@ How you teach:
     const prog = (await getJ(`prog/${c.id}/${st.id}`)) || {};
     const t = school.teachers.find(x => x.id === c.teacherId);
     const { mtss, ses, ...me } = st; if (me.ip) me.ip = { ...me.ip, note: "" };
-    return { token, cls: pubClass(c), teacher: t?.name || "", student: me, prog, test: await loadTest(c.testId), ai: !!env.ANTHROPIC_API_KEY, hidden: school.hidden || [], comeback: await comebackFor(c, st, prog) };
+    const { home: _hm, ...pc } = pubClass(c), hp = c.home && c.home.picks && c.home.picks[st.id];
+    return { token, cls: pc, home: hp ? { wk: c.home.wk, std: hp.std } : null, teacher: t?.name || "", student: me, prog, test: await loadTest(c.testId), ai: !!env.ANTHROPIC_API_KEY, hidden: school.hidden || [], comeback: await comebackFor(c, st, prog) };
   }
   /* Comeback: did the class practice on 3+ days (a day most classmates practiced) after this student's last practice?
      If so, send the skills the class worked on then that this student still has to do. Only "class days" count,
@@ -617,7 +641,7 @@ How you teach:
   A.progSave = async b => {
     const { cls, st } = await studentCtx(b.token);
     const tid = str(b.testId, 40);
-    if (tid === "_tb") bad("That can't be saved here.", 403); // teacher-given badges are written only by teachers
+    if (tid === "_tb" || tid === "_home") bad("That can't be saved here.", 403); // teacher-given badges are written only by teachers
     if (tid !== (cls.testId || "a1") && !["_flu", "_game", "_pref"].includes(tid)) { const cur = (await getJ(`prog/${cls.id}/${st.id}`)) || {}; if (!(tid in cur)) bad("That can't be saved here.", 403) }
     if (!b.prog || typeof b.prog !== "object") bad("Nothing to save.");
     if (JSON.stringify(b.prog).length > 400000) bad("Progress is too big to save.");

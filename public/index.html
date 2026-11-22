@@ -9,6 +9,7 @@
 <meta property="og:image" content="https://pathtoproficiency.com/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="https://pathtoproficiency.com/og.png">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script src="/home/acts.js" defer></script>
 <link rel="preload" href="/fonts/lexend-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <style>/* fonts served from our own site (no Google Fonts), SIL Open Font License */@font-face{font-family:"Fredoka";font-style:normal;font-weight:500;font-display:swap;src:url(/fonts/fredoka-latin-500-normal.woff2) format("woff2")}@font-face{font-family:"Fredoka";font-style:normal;font-weight:600;font-display:swap;src:url(/fonts/fredoka-latin-600-normal.woff2) format("woff2")}@font-face{font-family:"Fredoka";font-style:normal;font-weight:700;font-display:swap;src:url(/fonts/fredoka-latin-700-normal.woff2) format("woff2")}@font-face{font-family:"Lexend";font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/lexend-latin-400-normal.woff2) format("woff2")}@font-face{font-family:"Lexend";font-style:normal;font-weight:500;font-display:swap;src:url(/fonts/lexend-latin-500-normal.woff2) format("woff2")}@font-face{font-family:"Lexend";font-style:normal;font-weight:700;font-display:swap;src:url(/fonts/lexend-latin-700-normal.woff2) format("woff2")}@font-face{font-family:"Lexend";font-style:normal;font-weight:800;font-display:swap;src:url(/fonts/lexend-latin-800-normal.woff2) format("woff2")}@font-face{font-family:"Patrick Hand";font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/patrick-hand-latin-400-normal.woff2) format("woff2")}</style>
 <style>
@@ -4435,7 +4436,7 @@ function startStudent(d){
   TOKEN=d.token;ls.set(SKEY,{token:d.token,role:"student"},sessionStorage);SB=d;S.role="student";S.demo=false;
   if(d.test)TESTS[d.test.id]=d.test;useTest(d.test||(isStdT(d.cls.testId)?{id:d.cls.testId}:null));addExtras([...(d.student.assigned||[]),...ipCodes(d.student),...goList(d.prog&&d.prog[TESTID]),...xtCodes(d.student)]);
   db={mastery:d.cls.mastery,videos:d.cls.videos||{},goal:d.cls.goal};TEACHER=d.teacher||"Your teacher";
-  const restored=offRestore(d);try{const {token,...keep}=d;ls.set(BOOTKEY,keep,sessionStorage)}catch(e){}S.student=viewStudent({...d.student,prog:d.prog});cbStart(d.comeback);if(restored)setTimeout(save,500);accApply(d);S.lang=(d.prog&&d.prog._pref&&d.prog._pref.lang)||(d.student&&d.student.acc&&d.student.acc.es?"es":"en");S.screen="home";S.err="";render();
+  const restored=offRestore(d);try{const {token,...keep}=d;ls.set(BOOTKEY,keep,sessionStorage)}catch(e){}S.student=viewStudent({...d.student,prog:d.prog});cbStart(d.comeback);S.home=d.home||null;if(restored)setTimeout(save,500);accApply(d);S.lang=(d.prog&&d.prog._pref&&d.prog._pref.lang)||(d.student&&d.student.acc&&d.student.acc.es?"es":"en");S.screen="home";S.err="";render();
 }
 function home(){
   const s=S.student,p=s.prog,cur=curSkill(s),first=s.name.replace(" (sample)","");
@@ -4463,8 +4464,8 @@ function home(){
      return `<li class="stop ${cls}"><span class="num">${cls==="done"?"✓":i+1}</span><span style="display:flex;gap:10px;align-items:center;min-width:0">${ico(k.id)}<span><span class="name">${esc(k.name)}</span><br><span class="muted" style="font-size:.85rem">${esc(k.std)}</span></span></span>${pill}</li>`}).join("")}
      <li class="stop summit${cur?'':' reached'}"><span class="num">★</span><span><span class="name">Summit of Mastery</span><br><span class="muted" style="font-size:.85rem">Finish every checkpoint</span></span>${cur?'':'<span class="pill gold">You made it!</span>'}</li></ol>
   </div>
-  ${pfButton()}<div class="card"><h2>${t("My badges")}</h2>${badgesHTML(p)}</div>`;
-  document.getElementById("out").onclick=signOut;wireLang();wireHsHome();wirePsetCard();
+  ${homeMissionCard()}${pfButton()}<div class="card"><h2>${t("My badges")}</h2>${badgesHTML(p)}</div>`;
+  document.getElementById("out").onclick=signOut;wireLang();wireHsHome();wirePsetCard();wireHomeMission();
   const g=document.getElementById("go"); if(g) g.onclick=()=>{S.chkMode=false;if(newQ()!==false)S.screen="practice";render()};wireEvHome();wireXtHome();wireChal();wirePfButton();
   const fg=document.getElementById("flu-go"); if(fg) fg.onclick=fluStart;
   const ag=document.getElementById("arcade-go"); if(ag) ag.onclick=()=>{S.screen="arcade";render()};
@@ -4739,12 +4740,12 @@ async function openClass(id,tab){
   S.loading=false;render();
   if(CUR&&!S.err)autoPrograms();
 }
-const CLS_MENU=[["Progress",[["class","Class progress"],["why","Why they missed it"],["bd","Question breakdowns"],["items","Item analysis"],["fluency","Fluency"]]],["Plan & teach",[["plan","Station planner"],["mtss","MTSS"],["ip","Math plans (IMP)"]]],["Reports",[["bench","Benchmarks & reports"],["badges","Badges"]]],["Class",[["setup","Students"],["settings","Class settings"]]]];
+const CLS_MENU=[["Progress",[["class","Class progress"],["why","Why they missed it"],["bd","Question breakdowns"],["items","Item analysis"],["fluency","Fluency"]]],["Plan & teach",[["plan","Station planner"],["mtss","MTSS"],["ip","Math plans (IMP)"]]],["Reports",[["bench","Benchmarks & reports"],["home","Family updates 🏠"],["badges","Badges"]]],["Class",[["setup","Students"],["settings","Class settings"]]]];
 const TOP_NAME={overview:"School overview",classes:"My classes",compare:"Compare classes",standards:"Standards",tests:"Tests",reports:"Reports",teachers:"Teachers / My account",tutors:"Tutors",leads:"School requests"};
 const NAVH=[
  ["Your class",[["See how my class is doing","class"],["Find who needs help right now","class"],["Print a Sub Day plan or Help Buddy cards","class"],["See off-topic Scout chats","class"],["See why students missed questions","why"],["Break down each test question","bd"],["Find the hardest test questions","items"],["Check math fact fluency","fluency"]]],
  ["Plan & teach",[["Plan small-group stations","plan"],["See MTSS tiers (Tier 2 and Tier 3)","mtss"],["Make or print an IMP (Individualized Math Plan)","ip"]]],
- ["Scores & reports",[["Enter benchmark scores or import screener scores","bench"],["Print class or parent reports","bench"],["See student badges","badges"]]],
+ ["Scores & reports",[["Text parents a weekly update with a 5-minute home activity","home"],["Enter benchmark scores or import screener scores","bench"],["Print class or parent reports","bench"],["See student badges","badges"]]],
  ["Students & settings",[["Add students or print login cards","setup"],["Assign standards to students","setup"],["Set accommodations (read aloud, Spanish, extra time)","setup"],["Change the class test or turn on Buddy","settings"]]],
  ["Whole school",[["See the whole school at a glance","@overview"],["Compare my classes","@compare"],["Browse every standard with sample questions","@standards"],["Import a new test","@tests"],["Reports for principals and leaders","@reports"],["Change my password or account","@teachers"]]]];
 function navWhere(){const tt=S.tt||"classes";if(tt==="class"&&CUR){const t=S.tab||"class",g=CLS_MENU.find(g=>g[1].some(x=>x[0]===t));return `My classes › ${esc(CUR.cls.name)} › ${g[0]} › ${g[1].find(x=>x[0]===t)[1]}`}return TOP_NAME[tt]||"My classes"}
@@ -4781,7 +4782,7 @@ function teacher(){
       <button class="ghost small" id="allc">← All classes</button></div>
       <div class="tabs ddnav" role="group" aria-label="Class pages">${CLS_MENU.map(([g,items])=>{const on=items.find(x=>x[0]===tab);return `<details class="dd"><summary class="${on?"on":""}">${g}${on?`: <b>${on[1]}</b>`:""} ▾</summary><div class="ddm">${items.map(([id,l])=>`<button class="small" data-tab="${id}" aria-pressed="${tab===id}">${l}</button>`).join("")}</div></details>`}).join("")}</div></div>`;
     const ipn=S.ipNew&&S.ipNew.length&&tab!=="ip"?`<div class="fb go" role="status"><p>📘 New individual plan${S.ipNew.length>1?"s":""} started for ${S.ipNew.map(esc).join(", ")} (scored below ${ipCfg().cut}%). <button class="link" data-tab="ip">See plans and print lessons</button></p></div>`:"";
-    body=tabs+ipn+({class:tClass,why:tWhy,plan:tPlanner,fluency:tFluency,mtss:tMtss,ip:tIP,bench:tBench,badges:tBadges,bd:tBreak,items:()=>qualityCard()+tItems(),setup:tSetup,settings:tSettings})[tab]();
+    body=tabs+ipn+({class:tClass,why:tWhy,plan:tPlanner,fluency:tFluency,mtss:tMtss,ip:tIP,bench:tBench,home:tFamily,badges:tBadges,bd:tBreak,items:()=>qualityCard()+tItems(),setup:tSetup,settings:tSettings})[tab]();
   } else body=({classes:tClasses,compare:tCompare,standards:tStandards,tests:tTests,reports:tReports,teachers:tTeachers,tutors:tTutors,leads:tLeads,overview:tOverview,class:tClasses})[tt]();
   app.innerHTML=demoBanner()+header(`<button class="ghost" id="out">${DEMO_T?"Leave sample school":"Sign out"}</button>`,`${TB.school.name} · ${TB.me.name}${isAdmin()?" (admin)":""}`)+nav+`<button class="navfab" id="navfab" aria-label="Find a page">🧭 Find a page</button>`+(S.err?`<div class="fb oops" role="alert"><p>${esc(S.err)}</p></div>`:"")+body;
   document.getElementById("out").onclick=signOut;document.getElementById("navfab").onclick=navHelp;
@@ -4792,7 +4793,7 @@ function teacher(){
   app.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;S.err="";S.mtssId=null;S.rcpt=null;S.xtNew=false;render();window.scrollTo(0,0)});
   const sdb=document.getElementById("sub-day");if(sdb)sdb.onclick=subDay;const hbb=document.getElementById("help-buddy");if(hbb)hbb.onclick=()=>helpBuddy((document.getElementById("hb-std")||{}).value);
   const cd=document.getElementById("csv-dl");if(cd)cd.onclick=()=>saveFile(`${CUR.cls.name.replace(/[^\w]+/g,"-")}-${new Date().toISOString().slice(0,10)}.csv`,classCSV());
-  if(tt==="class"&&CUR)({class:()=>{},why:wireMis,plan:wirePlanner,fluency:wireFluency,mtss:wireMtss,ip:wireIP,bench:wireBench,badges:wireBadges,bd:wireBreak,items:wireQuality,setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
+  if(tt==="class"&&CUR)({class:()=>{},why:wireMis,plan:wirePlanner,fluency:wireFluency,mtss:wireMtss,ip:wireIP,bench:wireBench,home:wireFamily,badges:wireBadges,bd:wireBreak,items:wireQuality,setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
   else ({classes:wireClasses,compare:wireCompare,standards:wireStandards,tests:wireTests,reports:wireReports,teachers:wireTeachers,tutors:wireTutors,leads:wireLeads,overview:wireOverview,class:wireClasses})[tt]();
   wireDemoBanner();if(DEMO_T){const o=document.getElementById("out");if(o)o.onclick=endDemoSchool}
 }
@@ -5460,6 +5461,63 @@ async function addPractice(t,n,onProg,onlyEmpty){
     done++;onProg(done,todo.length)});
 }
 
+
+
+/* ---------- PTP Bridge: family updates with a five-minute home activity ---------- */
+const HACT=()=>window.PTP_HOME||{};
+const famWk=()=>weekOf(dayKey());
+const famFirst=s=>s.name.replace(" (sample)","").split(/\s+/)[0];
+const kStd=kid=>{const k=SKILLS.find(x=>x.id===kid);return k&&k.std};
+function famPick(s){const H=HACT(),p=s.prog,since=Date.now()-14*864e5,agg={};
+  Object.entries(p.days||{}).forEach(([d,x])=>{if(new Date(d+"T12:00:00").getTime()<since)return;Object.entries(x).forEach(([k,v])=>{const a=agg[k]||(agg[k]={n:0,ok:0});a.n+=v.n;a.ok+=v.ok})});
+  const hard=Object.entries(agg).filter(([k,a])=>a.n>=3&&a.ok/a.n<.8&&p.skills[k]?.status!=="done"&&H[kStd(k)]).sort((a,b)=>a[1].ok/a[1].n-b[1].ok/b[1].n);
+  if(hard.length)return {std:kStd(hard[0][0]),why:"practice"};
+  const cur=curSkill(s);if(cur&&H[cur.std])return {std:cur.std,why:"next"};
+  const nx=trailFor(s).find(k=>p.skills[k.id]?.status==="todo"&&H[k.std]);return nx?{std:nx.std,why:"next"}:null}
+function famData(s){const p=s.prog,wkAgo=Date.now()-7*864e5,H=HACT();
+  return {mins:minsOf(p,null,wkAgo),mast:SKILLS.filter(k=>(p.skills[k.id]?.doneAt||0)>=wkAgo&&p.skills[k.id].status==="done").map(k=>k.std)}}
+function famMsg(s,std,lang){const H=HACT(),d=famData(s),f=famFirst(s),me=TB.me.name,A=std&&H[std]?H[std][lang]:null,url=std?`${location.origin}/home/${std.toLowerCase().replace(/\./g,"")}${lang==="es"?"?l=es":""}`:"";
+  const nm=c=>H[c]?H[c][lang].n:(SKILLS.find(k=>k.std===c)||{}).name||c,mast=d.mast.slice(0,2).map(nm);
+  const join=l=>l.length>1?l.slice(0,-1).join(", ")+(lang==="es"?" y ":" and ")+l[l.length-1]:l[0];
+  if(lang==="es")return [`¡Hola! Le saluda ${me}.`,
+    d.mins?`${f} practicó ${d.mins} minutos de matemáticas esta semana${mast.length?` y dominó ${join(mast)} 🎉`:""}.`:`${f} practicó poco esta semana. ¡Su apoyo en casa ayuda mucho!`,
+    A?`Ahora estamos trabajando en ${A.n}. Idea de 5 minutos: ${A.a[0].s}`:"",A?`Más ideas: ${url}`:"","¡Gracias!"].filter(Boolean).join(" ");
+  return [`Hi! This is ${me}.`,
+    d.mins?`${f} practiced math for ${d.mins} minutes this week${mast.length?` and mastered ${join(mast)} 🎉`:""}.`:`${f} didn't practice much this week, so a little encouragement at home would help a lot!`,
+    A?`Next we're working on ${A.n}. 5-minute idea: ${A.a[0].s}`:"",A?`More ideas: ${url}`:"","Thank you!"].filter(Boolean).join(" ")}
+function tFamily(){const F=S.fam||(S.fam={lang:{},std:{},txt:{}}),wk=famWk(),H=HACT(),hm=CUR.cls.home&&CUR.cls.home.wk===wk?CUR.cls.home.picks||{}:{};
+  if(!Object.keys(H).length)return `<div class="card"><p class="muted">Loading family activities…</p></div>`;
+  const list=CUR.students.filter(s=>!isSample(s.raw||s));
+  const sent=list.filter(s=>hm[s.id]).length,did=list.filter(s=>s.raw?.prog?._home?.done?.[wk]).length;
+  const codes=Object.keys(H);
+  return `<div class="card"><h2>🏠 Family updates · PTP Bridge</h2>
+   <p class="muted">Each message is written from that student’s practice this week, with a five-minute activity for home on the skill they need most. Edit anything. Tap <b>Text</b> to open your phone’s Messages app, or <b>Copy</b> to paste into Remind, ClassDojo or your district app. Parent phone numbers are never stored in Path to Proficiency.</p>
+   <div class="row" style="gap:8px"><span class="pill">Week of ${shortDate(wk)}</span><span class="pill go">${sent} of ${list.length} sent</span><span class="pill gold">🏠 ${did} home mission${did===1?"":"s"} done</span><a class="link" href="/home/" target="_blank" rel="noopener">See the family activity pages ↗</a></div>
+   <p class="muted" id="fam-msg" role="status"></p></div>
+   ${list.length?list.map(s=>{const pk=famPick(s),std=F.std[s.id]||(hm[s.id]&&hm[s.id].std)||pk?.std||"",lang=F.lang[s.id]||(hm[s.id]&&hm[s.id].lang)||(s.acc&&s.acc.es?"es":"en"),txt=F.txt[s.id+"|"+std+"|"+lang]??famMsg(s,std,lang),done=s.raw?.prog?._home?.done?.[wk];
+     return `<div class="card fam" data-sid="${s.id}"><div class="top"><h3 style="margin:0">${esc(s.name)}</h3><div class="row" style="gap:6px">${hm[s.id]?`<span class="pill go">Sent ✓</span>`:""}${done?`<span class="pill gold">🏠 Did the home mission!</span>`:""}</div></div>
+      <div class="row"><label class="f" style="flex:2;min-width:200px">Home activity skill<select data-fstd="${s.id}"><option value="">No activity (progress only)</option>${codes.map(c=>`<option value="${c}" ${c===std?"selected":""}>${esc(c)} · ${esc(H[c].en.n)}${pk&&pk.std===c?(pk.why==="practice"?" (needs practice)":" (up next)"):""}</option>`).join("")}</select></label>
+       <label class="f" style="flex:1;min-width:120px">Language<select data-flang="${s.id}"><option value="en" ${lang==="en"?"selected":""}>English</option><option value="es" ${lang==="es"?"selected":""}>Español</option></select></label></div>
+      <textarea data-ftxt="${s.id}|${std}|${lang}" rows="5" style="width:100%;font:inherit;padding:10px;border-radius:12px;border:2px solid var(--rule)">${esc(txt)}</textarea>
+      <div class="row"><a class="btn small" data-fsend="${s.id}" data-how="text" href="sms:?&body=${encodeURIComponent(txt)}">📱 Text</a><button class="ghost small" data-fsend="${s.id}" data-how="copy">📋 Copy</button><span class="muted" style="font-size:.85rem">${txt.length} characters</span></div></div>`}).join(""):`<div class="card"><p class="muted">Add students first.</p></div>`}`}
+function wireFamily(){const F=S.fam||(S.fam={lang:{},std:{},txt:{}}),keep=fn=>()=>{const y=scrollY;fn();render();scrollTo(0,y)};
+  if(!Object.keys(HACT()).length){setTimeout(()=>{if(S.tab==="home")render()},400);return}
+  app.querySelectorAll("[data-fstd]").forEach(x=>x.onchange=keep(()=>{F.std[x.dataset.fstd]=x.value}));
+  app.querySelectorAll("[data-flang]").forEach(x=>x.onchange=keep(()=>{F.lang[x.dataset.flang]=x.value}));
+  app.querySelectorAll("[data-ftxt]").forEach(x=>x.oninput=()=>{F.txt[x.dataset.ftxt]=x.value;const a=x.closest(".fam").querySelector('[data-how="text"]');if(a)a.href="sms:?&body="+encodeURIComponent(x.value)});
+  app.querySelectorAll("[data-fsend]").forEach(b=>b.onclick=async e=>{const sid=b.dataset.fsend,card=b.closest(".fam"),ta=card.querySelector("textarea"),[,std,lang]=ta.dataset.ftxt.split("|");
+    if(b.dataset.how==="copy"){e.preventDefault();try{await navigator.clipboard.writeText(ta.value);b.textContent="✓ Copied"}catch(er){ta.select();document.execCommand&&document.execCommand("copy");b.textContent="✓ Copied"}}
+    if(S.demo||DEMO_T){return}
+    try{const r=await api("homeMark",{classId:CUR.cls.id,wk:famWk(),sid,std,lang});CUR.cls.home=r.home;setTimeout(()=>{if(S.tab==="home"){const y=scrollY;render();scrollTo(0,y)}},b.dataset.how==="copy"?900:300)}catch(er){const m=document.getElementById("fam-msg");if(m)m.textContent=er.message}})}
+/* student side: this week's home mission */
+function homeMissionCard(){const h=S.home,H=HACT();if(!h||h.wk!==famWk()||!H[h.std])return"";const L=S.lang==="es"?"es":"en",A=H[h.std][L],done=S.student.raw?.prog?._home?.done?.[h.wk];
+  return `<div class="card" style="border:2px solid var(--go)"><h2>🏠 ${L==="es"?"Misión en casa":"Home mission"}</h2>
+   <p>${L==="es"?`Tu maestro/a mandó una actividad a tu familia: <b>${esc(A.a[0].t)}</b> (${esc(A.n)}). ¡Háganla juntos!`:`Your teacher sent your family an activity: <b>${esc(A.a[0].t)}</b> (${esc(A.n)}). Try it together!`}</p>
+   <p class="muted" style="margin:0">${esc(A.a[0].s)}</p>
+   <div class="row">${done?`<span class="pill gold">✅ ${L==="es"?"¡Hecho! +1 ficha de juego":"Done! +1 game token"}</span>`:`<button id="hm-done">${L==="es"?"¡La hicimos con mi familia! ✅":"We did it with my family! ✅"}</button>`}</div></div>`}
+function wireHomeMission(){const b=document.getElementById("hm-done");if(!b)return;b.onclick=async()=>{busy(b,"…");
+  try{if(!S.demo){await api("homeDone",{wk:S.home.wk})}const s=S.student;if(!s.raw)s.raw={prog:{}};const all=s.raw.prog||(s.raw.prog={});all._home=all._home||{done:{}};all._home.done=all._home.done||{};
+    if(!all._home.done[S.home.wk]){all._home.done[S.home.wk]=Date.now();gameProg().bonus=(gameProg().bonus||0)+1}render()}catch(e){b.disabled=false;b.textContent=e.message}}}
 
 /* ---------- every standard: preview and library ---------- */
 const libOptions=sel=>GRADES.flatMap(g=>Object.entries(DOMS).map(([d,dn])=>[g,d,dn])).filter(([g,d])=>LIB.some(x=>x.grade===g&&x.dom===d)).map(([g,d,dn])=>`<optgroup label="${gLabel(g)} · ${esc(dn)}">${LIB.filter(x=>x.dom===d&&x.grade===g).map(x=>`<option value="${x.code}" ${x.code===sel?"selected":""}>${x.code} ${esc(x.name)}</option>`).join("")}</optgroup>`).join("");

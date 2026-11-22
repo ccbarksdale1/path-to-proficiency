@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#1f6f4a">
+<title>PTP Bridge · 5-minute math at home</title>
+<meta name="description" content="Five-minute math activities families can do at home. No supplies, no login.">
+<link rel="icon" href="/favicon.svg">
+<style>
+@font-face{font-family:"Lexend";font-weight:400;font-display:swap;src:url(/fonts/lexend-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Lexend";font-weight:700;font-display:swap;src:url(/fonts/lexend-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"Fredoka";font-weight:600;font-display:swap;src:url(/fonts/fredoka-latin-600-normal.woff2) format("woff2")}
+:root{--ink:#1d2433;--muted:#5d6676;--go:#1f6f4a;--paper:#fffdf7;--line:#e6e0d2;--gold:#f6c453}
+*{box-sizing:border-box}body{margin:0;font-family:Lexend,system-ui,sans-serif;background:#f4f1e8;color:var(--ink);line-height:1.55}
+header{background:var(--go);color:#fff;padding:16px 18px}header .in{max-width:680px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+header b{font-family:Fredoka,Lexend,sans-serif;font-size:1.35rem}header small{display:block;opacity:.85;font-size:.8rem;letter-spacing:.06em}
+.lang{display:flex;gap:6px}.lang button{border:2px solid #fff;background:transparent;color:#fff;border-radius:999px;padding:6px 14px;font:inherit;font-weight:700;cursor:pointer}.lang button[aria-pressed=true]{background:#fff;color:var(--go)}
+main{max-width:680px;margin:0 auto;padding:18px 16px 40px}
+h1{font-family:Fredoka,Lexend,sans-serif;font-size:1.7rem;margin:.2rem 0 .3rem;line-height:1.2}.lead{color:var(--muted);margin:0 0 14px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:16px 18px;margin:12px 0;box-shadow:0 8px 24px rgba(0,0,0,.05)}
+.card h2{margin:0 0 6px;font-size:1.15rem}.say{background:#eef7f1;border-left:4px solid var(--go);border-radius:10px;padding:8px 12px;margin-top:10px}
+.tip{background:#fff7dd;border:1px solid #f1dfa1;border-radius:14px;padding:12px 14px;font-size:.95rem}
+label{font-weight:700;font-size:.9rem}select{width:100%;font:inherit;padding:10px;border-radius:12px;border:2px solid var(--line);background:#fff;margin-top:4px}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:24px}
+a{color:var(--go)}
+</style></head><body>
+<header><div class="in"><div><small id="kicker">PATH TO PROFICIENCY</small><b>🏠 PTP Bridge</b></div>
+ <div class="lang" role="group" aria-label="Language"><button id="l-en">English</button><button id="l-es">Español</button></div></div></header>
+<main id="main"></main>
+<script src="/home/acts.js"></script>
+<script>
+(()=>{
+const H=window.PTP_HOME||{},codes=Object.keys(H),slug=c=>c.toLowerCase().replace(/\./g,"");
+const q=new URLSearchParams(location.search),part=location.pathname.split("/").filter(Boolean)[1]||"";
+let code=codes.find(c=>slug(c)===slug(q.get("s")||part))||null,lang=(q.get("l")||"").startsWith("es")?"es":"en";
+const T={en:{pick:"Pick a skill",lead:"A five-minute activity to do together. No supplies or printing needed. Pick one and have fun!",try:"Try this",say:"What to say",tip:"<b>Tip:</b> Keep it short and fun. If your child gets stuck, ask them to explain their thinking. Mistakes help us learn!",home:"Five-minute math at home",homeLead:"Simple activities for families, matched to what your child is learning in class.",foot:"From Path to Proficiency. This page has no student information and needs no login."},
+ es:{pick:"Escoja una habilidad",lead:"Una actividad de cinco minutos para hacer juntos. No necesita materiales ni imprimir. ¡Escoja una y diviértanse!",try:"Prueben esto",say:"Qué decir",tip:"<b>Consejo:</b> Que sea corto y divertido. Si su hijo/a se atora, pídale que explique cómo lo pensó. ¡Los errores nos ayudan a aprender!",home:"Matemáticas de cinco minutos en casa",homeLead:"Actividades sencillas para las familias, de acuerdo con lo que su hijo/a aprende en clase.",foot:"De Path to Proficiency. Esta página no tiene información de estudiantes y no necesita cuenta."}};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+function render(){const t=T[lang];document.documentElement.lang=lang;
+ document.getElementById("l-en").setAttribute("aria-pressed",lang==="en");document.getElementById("l-es").setAttribute("aria-pressed",lang==="es");
+ const opts=`<label for="pick">${t.pick}</label><select id="pick"><option value="">—</option>${codes.map(c=>`<option value="${c}" ${c===code?"selected":""}>${esc(cap(H[c][lang].n))}</option>`).join("")}</select>`;
+ let body;
+ if(code){const d=H[code][lang];document.title=`${cap(d.n)} · PTP Bridge`;
+  body=`<h1>${esc(cap(d.n))}</h1><p class="lead">${t.lead}</p>${d.a.map((a,i)=>`<div class="card"><h2>${i+1}. ${esc(a.t)}</h2><p style="margin:0">${esc(a.s)}</p><div class="say"><b>${t.say}:</b> ${esc(a.say)}</div></div>`).join("")}<p class="tip">${t.tip}</p><div class="card">${opts}</div>`}
+ else{document.title="PTP Bridge · 5-minute math at home";body=`<h1>${t.home}</h1><p class="lead">${t.homeLead}</p><div class="card">${opts}</div><p class="tip">${t.tip}</p>`}
+ document.getElementById("main").innerHTML=body+`<footer>${t.foot}</footer>`;
+ document.getElementById("pick").onchange=e=>{code=e.target.value||null;history.replaceState(null,"",code?`/home/${slug(code)}${lang==="es"?"?l=es":""}`:"/home/");render();scrollTo(0,0)}}
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+document.getElementById("l-en").onclick=()=>{lang="en";history.replaceState(null,"",code?`/home/${slug(code)}`:"/home/");render()};
+document.getElementById("l-es").onclick=()=>{lang="es";history.replaceState(null,"",(code?`/home/${slug(code)}`:"/home/")+"?l=es");render()};
+render();
+})();
+</script></body></html>
