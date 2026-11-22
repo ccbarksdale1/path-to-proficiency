@@ -145,6 +145,10 @@ input.num{font:inherit;font-size:1.4rem;width:120px;color:var(--ink);background:
 .err{color:var(--oops);min-height:1.5em}
 .tabs{display:flex;gap:8px;flex-wrap:wrap}
 .dd{position:relative}
+.hl-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}.hl-step{border:2px solid var(--rule);border-radius:14px;padding:10px 12px;background:var(--card)}
+.hl-step.locked{opacity:.55}.hl-step.used{border-color:color-mix(in srgb,var(--go) 45%,var(--rule))}.hl-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hl-n{width:26px;height:26px;border-radius:50%;display:inline-grid;place-items:center;background:var(--ink);color:var(--card);font-weight:800;font-size:.85rem}.hl-step.used .hl-n{background:var(--go)}
+.hl-b{margin-top:8px;display:flex;flex-direction:column;gap:6px}.wt-q{font-weight:600;margin:0}ul.hands{margin:.4rem 0;padding-left:1.1rem}ul.hands li{margin:.3rem 0}
 .navfab{position:fixed;left:16px;bottom:16px;z-index:60;border-radius:999px;padding:.7rem 1.1rem;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 .navh{display:flex;flex-direction:column;gap:10px}.nh-g h3{margin:.6rem 0 .3rem}
 .nh-i{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;margin:0 0 6px;background:var(--card);color:var(--ink);border:2px solid var(--rule);border-radius:12px;padding:.55rem .8rem}
@@ -4497,7 +4501,7 @@ function topUp(sk,id,n=4){
   if(!pool.length)return;
   let guard=0;while(sk.queue.length<n&&guard++<50){const c=pool.filter(x=>!sk.queue.includes(x)),from=c.length?c:pool;sk.queue.push(from[Math.floor(Math.random()*from.length)])}
 }
-function newQ(){S.lb=null;S.pf=null;S.ro=null;S.pit=null;S.evRes=null;S.rvKind=null;S.cnt=null;const cur=S.chkMode?null:curSkill(S.student),rv=(!S.demo||S.chkMode)&&pickReview(S.student),k=rv||cur;
+function newQ(){if(S.hand&&!S.demo)api("handLower",{}).catch(()=>{});S.help=null;S.helpClosed=null;S.wt=null;S.hand=false;S.lb=null;S.pf=null;S.ro=null;S.pit=null;S.evRes=null;S.rvKind=null;S.cnt=null;const cur=S.chkMode?null:curSkill(S.student),rv=(!S.demo||S.chkMode)&&pickReview(S.student),k=rv||cur;
   if(!k){S.chkMode=false;S.rvKind=null;S.screen="home";return false} // nothing left: check-ups finished, or the summit with nothing due
   const sk=S.student.prog.skills[k.id];S.rev=!!rv;S.rep=null;S.reopened=false;S.kwFade=false;confPick();
   if(rv){S.k=k.id;S.qid=(S.rvKind==="v"&&(evOf(sk).vn||0)>=1&&eaIdFor(k))||reviewQid(k); /* the second verify check-up is a Think deeper (DOK 3) question */S.q=viewQ(getQ(S.qid));S.step=step0(S.q);S.kwSkip=S.step===2;S.bare=S.step===2&&kwMode()!=="off";S.shownAt=Date.now();S.hl=new Set();S.sel=[];S.result=null;S.r=0;S.full=false;S.mastered=false;S.chat=null;stopPlay();return}
@@ -4585,7 +4589,7 @@ function practice(){
   else below=`<div class="card pop">
      ${S.step===2&&!S.result?`${S.kwSkip?"":`<div class="fb info"><p><b>You found ${found} of ${nKeys} key words.</b> ${found<nKeys?'The wavy lines show the ones you missed. Read them again.':'Great reading!'}</p></div>`}
      ${S.bare&&S.step===2&&!S.result?`<p class="muted small">${S.lang==="es"?"Problema corto: no hace falta marcar palabras clave.":(S.kwFade?"You know this skill well: no key words needed this time.":"Quick problem: no key words needed this time.")}</p>`:""}<p class="note">${t(isELA(gradeOf())?"Step 2: Answer it. Go back to the passage or the sentence, then choose.":isSci(gradeOf())?"Step 2: Answer it. Think about what you know, then choose.":"Step 2: Solve it. Work it out with your pencil, then answer.")}</p>`:''}
-     ${planNote()}${answerArea(q)}${S.result?feedback(q):''}</div>`;
+     ${planNote()}${answerArea(q)}${S.result?feedback(q):helpCard(q)}</div>`;
   app.innerHTML=header(`${langToggle()}${lbBtn()}<button class="ghost" id="back">${t("My trail")}</button>`)+`
    <div class="row" style="justify-content:space-between"><span class="label">${S.rev?`<span class="pill purple">${t(S.rvKind?"Check-up":"Review")}</span> `:""}${esc(k.std)} · ${esc(k.name)}</span>
     ${S.rev?"":`<span class="flags" aria-label="Checkpoint progress: ${sk.streak} of ${MASTERY} stars"><span class="muted" style="font-size:.85rem;margin-right:4px">${t("Checkpoint")}</span>${Array.from({length:MASTERY},(_,i)=>`<i class="${i<sk.streak?'on':''}">${i<sk.streak?'★':i+1}</i>`).join("")}</span>`}</div>
@@ -4593,7 +4597,7 @@ function practice(){
    ${S.lang==="es"&&subjOf(gradeOf())!=="math"?`<p class="muted small" lang="es">Las preguntas y los textos de ${isELA(gradeOf())?"lectura":"ciencias"} están en inglés, como en el examen estatal. Las instrucciones, Chirp y la ayuda de Scout están en español.</p>`:""}
    <div class="notebook ${S.step>1?'ro':''}"><div class="row" style="justify-content:space-between"><span class="label">${S.q&&S.q._ea?`<span class="pill purple">${t("Think deeper")}</span> `:""}${S.rev?t(S.rvKind?"Check-up: on your own":"Review question"):t(qLabel(S.qid).replace(/ #\d+$/,""))+(qLabel(S.qid).match(/ #\d+$/)||[""])[0]}</span><div class="row">${sayBtn("say-q",t("🔊 Read to me"))}<button class="ghost small" id="rep-btn" title="Report a problem" aria-label="Report a problem with this question">🚩</button></div></div>${bodyHTML(q,S.hl,S.step===1?"tap":S.kwSkip?"plain":"check")}</div>${hsToolsBar()}${reportBox()}${below}${chatHTML()}${lbHTML()}`;
   document.getElementById("back").onclick=()=>{stopPlay();S.screen="home";render()};
-  wireChat();wireReport();wireLang();wireHsTools();roMark();wireLook();
+  wireChat();wireReport();wireLang();wireHsTools();roMark();wireLook();wireHelp(q);
   const sq=document.getElementById("say-q"); if(sq) sq.onclick=()=>{stopPlay();speak(S.step===1?q.parts.map(p=>typeof p==="string"?p:p.eq||p.fig||"").join(". "):qSpeech(q))};
   if(sq&&accOn("read")&&S.accReadQ!==S.qid){S.accReadQ=S.qid;setTimeout(()=>sq.click(),300)} /* accommodation: read every question aloud */
   if(S.step===1&&pfOn(q)){wirePf(q);return}
@@ -4620,6 +4624,63 @@ function practice(){
 }
 SCREENS.practice=practice;
 
+
+/* ---------- 3 Before Me: a help ladder before the teacher (watch it solved → hint → Scout → teacher) ---------- */
+const LE=(en,es)=>S.lang==="es"?es:en;
+function wtSibling(){const sk=S.student.prog.skills[S.k];if(!sk)return null;topUp(sk,S.k);
+  const id=(sk.queue||[]).find(x=>x!==S.qid&&x[0]!=="!"&&getQ(x)&&getQ(x).steps&&getQ(x).steps.length>1);return id?viewQ(getQ(id)):null}
+function helpOK(){return S.role==="student"&&!S.result&&S.step>=1&&!(S.rev&&S.rvKind)}
+function hlUnlock(lvl,ms){const qid=S.qid;setTimeout(()=>{if(S.help&&S.qid===qid&&S.help.lvl<lvl){S.help.lvl=lvl;if(S.screen==="practice"){const y=scrollY;render();scrollTo(0,y)}}},ms)}
+function helpHint(q){const st=q.steps||[];return st.length>=2?LE("Start here: ","Empieza así: ")+st[0].say:LE("Read the question again. What is it asking you to find?","Lee la pregunta otra vez. ¿Qué te pide encontrar?")}
+function helpCard(q){if(!helpOK())return"";const H=S.help;
+  if(!H)return `<div class="row"><button class="ghost" id="hl-open">✋ ${LE("I’m stuck","Estoy atorado/a")}</button></div>`;
+  const W=S.wt,done=H.used,scoutOK=tutorOn(),sentScout=!!(S.chat&&S.chat.msgs&&S.chat.msgs.some(m=>m.role==="user"));
+  if(scoutOK&&sentScout&&H.lvl<4)H.lvl=4;
+  const step=(n,ico,title,body,on)=>`<li class="hl-step ${H.lvl>=n?"open":"locked"} ${done[n]?"used":""}"><div class="hl-h"><span class="hl-n" aria-hidden="true">${done[n]?"✓":n}</span><b>${ico} ${title}</b>${H.lvl<n?`<span class="muted small">🔒 ${LE("unlocks soon","se abre pronto")}</span>`:""}</div>${H.lvl>=n&&on?`<div class="hl-b">${body}</div>`:""}</li>`;
+  let w="";
+  if(W&&W.q){const st=W.q.steps;let show="";for(let i=W.r;i>=0;i--){if(st[i].show){show=showHTML(st[i].show);break}}
+    w=`<p class="muted small" style="margin:0">${LE("A problem like yours:","Un problema como el tuyo:")}</p><p class="wt-q">${esc(qSpeech(W.q).replace(/([?!])\./g,"$1"))}</p>${show?`<div class="stage">${show}</div>`:""}<p class="say">${fmt(st[W.r].say)}</p>
+     <div class="row"><span class="muted small">${LE("Step","Paso")} ${W.r+1} / ${st.length}</span><button class="ghost small" id="wt-play">${W.playing?LE("Pause","Pausa"):W.r>=st.length-1?LE("↺ Watch again","↺ Ver otra vez"):LE("▶ Play","▶ Reproducir")}</button></div>`}
+  else if(!W)w=`<button class="small" id="wt-go">🎬 ${LE("Watch it solved","Míralo resuelto")}</button>`;
+  else w=`<p class="muted">${LE("No walkthrough for this one. Try the hint!","No hay video para esta. ¡Prueba la pista!")}</p>`;
+  const hint=done[2]?`<p class="say">${fmt(helpHint(q))}</p>${sayBtn("hl-say","🔊 "+LE("Read it to me","Léemelo"))}`:`<button class="small" id="hl-hint">💡 ${LE("Show me a hint","Muéstrame una pista")}</button>`;
+  const scoutB=scoutOK?(done[3]?`<p class="muted small" style="margin:0">${LE("Scout is open below. Ask a question!","Scout está abierto abajo. ¡Hazle una pregunta!")}</p>`:`<button class="small" id="hl-scout">🐦 ${LE("Ask Scout","Pregúntale a Scout")}</button>`):`<p class="muted small" style="margin:0">${LE("Scout is off right now. Reread the hint and try your best.","Scout está apagado. Lee la pista otra vez y haz tu mejor esfuerzo.")}</p>`;
+  const teach=S.hand?`<div class="fb info"><p><b>✋ ${LE("Your teacher knows you need help.","Tu maestro/a sabe que necesitas ayuda.")}</b> ${LE("Keep trying while you wait!","¡Sigue intentando mientras esperas!")}</p></div>`:`<button class="small" id="hl-hand">✋ ${LE("Ask my teacher","Pedirle ayuda a mi maestro/a")}</button>`;
+  return `<div class="card hl pop" aria-label="${LE("Help ladder","Escalera de ayuda")}"><div class="top"><h3 style="margin:0">✋ ${LE("3 Before Me","3 antes de mí")}</h3><button class="ghost small" id="hl-x">${LE("Close","Cerrar")}</button></div>
+   <p class="muted small" style="margin:.2rem 0 .4rem">${LE("Try these in order. Each one helps you solve it yourself.","Prueba en orden. Cada una te ayuda a resolverlo tú solo/a.")}</p>
+   <ol class="hl-list">${step(1,"🎬",LE("Watch it solved","Míralo resuelto"),w,1)}${step(2,"💡",LE("Get a hint","Una pista"),hint,1)}${step(3,"🐦",LE("Ask Scout","Pregúntale a Scout"),scoutB,1)}${step(4,"✋",LE("Ask my teacher","Pregúntale a tu maestro/a"),teach,1)}</ol></div>`}
+function wtPlay(){const W=S.wt;if(!W||!W.playing)return;const y=scrollY;render();scrollTo(0,y);const qid=S.qid,next=()=>{if(!S.wt||!S.wt.playing||S.qid!==qid)return;if(W.r<W.q.steps.length-1){W.r++;wtPlay()}else{W.playing=false;S.help.used[1]=1;if(S.help.lvl<2)S.help.lvl=2;const y2=scrollY;render();scrollTo(0,y2)}};
+  if(TTS)speak(W.q.steps[W.r].say,()=>{if(W.playing)timer=setTimeout(next,700)});else timer=setTimeout(next,5000)}
+function wireHelp(q){const g=id=>document.getElementById(id),re=()=>{const y=scrollY;render();scrollTo(0,y)};
+  const o=g("hl-open");if(o)o.onclick=()=>{stopPlay();S.help={lvl:1,used:{},at:Date.now()};S.wt=null;re()};
+  if(!S.help)return;
+  const x=g("hl-x");if(x)x.onclick=()=>{stopPlay();if(S.wt)S.wt.playing=false;S.helpClosed=S.help;S.help=null;re()};
+  const go=g("wt-go");if(go)go.onclick=()=>{stopPlay();const sq=wtSibling();S.wt={q:sq,r:0,playing:!!sq};if(!sq){S.help.used[1]=1;S.help.lvl=Math.max(S.help.lvl,2);re();return}hlUnlock(2,20000);S.playing=true;wtPlay()};
+  const pl=g("wt-play");if(pl)pl.onclick=()=>{const W=S.wt;if(W.playing){W.playing=false;stopPlay();re();return}if(W.r>=W.q.steps.length-1)W.r=0;W.playing=true;S.playing=true;wtPlay()};
+  const hb=g("hl-hint");if(hb)hb.onclick=()=>{stopPlay();if(S.wt)S.wt.playing=false;S.help.used[2]=1;if(tutorOn())hlUnlock(3,8000);else hlUnlock(4,8000);re();if(TTS)speak(helpHint(q))};
+  const hs=g("hl-say");if(hs)hs.onclick=()=>{stopPlay();speak(helpHint(q))};
+  const sc=g("hl-scout");if(sc)sc.onclick=()=>{stopPlay();S.help.used[3]=1;S.chat={open:true,msgs:[],busy:false};re();document.getElementById("chat-in")?.focus()};
+  const hd=g("hl-hand");if(hd)hd.onclick=async()=>{busy(hd,"…");const k=SKILLS.find(z=>z.id===S.k)||{},U=S.help.used,tried=[U[1]&&"watched it solved",U[2]&&"used the hint",U[3]&&"asked Scout"].filter(Boolean);
+    try{if(!S.demo)await api("handRaise",{std:k.std||"",kname:k.name||"",tried});S.help.used[4]=1;S.hand=true;re()}catch(e){hd.disabled=false;hd.textContent=e.message}};
+}
+function helpRecord(p){const H=S.help||S.helpClosed;if(!H||!Object.keys(H.used).length)return;const d=dayKey(),h=(p.help3=p.help3||{}),x=h[d]||(h[d]={stuck:0,self:0,teacher:0});x.stuck++;S.hand?x.teacher++:x.self++;
+  const ks=Object.keys(h).sort();if(ks.length>60)ks.slice(0,ks.length-60).forEach(k=>delete h[k]);
+  if(S.hand&&!S.demo)api("handLower",{}).catch(()=>{});S.hand=false}
+/* teacher: live Hands up list (checks every 30 seconds, only while this page is open and on screen) */
+let handT=null;
+function handsCard(){if((S.demo||DEMO_T)&&(!S.hands||S.hands.cid!==CUR.cls.id)){const st=CUR.students;S.hands={cid:CUR.cls.id,list:st.length>2?[{sid:st[1].id,name:st[1].name,kname:"Rounding to the nearest 10 and 100",tried:["watched it solved","used the hint","asked Scout"],at:Date.now()-3*60000},{sid:st[2].id,name:st[2].name,kname:"Area by tiling and multiplying",tried:["watched it solved","used the hint"],at:Date.now()-60000}]:[]}}
+  const L=(S.hands&&S.hands.cid===CUR.cls.id)?S.hands.list:[];const wk=Date.now()-7*864e5;let self=0,tch=0;
+  CUR.students.forEach(s=>Object.entries(s.prog.help3||{}).forEach(([d,x])=>{if(new Date(d+"T12:00:00").getTime()>=wk){self+=x.self||0;tch+=x.teacher||0}}));
+  if((S.demo||DEMO_T)&&!self&&!tch){self=37;tch=6} /* sample school numbers */
+  return `<div class="card" id="hands"><div class="top"><h2 style="margin:0">✋ Hands up ${L.length?`<span class="pill gold">${L.length}</span>`:""}</h2><span class="muted small">${S.demo||DEMO_T?"Sample school":"Updates every 30 seconds"}</span></div>
+   ${L.length?`<ul class="hands">${L.map(h=>`<li><b>${esc(h.name)}</b> · ${esc(h.kname||h.std)} <span class="muted small">· ${Math.max(1,Math.round((Date.now()-h.at)/60000))} min · ${h.tried&&h.tried.length?esc(h.tried.join(", ")):"went straight to you"}</span> <button class="ghost small" data-hdone="${esc(h.sid)}">Done</button></li>`).join("")}</ul>`:`<p class="muted" style="margin:.3rem 0">No hands up. Students try “3 Before Me” first: watch it solved, a hint, then Scout.</p>`}
+   <p class="small" style="margin:.4rem 0 0"><b>Hands saved this week:</b> ${self} time${self===1?"":"s"} students got unstuck on their own · ${tch} asked you</p></div>`}
+async function pollHands(){if(S.tt!=="class"||!CUR||(S.tab||"class")!=="class"||document.visibilityState!=="visible"||!document.getElementById("hands")||S.demo||DEMO_T)return;
+  try{const r=await api("handList",{classId:CUR.cls.id});const old=JSON.stringify(S.hands&&S.hands.list);S.hands={cid:CUR.cls.id,list:r.list};
+    if(old!==JSON.stringify(r.list)){const el=document.getElementById("hands");if(el){el.outerHTML=handsCard();wireHandsBtns()}}}catch(e){}}
+function wireHandsBtns(){app.querySelectorAll("[data-hdone]").forEach(b=>b.onclick=async()=>{if(S.demo||DEMO_T){S.hands.list=S.hands.list.filter(h=>h.sid!==b.dataset.hdone);const el=document.getElementById("hands");if(el){el.outerHTML=handsCard();wireHandsBtns()}return}busy(b,"…");try{const r=await api("handDone",{classId:CUR.cls.id,sid:b.dataset.hdone});S.hands={cid:CUR.cls.id,list:r.list};const el=document.getElementById("hands");if(el){el.outerHTML=handsCard();wireHandsBtns()}}catch(e){b.textContent=e.message}})}
+function wireHands(){wireHandsBtns();if(!handT){handT=setInterval(pollHands,30000);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")pollHands()})}if(!S.hands||S.hands.cid!==CUR.cls.id)pollHands()}
+
 function isRight(q){
   if(q.type==="mc")return S.sel[0]===q.ans;
   if(q.type==="multi")return S.sel.length===2&&q.ans.every(a=>S.sel.includes(a));
@@ -4635,7 +4696,7 @@ function grade(q){
   lg.tries++; if(ok)lg.right++; if(lg.first===null)lg.first=ok;
   if(ok) award(p,"first");
   (p.recent=p.recent||[]).push({k:k.id,q:S.qid,ok}); if(p.recent.length>30)p.recent.shift();
-  p.last=Date.now();track(p,k.id,ok,Date.now()-(S.shownAt||Date.now()));
+  p.last=Date.now();track(p,k.id,ok,Date.now()-(S.shownAt||Date.now()));helpRecord(p);if(S.wt)S.wt.playing=false;
   if(!ok){const from=q._from||{},pick=q.type==="mc"?from[S.sel[0]]||S.sel[0]:q.type==="multi"?S.sel.filter(l=>!q.ans.includes(l)).map(l=>from[l]||l).sort().join(""):q.type==="input"?String(Number(String(S.sel[0]).replace(/,/g,""))):"r"+q.rows.findIndex((r,j)=>S.sel[j]!==r.a);
     (p.miss=p.miss||[]).push({q:S.qid,k:k.id,p:pick,t:Date.now()});if(p.miss.length>80)p.miss.splice(0,p.miss.length-80)}
   if(S.rev){gradeReview(q,ok);if(ok)p.stars++;badgeTrack(p,k,sk,ok,false);chirpTick(ok);save();render();return}
@@ -4793,7 +4854,7 @@ function teacher(){
   app.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;S.err="";S.mtssId=null;S.rcpt=null;S.xtNew=false;render();window.scrollTo(0,0)});
   const sdb=document.getElementById("sub-day");if(sdb)sdb.onclick=subDay;const hbb=document.getElementById("help-buddy");if(hbb)hbb.onclick=()=>helpBuddy((document.getElementById("hb-std")||{}).value);
   const cd=document.getElementById("csv-dl");if(cd)cd.onclick=()=>saveFile(`${CUR.cls.name.replace(/[^\w]+/g,"-")}-${new Date().toISOString().slice(0,10)}.csv`,classCSV());
-  if(tt==="class"&&CUR)({class:()=>{},why:wireMis,plan:wirePlanner,fluency:wireFluency,mtss:wireMtss,ip:wireIP,bench:wireBench,home:wireFamily,badges:wireBadges,bd:wireBreak,items:wireQuality,setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
+  if(tt==="class"&&CUR)({class:wireHands,why:wireMis,plan:wirePlanner,fluency:wireFluency,mtss:wireMtss,ip:wireIP,bench:wireBench,home:wireFamily,badges:wireBadges,bd:wireBreak,items:wireQuality,setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
   else ({classes:wireClasses,compare:wireCompare,standards:wireStandards,tests:wireTests,reports:wireReports,teachers:wireTeachers,tutors:wireTutors,leads:wireLeads,overview:wireOverview,class:wireClasses})[tt]();
   wireDemoBanner();if(DEMO_T){const o=document.getElementById("out");if(o)o.onclick=endDemoSchool}
 }
@@ -4860,7 +4921,7 @@ function tClass(){
   const offS=CUR.students.filter(s=>s.prog.tutor?.off?.n);
   const offCard=offS.length?`<div class="card"><details><summary><b>⚠️ Off-topic Scout chats (${offS.reduce((a,s)=>a+s.prog.tutor.off.n,0)})</b> <span class="muted">Scout steered these students back to math. Tap to see what they asked.</span></summary>
    <ul>${offS.map(s=>`<li><b>${esc(s.name)}</b> (${s.prog.tutor.off.n}): ${(s.prog.tutor.off.last||[]).slice(-3).map(x=>`<span class="muted">“${esc(x.t)}”</span>`).join(", ")}</li>`).join("")}</ul></details></div>`:"";
-  return `${nextCard()}${tsCard(CUR.raw)}${goalCard}${hsClassCard()}${readinessCard()}${evClassCard()}${stepsCard()}${attnCard}${offCard}${groupsCard}<div class="card"><div class="top"><h2>Every student</h2><span class="row" style="gap:.4rem;margin:0"><button class="small" id="sub-day">🧑‍🏫 Sub Day</button><select id="hb-std" aria-label="Standard for the Help Buddy warm-up" style="max-width:220px"><option value="">🦝 Most of the class (auto)</option>${SKILLS.filter(k=>genOf(k)).map(k=>`<option value="${esc(k.id)}">${esc(k.std)} · ${esc(k.name)}</option>`).join("")}</select><button class="ghost small" id="help-buddy">🦝 Help Buddy warm-up</button><button class="ghost small" id="csv-dl">Download class data (CSV)</button></span></div>
+  return `${nextCard()}${tsCard(CUR.raw)}${goalCard}${hsClassCard()}${readinessCard()}${evClassCard()}${stepsCard()}${handsCard()}${attnCard}${offCard}${groupsCard}<div class="card"><div class="top"><h2>Every student</h2><span class="row" style="gap:.4rem;margin:0"><button class="small" id="sub-day">🧑‍🏫 Sub Day</button><select id="hb-std" aria-label="Standard for the Help Buddy warm-up" style="max-width:220px"><option value="">🦝 Most of the class (auto)</option>${SKILLS.filter(k=>genOf(k)).map(k=>`<option value="${esc(k.id)}">${esc(k.std)} · ${esc(k.name)}</option>`).join("")}</select><button class="ghost small" id="help-buddy">🦝 Help Buddy warm-up</button><button class="ghost small" id="csv-dl">Download class data (CSV)</button></span></div>
    <p class="muted">Each student’s path skips any standard where they got every test question right. Students marked “sample” are examples and are not counted in your goal.</p>
    <div class="tablewrap"><table class="roster"><thead><tr><th>Student</th><th>Missed on test</th><th>Path</th><th>Working on</th><th>Accuracy</th><th>Readiness</th><th>Asked Scout</th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="muted">No students yet.</td></tr>`}</tbody></table></div>
    <p class="muted" style="font-size:.85rem">Progress saves online, so students can use any device. <button class="link" id="reload">Refresh</button></p></div>${growthCard()}`;

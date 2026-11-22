@@ -335,7 +335,7 @@ How you teach:
     school.classes = school.classes.filter(x => x !== c);
     await saveSchool(school);
     for (const k of await listKeys("prog/" + c.id + "/")) await del(k);
-    await del("roster/" + c.id);
+    await del("roster/" + c.id); await del("hands/" + c.id);
     await del("plan/" + c.id).catch(() => {});
     return boot(ctx);
   };
@@ -458,6 +458,28 @@ How you teach:
         const ks = Object.keys(h.done).sort(); if (ks.length > 30) ks.slice(0, ks.length - 30).forEach(k => delete h.done[k]) }
       all._home = h; return all });
     return { ok: true, first };
+  };
+  /* 3 Before Me: a student asks the teacher after trying the help ladder; the teacher's page checks the list every 30 seconds */
+  const HAND_TTL = 30 * 60 * 1000, freshHands = l => (l || []).filter(h => Date.now() - h.at < HAND_TTL);
+  A.handRaise = async b => {
+    const { cls, st } = await studentCtx(b.token);
+    const tried = (Array.isArray(b.tried) ? b.tried : []).slice(0, 3).map(x => str(x, 30));
+    await mutJ(`hands/${cls.id}`, v => ({ list: [...freshHands(v && v.list).filter(h => h.sid !== st.id), { sid: st.id, name: st.name, std: str(b.std, 12), kname: str(b.kname, 60), tried, at: Date.now() }].slice(-60) }));
+    return { ok: true };
+  };
+  A.handLower = async b => {
+    const { cls, st } = await studentCtx(b.token);
+    await mutJ(`hands/${cls.id}`, v => v && v.list && v.list.some(h => h.sid === st.id) ? { list: freshHands(v.list).filter(h => h.sid !== st.id) } : undefined);
+    return { ok: true };
+  };
+  A.handList = async b => {
+    const ctx = await teacherCtx(b.token), c = myClass(ctx, b.classId);
+    return { list: freshHands(((await getJ(`hands/${c.id}`)) || {}).list) };
+  };
+  A.handDone = async b => {
+    const ctx = await teacherCtx(b.token), c = myClass(ctx, b.classId), sid = str(b.sid, 20);
+    const v = await mutJ(`hands/${c.id}`, v => ({ list: freshHands(v && v.list).filter(h => h.sid !== sid) }));
+    return { list: v.list };
   };
   A.gameBonus = async b => {
     const ctx = await teacherCtx(b.token);
