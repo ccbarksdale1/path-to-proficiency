@@ -121,6 +121,14 @@ async function api(action,body={}){
   return d;
 }
 
+/* ---------- which parts of PTP get used (counts only, once per feature per device per day, sent in small batches) ---------- */
+const USEKEY="ptp-used";let useQ=[],useT=null;
+function useMark(f){if(!TOKEN||TOKEN==="demo"||!f)return;f=String(f).replace(/[^a-zA-Z0-9:_-]/g,"").slice(0,41);if(!/^[a-z]/.test(f))return;
+  const d=new Date().toISOString().slice(0,10),seen=ls.get(USEKEY)||{};if(seen.d!==d){seen.d=d;seen.f={}}if(seen.f[f])return;seen.f[f]=1;ls.set(USEKEY,seen);
+  useQ.push(f);clearTimeout(useT);useT=setTimeout(()=>{const f=useQ.splice(0,20);if(f.length)api("use",{f}).catch(()=>{})},4000)}
+document.addEventListener("click",e=>{const el=e.target.closest("button[id],a[id]");if(!el)return;
+  const F={"wt-go":"watch-solved","hl-open":"stuck","hl-hint":"hint","hl-scout":"scout","hl-hand":"ask-teacher"};if(F[el.id])useMark(F[el.id])},true);
+
 /* ---------- state ---------- */
 let db={mastery:MASTERY_DEFAULT,videos:{},goal:60};   /* the open class's settings */
 let TB=null;          /* teacher: boot data (me, teachers, classes, tests) */
@@ -202,6 +210,7 @@ function header(right="",sub=`${TEACHER} · ${TEST_NAME}`){return `<div class="t
 let lastView="";
 const SCREENS={};
 function render(){app.className="wrap"+(S.screen==="teacher"||S.screen==="setup"?" teach":"")+(S.screen==="landing"?" landing":"");SCREENS[S.screen]();
+  if(TOKEN)useMark(S.screen==="teacher"?"teacher:"+((S.tt||"classes")==="class"?(S.tab||"class"):S.tt||"classes"):S.screen==="lg"?"game:"+(S.lg||""):S.screen);
   const view=[S.screen,S.qid,S.tab,S.tt,S.bdq,S.cid].join("|"); if(view!==lastView){lastView=view;window.scrollTo?.(0,0)}
   if(S.flash){const el=document.getElementById(S.flash.id);if(el)el.textContent=S.flash.msg;S.flash=null}
   markSaved()}

@@ -302,7 +302,7 @@ function owner(){
      <label class="f">Owner code<input id="o-code" type="password" autocomplete="off" required></label><button type="submit">Sign in</button><p class="err" id="o-err" role="alert">${esc(O.err||"")}</p></form>`}`;
   document.getElementById("o-home").onclick=()=>{S.own=null;history.replaceState(null,"","/");S.screen="landing";render()};
   if(O.multi)wireOwnerMulti(O);
-  const ob=document.getElementById("o-back");if(ob)ob.onclick=async()=>{O.school=null;O.d=null;O.ins=null;O.dist=await api("ownerDistricts",{code:O.code});render()};
+  const ob=document.getElementById("o-back");if(ob)ob.onclick=async()=>{O.school=null;O.d=null;O.ins=null;O.log=null;O.logAll=false;O.dist=await api("ownerDistricts",{code:O.code});render()};
   const fi=document.getElementById("o-in");if(fi)fi.onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Checking…");const code=document.getElementById("o-code").value;
     try{O.dist=await api("ownerDistricts",{code});O.multi=true;O.code=code;O.err="";render()}
     catch(er){if(/Unknown action/.test(er.message)){try{O.d=await api("ownerGet",{code});O.code=code;O.err="";render()}catch(e2){O.err=e2.message;render()}}else{O.err=er.message;render()}}};
@@ -333,21 +333,53 @@ function weekBars(W){if(!W||!W.length)return"";const mx=Math.max(1,...W.map(w=>w
   <div style="display:flex;gap:6px">${W.map(w=>`<small class="muted" style="flex:1;text-align:center;font-size:.65rem">${w.week.slice(5).replace("-","/")}</small>`).join("")}</div>`}
 const daysTo=d=>d?Math.ceil((Date.parse(d+"T12:00:00")-Date.now())/864e5):null;
 function renewPill(lic){const n=daysTo(lic&&lic.expires);if(n==null)return"";return n<0?`<span class="pill oops">License ended ${-n} days ago</span>`:n<=60?`<span class="pill gold">Renews in ${n} days</span>`:`<span class="pill">Renews ${esc(lic.expires)}</span>`}
+/* friendly names for the feature counters */
+const FEAT_NAME={practice:"Student practice",fluency:"Fact fluency",game:"Games (built-in)",arcade:"Arcade",portfolio:"Student portfolio",mastered:"Mastered page",xt:"Exit tickets",ptest:"Practice tests",pset:"Problem sets",home:"Student home",
+  "watch-solved":"🎬 Watch it solved",stuck:"✋ I'm stuck",hint:"💡 Hints",scout:"🐦 Ask Scout (from help)", "ask-teacher":"✋ Ask my teacher"};
+function featName(f){if(FEAT_NAME[f])return FEAT_NAME[f];const [a,b]=f.split(":");
+  if(a==="teacher"){if(TOP_NAME[b])return "Teacher: "+TOP_NAME[b];for(const g of CLS_MENU)for(const [id,n] of g[1])if(id===b)return "Teacher: "+n;return "Teacher: "+b}
+  if(a==="game"){const G=(typeof LGAMES!=="undefined"?LGAMES:[]).find(x=>x.id===b);return "Game: "+(G?G.name:b)}return f}
+function ago(t){if(!t)return"never";const d=Math.floor((Date.now()-t)/864e5);return d<=0?"today":d===1?"yesterday":d+" days ago"}
+/* the Action Center: what needs the owner's attention, worked out from the insights */
+function ownerAlerts(list){const A=[];
+  for(const I of list){const nm=list.length>1?esc(I.school)+": ":"",L=I.license,t=I.totals,n=daysTo(L&&L.expires);
+    if(n!=null&&n<0)A.push([1,`${nm}License ended ${-n} days ago.`,"Send the renewal or extend it."]);
+    else if(n!=null&&n<=60)A.push([n<=30?1:2,`${nm}License renews in ${n} days.`,"Print an impact report and set up a renewal meeting."]);
+    if(L&&I.seats.students/L.students>=.9)A.push([2,`${nm}${pct(I.seats.students,L.students)}% of student seats are used.`,"Talk about adding seats before they run out."]);
+    if(t.students&&!t.active7)A.push([1,`${nm}No students practiced this week.`,"Check in with the school."]);
+    const quiet=(I.classes||[]).filter(c=>c.students&&!c.active7);if(t.active7&&quiet.length)A.push([3,`${nm}${quiet.length} ${quiet.length===1?"class has":"classes have"} no practice this week: ${quiet.map(c=>esc(c.name)).join(", ")}.`,"A quick check-in with the teacher."]);
+    const newT=(I.teachers||[]).filter(x=>!x.admin&&(x.last?Date.now()-x.last>14*864e5:Date.now()>Date.parse("2026-12-07")));/* sign-ins are recorded from Nov 23, 2026: give it two weeks before "never" means anything */if(newT.length)A.push([3,`${nm}${newT.length} ${newT.length===1?"teacher hasn't":"teachers haven't"} signed in for 2 weeks: ${newT.map(x=>esc(x.name)).join(", ")}.`,"They may need help getting started."]);
+    if(I.lastBackup!==undefined){const b=I.lastBackup?Date.parse(I.lastBackup.slice(0,10)+"T12:00:00Z"):0;if(!b||Date.now()-b>3*864e5)A.push([1,`${nm}No backup in ${b?Math.floor((Date.now()-b)/864e5)+" days":"a while"}.`,"Check the nightly backup in Netlify."])}
+    const at=I.attention||{};
+    if(at.demoRequests)A.push([2,`${nm}${at.demoRequests} new demo ${at.demoRequests===1?"request":"requests"}.`,"Reply while they're interested (Teacher login → School requests)."]);
+    if(at.questionReports)A.push([2,`${nm}${at.questionReports} open question ${at.questionReports===1?"report":"reports"} from teachers or students.`,"Check them for wrong answers or confusing wording."]);
+    if(at.tutorApplications)A.push([3,`${nm}${at.tutorApplications} new tutor ${at.tutorApplications===1?"application":"applications"}.`,"Review them under Teacher login → Tutors."])}
+  return A.sort((a,b)=>a[0]-b[0])}
+function actionCard(A,extra=""){const P=["","🔴","🟠","🟡"];
+  return `<div class="card"><h2>🎯 Needs your attention</h2>${A.length||extra?`<ul style="margin:.3rem 0;padding-left:0;list-style:none">${extra}${A.map(a=>`<li style="margin:.45rem 0">${P[a[0]]} <b>${a[1]}</b><br><span class="muted small">${a[2]}</span></li>`).join("")}</ul>`:`<p class="muted">✅ Nothing right now.</p>`}</div>`}
+function teachersTable(T){if(!T||!T.length)return"";return `<h3 style="margin:.8rem 0 .3rem">Teachers</h3><div class="tablewrap"><table class="roster"><thead><tr><th>Teacher</th><th>Classes</th><th>Last signed in</th><th>Days used (30 days)</th></tr></thead><tbody>${T.map(x=>`<tr><td>${esc(x.name)}${x.admin?' <span class="pill purple">admin</span>':""}</td><td>${x.classes}</td><td>${ago(x.last)}</td><td>${x.days30}</td></tr>`).join("")}</tbody></table></div><p class="muted small">Sign-in days are recorded from today on.</p>`}
+function featuresTable(F){if(!F||!F.length)return `<h3 style="margin:.8rem 0 .3rem">Most-used tools</h3><p class="muted small">Recording starts today. Check back in a week.</p>`;
+  const top=F.slice(0,12);return `<h3 style="margin:.8rem 0 .3rem">Most-used tools (last 30 days)</h3><p class="muted small">Counts how many device-days each tool was opened, by teachers and students.</p><div class="tablewrap"><table class="roster"><thead><tr><th>Tool</th><th>Teachers</th><th>Students</th></tr></thead><tbody>${top.map(x=>`<tr><td>${esc(featName(x.f))}</td><td>${x.teachers}</td><td>${x.students}</td></tr>`).join("")}</tbody></table></div>${F.length>12?`<details><summary class="small">Least used</summary><p class="small muted">${F.slice(-8).reverse().map(x=>esc(featName(x.f))+" ("+(x.teachers+x.students)+")").join(", ")}</p></details>`:""}`}
+function logCard(O){const L=O.log;
+  return `<div class="card"><div class="top"><h2>🗒 Activity log</h2>${L?"":`<button class="ghost small" id="o-log">Show</button>`}</div>${L?(L.length?`<div class="tablewrap"><table class="roster"><thead><tr><th>When</th>${O.multi&&!O.school?"<th>Where</th>":""}<th>Who</th><th>What</th><th></th></tr></thead><tbody>${L.slice(0,O.logAll?800:25).map(x=>`<tr><td class="small">${new Date(x.t).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</td>${O.multi&&!O.school?`<td>${esc(x.where||"")}</td>`:""}<td>${esc(x.who)}</td><td><b>${esc(x.what)}</b></td><td class="small muted">${esc(x.detail||"")}</td></tr>`).join("")}</tbody></table></div>${L.length>25&&!O.logAll?`<button class="ghost small" id="o-logall">Show all ${L.length}</button>`:""}`:`<p class="muted">Nothing logged yet. Recording started with this update.</p>`):`<p class="muted small">Teachers added or removed, code resets, classes deleted, licenses, exports, backups and restores, and district changes. Kept 3 months on screen.</p>`}</div>`}
+
 function ownerInsightsCard(O){const I=O.ins;
   if(!I)return `<div class="card"><h2>📈 How this school uses PTP</h2><p class="muted">${O.insErr?esc(O.insErr):"Loading…"}</p></div>`;
-  return `<div class="card" id="o-ins"><div class="top"><h2>📈 How ${esc(I.school)} uses PTP</h2>${renewPill(I.license)}</div>
+  return `${actionCard(ownerAlerts([I]))}<div class="card" id="o-ins"><div class="top"><h2>📈 How ${esc(I.school)} uses PTP</h2>${renewPill(I.license)}</div>
    ${insightKpis(I.totals,I.growth,I.license?{used:I.seats.students,max:I.license.students}:null)}
    ${weekBars(I.weeks)}
    <h3 style="margin:.8rem 0 .3rem">By class</h3><div class="tablewrap"><table class="roster"><thead><tr><th>Class</th><th>Teacher</th><th>Students</th><th>Active this week</th><th>Questions (30 days)</th><th>Accuracy</th><th>Skills mastered</th><th>Last active</th></tr></thead><tbody>${I.classes.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.teacher)}</td><td>${c.students}</td><td>${c.active7}${c.students&&!c.active7?' <span class="pill gold">quiet</span>':""}</td><td>${nfmt(c.answers30)}</td><td>${c.accuracy30==null?"—":c.accuracy30+"%"}</td><td>${c.mastered}</td><td>${esc(c.lastActive||"—")}</td></tr>`).join("")}</tbody></table></div>
+   ${teachersTable(I.teachers)}${featuresTable(I.features)}
    <div class="row" style="margin-top:.6rem"><button class="ghost" id="o-impact">🖨 Impact report</button><label class="small"><input type="checkbox" id="o-anon"> Hide the school's name (to show other districts)</label><button class="ghost" id="o-csv">⬇ Spreadsheet</button></div>
-   <p class="muted small">Counts only. Students are never named here. "Quiet" means students on the roster but no practice this week, a good reason to check in with that teacher.</p></div>`}
+   <p class="muted small">Counts only. Students are never named here. "Quiet" means students on the roster but no practice this week, a good reason to check in with that teacher.</p></div>${logCard(O)}`}
 function ownerAllCard(O){const A=O.all;
   if(!A)return `<div class="card"><h2>📈 All schools</h2><p class="muted">${O.insErr?esc(O.insErr):"Loading…"}</p></div>`;
   const dn=id=>(A.districts.find(d=>d.id===id)||{}).name||id,R=A.schools.filter(s=>s.ready);
-  return `<div class="card" id="o-ins"><h2>📈 All schools</h2><p class="muted">${A.totals.schools} ${A.totals.schools===1?"school":"schools"} using PTP</p>
+  const waitX=(A.waiting||[]).filter(w=>Date.now()-(w.created||0)>7*864e5).map(w=>`<li style="margin:.45rem 0">🟠 <b>${esc(w.name)} hasn't finished setup (added ${ago(w.created)}).</b><br><span class="muted small">Resend the setup key or offer a setup call.</span></li>`).join("");
+  return `${actionCard(ownerAlerts(R),waitX)}<div class="card" id="o-ins"><h2>📈 All schools</h2><p class="muted">${A.totals.schools} ${A.totals.schools===1?"school":"schools"} using PTP</p>
    ${insightKpis(A.totals,null,null)}
    ${R.length?`<div class="tablewrap"><table class="roster"><thead><tr><th>District</th><th>School</th><th>Students</th><th>Active this week</th><th>Active (30 days)</th><th>Questions (30 days)</th><th>Accuracy</th><th>Growth</th><th>Seats used</th><th>License</th></tr></thead><tbody>${R.map(s=>`<tr><td>${esc(dn(s.district))}</td><td><b>${esc(s.school)}</b></td><td>${s.totals.students}</td><td>${s.totals.active7} (${pct(s.totals.active7,s.totals.students)}%)</td><td>${s.totals.active30}</td><td>${nfmt(s.totals.answers30)}</td><td>${s.totals.accuracy30==null?"—":s.totals.accuracy30+"%"}</td><td>${s.growth?s.growth.first+"% → "+s.growth.recent+"%":"—"}</td><td>${s.license?pct(s.seats.students,s.license.students)+"%":"—"}</td><td>${s.license?esc(s.license.plan):""} ${renewPill(s.license)}</td></tr>`).join("")}</tbody></table></div>`:""}
-   <div class="row" style="margin-top:.6rem"><button class="ghost" id="o-impact">🖨 Impact report</button><button class="ghost" id="o-csv">⬇ Spreadsheet</button></div></div>`}
+   <div class="row" style="margin-top:.6rem"><button class="ghost" id="o-impact">🖨 Impact report</button><button class="ghost" id="o-csv">⬇ Spreadsheet</button></div></div>${logCard(O)}`}
 function impactReport(O){const I=O.all||O.ins,anon=!!document.getElementById("o-anon")?.checked,t=I.totals,g=I.growth,w=window.open("","_blank");if(!w){alert("Allow pop-ups to print.");return}
   const who=O.all?`${t.schools} ${t.schools===1?"school":"schools"}`:anon?"A Mississippi elementary school":esc(I.school),when=new Date(I.made).toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"});
   const line=(b,s)=>`<div class="kpi"><b>${b}</b><span>${s}</span></div>`;
@@ -358,7 +390,7 @@ function impactReport(O){const I=O.all||O.ins,anon=!!document.getElementById("o-
     ${line(nfmt(Math.round(t.minutes/60)),"hours of practice")}${line(nfmt(t.mastered),"skills mastered")}${g?line(g.first+"% → "+g.recent+"%","accuracy growth ("+g.students+" students)"):line(t.accuracy30==null?"—":t.accuracy30+"%","accuracy, last 30 days")}
     ${t.stuck?line(pct(t.selfSolved,t.stuck)+"%","of the time, stuck students solved it on their own"):""}${line(nfmt(t.scout),"questions answered by Scout, the AI tutor")}</div>
    ${O.ins&&!O.all?weekBars(I.weeks):""}</div>
-   <p class="muted small">Counts only, with no student names. Growth compares each student's first 40 answers with their latest 40, for students with at least 80 answers.</p></div><script>setTimeout(()=>print(),400)<\/script>`);w.document.close()}
+   <p class="muted small">Counts only, with no student names. Growth compares each student's first 40 answers with their latest 40, for students with at least 80 answers. These are observed results from students using PTP, not a controlled study, so they show progress alongside PTP rather than proving PTP caused it.</p></div><script>setTimeout(()=>print(),400)<\/script>`);w.document.close()}
 function insightsCSV(O){const rows=O.all?[["District","School","Students","Active this week","Active 30 days","Questions 30 days","Accuracy 30 days","Growth first %","Growth recent %","Skills mastered","Hours","Scout questions","Seats","Plan","Renews"],...O.all.schools.filter(s=>s.ready).map(s=>[(O.all.districts.find(d=>d.id===s.district)||{}).name||s.district,s.school,s.totals.students,s.totals.active7,s.totals.active30,s.totals.answers30,s.totals.accuracy30??"",s.growth?.first??"",s.growth?.recent??"",s.totals.mastered,Math.round(s.totals.minutes/60),s.totals.scout,s.license?.students??"",s.license?.plan??"",s.license?.expires??""])]
     :[["Class","Teacher","Students","Active this week","Active 30 days","Questions 30 days","Accuracy 30 days","Minutes 30 days","Skills mastered","Last active"],...O.ins.classes.map(c=>[c.name,c.teacher,c.students,c.active7,c.active30,c.answers30,c.accuracy30??"",c.minutes30,c.mastered,c.lastActive])];
   const csv=rows.map(r=>r.map(x=>{x=String(x??"");return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x}).join(",")).join("\n");
@@ -367,6 +399,8 @@ function wireOwnerInsights(O){
   const need=O.multi&&!O.school?!O.all&&!O.insBusy:O.d&&!O.ins&&!O.insBusy;
   if(need){O.insBusy=true;O.insErr="";const school=O.school;
     api(O.multi&&!O.school?"ownerInsightsAll":"ownerInsights",{code:O.code,...(school?{school}:{})}).then(d=>{if(O.multi&&!O.school)O.all=d;else if(O.school===school)O.ins=d}).catch(er=>{O.insErr=er.message}).finally(()=>{O.insBusy=false;if(S.screen==="owner")render()})}
+  const lg=document.getElementById("o-log");if(lg)lg.onclick=async()=>{busy(lg,"Loading…");const all=O.multi&&!O.school;try{O.log=(await api(all?"ownerLogAll":"ownerLog",{code:O.code,...(O.school?{school:O.school}:{})})).log;render()}catch(er){lg.disabled=false;lg.textContent=er.message}};
+  const la=document.getElementById("o-logall");if(la)la.onclick=()=>{O.logAll=true;render()};
   const ip=document.getElementById("o-impact");if(ip)ip.onclick=()=>impactReport(O.multi&&!O.school?{all:O.all}:{ins:O.ins});
   const cv=document.getElementById("o-csv");if(cv)cv.onclick=()=>insightsCSV(O.multi&&!O.school?{all:O.all}:{ins:O.ins})}
 
@@ -408,7 +442,7 @@ function wireOwnerMulti(O){const g=id=>document.getElementById(id),v=id=>g(id).v
   const ns=g("o-ns");if(ns)ns.onsubmit=e=>run(e,"Adding…",async()=>{const r=await api("ownerSchoolCreate",{code:O.code,district:v("ns-d"),id:v("ns-id").toLowerCase(),name:v("ns-name")});
     await reload(`<b>School added.</b> Give its first admin these, privately:<br>School code: <b>${esc(r.id)}</b><br>Setup key: <b style="font-family:monospace;font-size:1.1rem">${esc(r.setupKey)}</b><br><span class="muted">The setup key works once and is not shown again. Lost it? Delete the school and add it again.</span>`)});
   const da=g("o-da");if(da)da.onsubmit=e=>run(e,"Saving…",async()=>{await api("ownerDistrictAdmin",{code:O.code,district:v("da-d"),name:v("da-name"),adminCode:v("da-code")});await reload("District admin saved. They sign in from Teacher login → Sign in to your district.")});
-  app.querySelectorAll("[data-oschool]").forEach(b=>b.onclick=async()=>{O.school=b.dataset.oschool;O.d=null;O.ins=null;render();try{O.d=await api("ownerGet",{code:O.code,school:O.school});render()}catch(er){O.school=null;O.err=er.message;render()}});
+  app.querySelectorAll("[data-oschool]").forEach(b=>b.onclick=async()=>{O.school=b.dataset.oschool;O.d=null;O.ins=null;O.log=null;O.logAll=false;render();try{O.d=await api("ownerGet",{code:O.code,school:O.school});render()}catch(er){O.school=null;O.err=er.message;render()}});
   app.querySelectorAll("[data-odel]").forEach(b=>b.onclick=async()=>{const id=b.dataset.odel,c=prompt(`This deletes every class, student and score in ${id}. It cannot be undone. Type DELETE ${id} to confirm.`);if(!c)return;
     try{await api("ownerSchoolDelete",{code:O.code,id,confirm:c});await reload("School deleted.")}catch(er){O.err=er.message;render()}});
   const ra=g("o-resall");if(ra)ra.onclick=async()=>{busy(ra,"Building…");try{const d=await api("ownerResearchAll",{code:O.code});const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:"application/json"}));a.download=`ptp-research-all-${d.made||"empty"}.json`;document.body.append(a);a.click();a.remove();g("o-ramsg").textContent=`Downloaded: ${d.schools.length} schools, no names.`}catch(er){g("o-ramsg").textContent=er.message}ra.disabled=false;ra.textContent="⬇ Download research export"}}

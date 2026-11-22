@@ -16,7 +16,7 @@ const str = (v, max = 200) => String(v ?? "").trim().slice(0, max);
 const rid = (n = 10) => crypto.randomBytes(16).toString("base64url").replace(/[^A-Za-z0-9]/g, "").slice(0, n);
 /* public forms with no school (tutor applications, demo requests) land in the home school, where the site admin reviews them today */
 const HOME_ACTIONS = new Set(["tutorApply", "tutorFile", "leadAdd"]);
-const OWNER_ACTIONS = new Set(["ownerDistricts", "ownerDistrictCreate", "ownerDistrictDelete", "ownerDistrictAdmin", "ownerSchoolCreate", "ownerSchoolDelete", "ownerResearchAll", "ownerInsightsAll"]);
+const OWNER_ACTIONS = new Set(["ownerDistricts", "ownerDistrictCreate", "ownerDistrictDelete", "ownerDistrictAdmin", "ownerSchoolCreate", "ownerSchoolDelete", "ownerResearchAll", "ownerInsightsAll", "ownerLogAll"]);
 const DISTRICT_ACTIONS = new Set(["districtLogin", "districtOverview"]);
 
 export const schoolStoreName = id => "ptp-d-" + id;
@@ -71,6 +71,18 @@ export function makeRouter({ getStore, env }) {
     if (want.length !== mac.length || !crypto.timingSafeEqual(Buffer.from(want), Buffer.from(mac))) return null;
     try { const p = JSON.parse(Buffer.from(body, "base64url").toString()); return p.exp > Date.now() ? p : null } catch { return null }
   }
+
+  /* platform-level activity log (owner and district admin actions); no student data */
+  const ym = () => new Date().toISOString().slice(0, 7);
+  async function logR(who, what, detail = "") {
+    for (let i = 0; i < 5; i++) {
+      const k = "log/" + ym(), r = await R().getWithMetadata(k, { type: "json" }).catch(() => null), l = (r && r.data) || [];
+      l.push({ t: Date.now(), who: str(who, 60), what, detail: str(detail, 200) });
+      const w = await R().setJSON(k, l.slice(-3000), r && r.etag ? { onlyIfMatch: r.etag } : { onlyIfNew: true }).catch(() => null);
+      if (w && w.modified !== false) return;
+    }
+  }
+  const LOG_TEXT = { ownerDistrictCreate: b => ["District added", str(b.name, 100) + " (" + str(b.id, 24) + ")"], ownerDistrictDelete: b => ["District deleted", str(b.id, 24)], ownerDistrictAdmin: b => ["District admin saved", str(b.name, 60) + " in " + str(b.district, 24)], ownerSchoolCreate: b => ["School added", str(b.name, 100) + " (" + str(b.id, 24) + ")"], ownerSchoolDelete: b => ["School deleted", str(b.id, 24)], ownerResearchAll: () => ["Research export downloaded", "all schools, names removed"] };
 
   /* ---------- the platform owner's tools (owner code, with lockout) ---------- */
   async function ownerCheck(b, ip) {
@@ -137,6 +149,15 @@ export function makeRouter({ getStore, env }) {
       await R().delete("school/" + id);
       return { ok: true };
     },
+    async ownerLogAll(b, ip) { // the platform log plus every school's own log, newest first
+      const out = [];
+      for (const k of (await listR("log/")).sort().slice(-3)) out.push(...(((await getR(k)) || []).map(x => ({ ...x, where: "Platform" }))));
+      for (const s of await allR("school/")) {
+        const res = await apiFor(s.id)(new Request("http://x/api/ownerLog", { method: "POST", body: JSON.stringify({ code: b.code }) }), ip);
+        if (res.ok) out.push(...(await res.json()).log.map(x => ({ ...x, where: s.name })));
+      }
+      return { log: out.sort((a, b) => b.t - a.t).slice(0, 800) };
+    },
     async ownerInsightsAll(b, ip) { // every school's usage, grouped by district, plus totals: for renewals and selling
       const districts = await allR("district/"), schools = [];
       for (const s of await allR("school/")) {
@@ -146,7 +167,8 @@ export function makeRouter({ getStore, env }) {
       }
       const sum = k => schools.reduce((t, s) => t + (s.totals?.[k] || 0), 0), ans30 = sum("answers30");
       return { made: Date.now(), districts: districts.map(d => ({ id: d.id, name: d.name })), schools,
-        totals: { schools: schools.filter(s => s.ready).length, students: sum("students"), active7: sum("active7"), active30: sum("active30"), answers: sum("answers"), answers30: ans30, accuracy30: ans30 ? Math.round(sum("correct30") / ans30 * 100) : null, minutes: sum("minutes"), mastered: sum("mastered"), scout: sum("scout") } };
+        totals: { schools: schools.filter(s => s.ready).length, students: sum("students"), active7: sum("active7"), active30: sum("active30"), answers: sum("answers"), answers30: ans30, accuracy30: ans30 ? Math.round(sum("correct30") / ans30 * 100) : null, minutes: sum("minutes"), minutes30: sum("minutes30"), mastered: sum("mastered"), mastered30: sum("mastered30"), scout: sum("scout"), stuck: sum("stuck"), selfSolved: sum("selfSolved") },
+        waiting: (await allR("school/")).filter(s => s.setupHash).map(s => ({ id: s.id, name: s.name, created: s.created })) };
     },
     async ownerResearchAll(b, ip) {
       const salt = rid(16), schools = [];
@@ -169,6 +191,7 @@ export function makeRouter({ getStore, env }) {
       const a = d && (d.admins || []).find(x => x.hash === hash);
       if (!a) { await L.miss(); no(401, "That district code or admin code did not match.") }
       await L.clear();
+      await logR(a.name + " (district admin)", "District admin signed in", d.name);
       return { token: await signR({ r: "da", g: d.id, id: a.id }), name: a.name, district: { id: d.id, name: d.name } };
     },
     async districtOverview(b) {
@@ -250,6 +273,7 @@ export function makeRouter({ getStore, env }) {
     for (const k of D0.keys) if (!keep.has(k)) { await dst.delete(k); removed++ }
     for (const c of S0.school.classes) if (c.join) await setR("join/" + c.join, { d: sId, at: Date.now() });
     const D1 = await storeFacts(dst), differences = await compare(src, dst, S0.keys, D1.keys);
+    await logR("Site owner", "School copied for the district switch", `${sId}: ${D1.facts.students} students, ${differences.length ? differences.length + " differences" : "exact match"}`);
     return { ...report, copied, removed, to: D1.facts, same: differences.length === 0 && JSON.stringify(D1.facts) === JSON.stringify(S0.facts), differences: differences.slice(0, 20) };
   }
 
@@ -272,7 +296,7 @@ export function makeRouter({ getStore, env }) {
     try {
       if (action === "ownerMove") { await ownerCheck(body, ip); return J(200, await ownerMove(body)) }
       if (!multi) return single()(req, ip);
-      if (OWNER_ACTIONS.has(action)) { await ownerCheck(body, ip); return J(200, await OWNER[action](body, ip)) }
+      if (OWNER_ACTIONS.has(action)) { await ownerCheck(body, ip); const out = await OWNER[action](body, ip); if (LOG_TEXT[action]) await logR("Site owner", ...LOG_TEXT[action](body)); return J(200, out) }
       if (DISTRICT_ACTIONS.has(action)) return J(200, await DISTRICT[action](body, ip));
       const id = await resolve(action, body, req), rec = id && await schoolRec(id);
       if (!rec) {

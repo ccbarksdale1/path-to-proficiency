@@ -45,6 +45,12 @@ export function makeApi({ store, env, tenant = null, hooks = null }) {
     throw new Conflict();
   }
 
+  /* ---------- activity log: who did what, for sensitive actions only. Kept out of backups so a restore never rewrites history. ---------- */
+  const logAct = (who, what, detail = "") => mutJ("log/" + today().slice(0, 7), l => { l = l || []; l.push({ t: Date.now(), who: str(who, 60), what, detail: str(detail, 200) }); return l.slice(-3000) }).catch(() => {});
+  const tName = ctx => (ctx.me?.name || "Teacher") + (ctx.admin ? " (admin)" : "");
+  /* the day a teacher used PTP: one small record per teacher, for "teachers who may need help getting started" */
+  const seenTeacher = id => mutJ("seen/t/" + id, r => { const d = today(); r = r || { days: {} }; if (r.days[d]) return undefined; r.last = Date.now(); r.days[d] = 1; for (const k of Object.keys(r.days).sort().slice(0, -120)) delete r.days[k]; return r }).catch(() => {});
+
   /* ---------- sessions ---------- */
   const sign = (school, payload) => {
     const body = Buffer.from(JSON.stringify({ ...payload, ...(tenant ? { d: tenant } : {}), exp: Date.now() + 1000 * 60 * 60 * 12 })).toString("base64url");
@@ -218,6 +224,7 @@ How you teach:
     t.hash = codeHash(school, code);
     school.teachers.push(t);
     await saveSchool(school);
+    await seenTeacher(t.id);
     return { token: sign(school, { r: "t", id: t.id }), ...boot({ school, me: t, admin: true }) };
   };
 
@@ -229,6 +236,7 @@ How you teach:
     const t = school.teachers.find(x => x.hash === codeHash(school, code));
     if (!t) { await noteFail(ip, "t"); bad("That teacher code did not match.", 401) }
     await clearFail(ip, "t");
+    await seenTeacher(t.id);
     return { token: sign(school, { r: "t", id: t.id }), ...boot({ school, me: t, admin: !!t.admin }) };
   };
 
@@ -248,10 +256,11 @@ How you teach:
     t.hash = h;
     await saveSchool(school);
     await clearFail(ip, "r");
+    await logAct("Reset code (Netlify)", "Teacher code reset", t.name);
     return { token: sign(school, { r: "t", id: t.id }), ...boot({ school, me: t, admin: !!t.admin }) };
   };
 
-  A.boot = async b => boot(await teacherCtx(b.token));
+  A.boot = async b => { const ctx = await teacherCtx(b.token); await seenTeacher(ctx.me.id); return boot(ctx) };
 
   A.teacherSave = async b => {
     const ctx = await teacherCtx(b.token), { school } = ctx;
@@ -276,6 +285,8 @@ How you teach:
     }
     if (!t) { const L = license(school); if (L && school.teachers.length >= L.teachers) bad(capMsg("teachers", L), 402); school.teachers.push(rec) }
     await saveSchool(school);
+    if (!t) await logAct(tName(ctx), "Teacher added", name + (rec.admin ? " (admin)" : ""));
+    else if (!self || code || b.admin !== undefined) await logAct(tName(ctx), "Teacher changed", name + (code ? ", new code" : "") + (b.admin !== undefined ? (rec.admin ? ", admin" : ", not admin") : ""));
     return boot({ school, me: ctx.me, admin: ctx.admin });
   };
 
@@ -288,6 +299,7 @@ How you teach:
     if (school.classes.some(c => c.teacherId === t.id)) bad(`Move ${t.name}'s classes to another teacher first.`);
     school.teachers = school.teachers.filter(x => x !== t);
     await saveSchool(school);
+    await logAct(tName(ctx), "Teacher removed", t.name);
     return boot(ctx);
   };
 
@@ -342,6 +354,7 @@ How you teach:
     await del("roster/" + c.id); await del("hands/" + c.id);
     await del("plan/" + c.id).catch(() => {});
     if (hooks && c.join) await hooks.releaseJoin(c.join);
+    await logAct(tName(ctx), "Class deleted", c.name);
     return boot(ctx);
   };
 
@@ -518,7 +531,23 @@ How you teach:
   A.ownerSet = async (b, ip) => { await ownerCheck(b, ip); const school = await loadSchool(); if (!school) bad("This site is not set up yet.", 404);
     const x = b.license || {};
     school.license = { plan: str(x.plan, 40) || "School", teachers: Math.max(1, Math.min(500, Math.round(+x.teachers || 1))), students: Math.max(1, Math.min(20000, Math.round(+x.students || 1))), expires: /^\d{4}-\d{2}-\d{2}$/.test(String(x.expires || "")) ? String(x.expires) : "", note: str(x.note, 300), updated: Date.now() };
-    await saveSchool(school); return { ok: true, license: school.license } };
+    await saveSchool(school); await logAct("Site owner", "License changed", `${school.license.plan}: ${school.license.teachers} teachers, ${school.license.students} students${school.license.expires ? ", renews " + school.license.expires : ""}`); return { ok: true, license: school.license } };
+
+  /* which parts of PTP get used: one counter per feature per day, split by teachers and students. No names. */
+  const USE_OK = /^[a-z][a-zA-Z0-9:_-]{1,40}$/;
+  A.use = async b => {
+    const school = await loadSchool(), p = verify(school, b.token);
+    if (!p || !["t", "s"].includes(p.r)) bad("Please sign in again.", 401);
+    const f = (Array.isArray(b.f) ? b.f : [b.f]).map(x => str(x, 41)).filter(x => USE_OK.test(x)).slice(0, 20);
+    if (!f.length) return { ok: true };
+    await mutJ("use/" + today(), u => { u = u || {}; for (const k of f) { if (!u[k] && Object.keys(u).length >= 300) continue; const c = (u[k] ||= { t: 0, s: 0 }); c[p.r]++ } return u });
+    return { ok: true };
+  };
+  A.ownerLog = async (b, ip) => { await ownerCheck(b, ip);
+    const months = (await listKeys("log/")).sort().slice(-3), out = [];
+    for (const k of months) out.push(...((await getJ(k)) || []));
+    return { log: out.sort((a, b) => b.t - a.t).slice(0, 500) };
+  };
 
   /* site owner only: how this school is using PTP, for renewals and selling. Counts only: no student names or codes. */
   A.ownerInsights = async (b, ip) => { await ownerCheck(b, ip); const school = await loadSchool(); if (!school) bad("This site is not set up yet.", 404);
@@ -560,12 +589,22 @@ How you teach:
       classes.push(C);
     }
     const lic = license(school), wkList = Object.keys(weeks).sort().slice(-12);
+    const teachers = [];
+    for (const t of school.teachers) { const r = (await getJ("seen/t/" + t.id)) || { days: {} }; teachers.push({ name: t.name, admin: !!t.admin, classes: school.classes.filter(c => c.teacherId === t.id).length, last: r.last || null, days30: Object.keys(r.days || {}).filter(d => d >= d30).length }) }
+    const feats = {};
+    for (const k of (await listKeys("use/")).filter(k => k.slice(4) >= d30)) for (const [f, c] of Object.entries((await getJ(k)) || {})) { const a = (feats[f] ||= { t: 0, s: 0 }); a.t += c.t || 0; a.s += c.s || 0 }
+    for (const k of (await listKeys("use/")).filter(k => k.slice(4) < dayOf(now - 400 * DAY))) await del(k).catch(() => {}); // keep about a year
+    const backups = (await listKeys("backup/")).sort();
+    const open = async (k, ok) => ((await getJ(k)) || []).filter(ok).length;
     return {
       school: school.name, made: now, license: lic, seats: { teachers: school.teachers.length, students: T.students },
       totals: { ...T, minutes: Math.round(T.minutes), minutes30: Math.round(T.minutes30), accuracy30: T.answers30 ? Math.round(T.correct30 / T.answers30 * 100) : null },
       growth: grow.n ? { students: grow.n, first: Math.round(grow.first / grow.n * 100), recent: Math.round(grow.last / grow.n * 100) } : null,
       weeks: wkList.map(w => ({ week: w, active: weeks[w].active.size, answers: weeks[w].answers })),
-      classes,
+      classes, teachers,
+      features: Object.entries(feats).map(([f, c]) => ({ f, teachers: c.t, students: c.s })).sort((a, b) => (b.teachers + b.students) - (a.teachers + a.students)),
+      lastBackup: backups.length ? backups[backups.length - 1].slice(7) : null,
+      attention: { questionReports: await open("reports", r => r.status === "open"), demoRequests: await open("leads", r => r.status === "new"), tutorApplications: await open("tutors", r => r.status === "new") },
     };
   };
 
@@ -591,6 +630,7 @@ How you teach:
       }
       classes.push({ id: st.length < 5 ? "small" : pid("c", c.id), testId: c.testId || "a1", students });
     }
+    await logAct("Site owner", "Research export downloaded", `${classes.reduce((t, c) => t + c.students.length, 0)} students, names removed`);
     return { made: wk(Date.now()), note: "De-identified: random IDs per export; no names, codes, accommodations, family updates or typed text; dates rounded to the week.", classes };
   };
 
@@ -852,8 +892,8 @@ How you teach:
   /* ---------- backups ---------- */
   A.backupNow = async b => { const ctx = await teacherCtx(b.token); if (!ctx.admin) bad("Only a school admin can make backups.", 403); return { key: await snapshot() } };
   A.backupList = async b => { const ctx = await teacherCtx(b.token); if (!ctx.admin) bad("Only a school admin can see backups.", 403); return { backups: (await listKeys("backup/")).sort().reverse() } };
-  A.backupGet = async b => { const ctx = await teacherCtx(b.token); if (!ctx.admin) bad("Only a school admin can download backups.", 403); const k = str(b.key, 60); if (!k.startsWith("backup/")) bad("That backup was not found.", 404); const d = await getJ(k); if (!d) bad("That backup was not found.", 404); return { backup: d } };
-  A.schoolExport = async b => { const ctx = await teacherCtx(b.token); if (!ctx.admin) bad("Only a school admin can export the school.", 403); return { backup: await collect() } };
+  A.backupGet = async b => { const ctx = await teacherCtx(b.token); if (!ctx.admin) bad("Only a school admin can download backups.", 403); const k = str(b.key, 60); if (!k.startsWith("backup/")) bad("That backup was not found.", 404); const d = await getJ(k); if (!d) bad("That backup was not found.", 404); await logAct(tName(ctx), "Backup downloaded", k); return { backup: d } };
+  A.schoolExport = async b => { const ctx = await teacherCtx(b.token); if (!ctx.admin) bad("Only a school admin can export the school.", 403); await logAct(tName(ctx), "Whole school exported"); return { backup: await collect() } };
   A.backupRestore = async b => {
     const ctx = await teacherCtx(b.token); if (!ctx.admin) bad("Only a school admin can restore a backup.", 403);
     if (b.confirm !== "RESTORE") bad("Type RESTORE to confirm.");
@@ -861,14 +901,15 @@ How you teach:
     if (!d || !d.data || !d.data.school) bad("That backup could not be read.");
     await snapshot("before-restore");
     const keep = new Set(Object.keys(d.data));
-    for (const k of await listKeys("")) if (!/^(backup|fail|tutorfile|tapply)\//.test(k) && !keep.has(k)) await del(k);
+    for (const k of await listKeys("")) if (!/^(backup|fail|tutorfile|tapply|log|seen|use)\//.test(k) && !keep.has(k)) await del(k);
     for (const [k, v] of Object.entries(d.data)) await setJ(k, v);
     if (hooks) for (const c of d.data.school.classes || []) if (c.join) await hooks.claimJoin(c.join).catch(() => false);
+    await logAct(tName(ctx), "Backup restored", str(b.key, 60) || "from a file");
     return { ok: true, restored: keep.size };
   };
   async function collect() {
     const data = {};
-    for (const k of await listKeys("")) if (!/^(backup|fail|tutorfile|tapply)\//.test(k)) data[k] = await getJ(k); // résumé files are kept out of backups
+    for (const k of await listKeys("")) if (!/^(backup|fail|tutorfile|tapply|log|seen|use)\//.test(k)) data[k] = await getJ(k); // résumé files are kept out of backups
     return { v: 1, made: Date.now(), data };
   }
   async function snapshot(tag) {

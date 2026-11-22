@@ -359,6 +359,45 @@ test("owner insights across districts: every school, grouped, with totals", asyn
   await rejects(m.call("ownerInsights", { token: A.T, code: "x" }), /did not match/); // a teacher can't open it either
 });
 
+test("activity log, teacher sign-in days and feature use feed the owner's insights; none of it goes into backups", async () => {
+  const s = await school({ OWNER_CODE: "owner-secret-1" });
+  await s.call("teacherSave", { token: s.T, name: "Ms. Two", code: "5678" });
+  await s.call("login", { code: "5678" });
+  const st = await s.login(s.roster[0].code);
+  await s.call("use", { token: st.token, f: ["practice", "watch-solved", "bad key!"] });
+  await s.call("use", { token: s.T, f: "teacher:pace" });
+  await rejects(s.call("use", { token: "nope", f: "x1" }), /sign in/);
+  await s.call("reportAdd", { token: st.token, qid: "q1", reason: "wrong" });
+  await s.call("ownerSet", { code: "owner-secret-1", license: { plan: "Pilot", teachers: 5, students: 100, expires: "2027-01-10" } });
+  const ins = await s.call("ownerInsights", { code: "owner-secret-1" });
+  assert.equal(ins.teachers.length, 2); assert.equal(ins.teachers.find(t => t.name === "Ms. Two").days30, 1);
+  assert.deepEqual(ins.features.map(f => f.f).sort(), ["practice", "teacher:pace", "watch-solved"]);
+  assert.equal(ins.features.find(f => f.f === "watch-solved").students, 1);
+  assert.equal(ins.attention.questionReports, 1);
+  const log = (await s.call("ownerLog", { code: "owner-secret-1" })).log.map(x => x.what);
+  assert.ok(log.includes("Teacher added") && log.includes("License changed"), log.join(","));
+  await s.call("backupNow", { token: s.T });
+  const bk = (await s.call("backupList", { token: s.T })).backups[0], data = (await s.call("backupGet", { token: s.T, key: bk })).backup.data;
+  assert.ok(!Object.keys(data).some(k => /^(log|seen|use)\//.test(k)));
+  await s.call("backupRestore", { token: s.T, key: bk, confirm: "RESTORE" });
+  const after = (await s.call("ownerLog", { code: "owner-secret-1" })).log.map(x => x.what);
+  assert.ok(after.includes("Teacher added") && after.includes("Backup restored") && after.includes("Backup downloaded"));
+  const text = JSON.stringify(ins);
+  for (const x of s.roster) assert.ok(!text.includes(x.name));
+});
+
+test("platform log: owner and district admin actions, plus each school's log", async () => {
+  const { m, A } = await twoDistricts();
+  await m.call("ownerDistrictAdmin", { code: "owner-secret-1", district: "alpha", name: "Dr. Super", adminCode: "123456" });
+  await m.call("districtLogin", { districtCode: "alpha", code: "123456" });
+  const log = (await m.call("ownerLogAll", { code: "owner-secret-1" })).log;
+  const has = (w, where) => log.some(x => x.what === w && (!where || x.where === where));
+  assert.ok(has("District added", "Platform") && has("School added") && has("District admin saved") && has("District admin signed in"));
+  const ins = await m.call("ownerInsightsAll", { code: "owner-secret-1" });
+  assert.deepEqual(ins.waiting, []);
+  await rejects(m.call("ownerLogAll", { code: "wrong" }), /did not match/);
+});
+
 /* ---------- stage 4: moving today's one-school site into its own school store ---------- */
 test("move: dry run writes nothing; the copy is exact; re-running syncs; the switch keeps everyone's work; switching back undoes it", async () => {
   const stores = new Map(), getStore = n => { if (!stores.has(n)) stores.set(n, memoryStore()); return stores.get(n) };
