@@ -14,3 +14,17 @@ Math practice for students, with classes, teachers, class comparison, test impor
 | `AI_MODEL_FAST` / `AI_MODEL_SMART` | Optional. Models for the tutor and PDF reading (default claude-haiku-5-5 / claude-sonnet-5-5). |
 
 After changing a variable, redeploy (Deploys → Trigger deploy).
+
+
+## How the code is organized
+
+- `public/index.html` is a small shell. Styles live in `public/css/app.css`.
+- `public/js/` holds the app as 12 plain scripts that load in number order and share one global scope (01 grade 3 questions, 02 core, 03 home page, 04 student, 05 teacher, 06 fluency and games, 07 admin and tour, 08 reports and plans, 09 student extras, 10 more question makers, 11 science and ELA, 12 startup). Keep new code in the file for its area; anything that runs at load must only use what earlier files define.
+- `netlify/functions/api/core.mjs` is the server; `public/arcade/` holds the learning games; `public/home/` holds the PTP Bridge family pages.
+
+## Tests
+
+Run `npm test` before every push.
+
+- `node tests/server.test.mjs`: every server action checked against a pretend in-memory store (no installs needed).
+- `python3 tests/pages.test.py`: a robot browser clicks through the sample school and the student demo (needs `pip install playwright` and `playwright install chromium`).

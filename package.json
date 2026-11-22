@@ -4,5 +4,10 @@
   "type": "module",
   "dependencies": {
     "@netlify/blobs": "^10.0.0"
+  },
+  "scripts": {
+    "test": "node tests/server.test.mjs && python3 tests/pages.test.py",
+    "test:server": "node tests/server.test.mjs",
+    "test:pages": "python3 tests/pages.test.py"
   }
 }
