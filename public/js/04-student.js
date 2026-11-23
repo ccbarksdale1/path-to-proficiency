@@ -4,7 +4,7 @@
 function startStudent(d){
   TOKEN=d.token;ls.set(SKEY,{token:d.token,role:"student"},sessionStorage);SB=d;S.role="student";S.demo=false;
   if(d.test)TESTS[d.test.id]=d.test;useTest(d.test||(isStdT(d.cls.testId)?{id:d.cls.testId}:null));addExtras([...(d.student.assigned||[]),...ipCodes(d.student),...goList(d.prog&&d.prog[TESTID]),...xtCodes(d.student)]);
-  db={mastery:d.cls.mastery,videos:d.cls.videos||{},goal:d.cls.goal};TEACHER=d.teacher||"Your teacher";
+  db={mastery:d.cls.mastery,videos:d.cls.videos||{},goal:d.cls.goal,choose:d.cls.choose};TEACHER=d.teacher||"Your teacher";
   const restored=offRestore(d);try{const {token,...keep}=d;ls.set(BOOTKEY,keep,sessionStorage)}catch(e){}S.student=viewStudent({...d.student,prog:d.prog});cbStart(d.comeback);S.home=d.home||null;if(restored)setTimeout(save,500);accApply(d);S.lang=(d.prog&&d.prog._pref&&d.prog._pref.lang)||(d.student&&d.student.acc&&d.student.acc.es?"es":"en");S.screen="home";S.err="";render();
 }
 function home(){
@@ -20,7 +20,7 @@ function home(){
      <div class="top"><h2>${t(isELA(gradeOf())?"Today’s Reading Mission":isSci(gradeOf())?"Today’s Science Mission":"Today’s Math Mission")}</h2><span class="stars" aria-label="${p.stars} stars">★ ${p.stars}</span></div>
      <div class="skill">${ico(cur.id)}<div><b style="font-size:1.15rem">${esc(cur.name)}</b><br><span class="muted">${esc(cur.std)}</span></div></div>
      <div class="row"><span class="flags" aria-label="${sk.streak} of ${MASTERY} stars">${Array.from({length:MASTERY},(_,i)=>`<i class="${i<sk.streak?'on':''}">${i<sk.streak?'★':i+1}</i>`).join("")}</span><span class="muted">Earn ${MASTERY} ★ to reach the checkpoint</span></div>
-     ${carriedNote(p)}${scout(msg)}
+     ${carriedNote(p)}${focusCard(s)}${scout(msg)}
      <div class="row"><button id="go">${t(sk.streak||Object.keys(p.log).length?"Keep climbing":"Start my mission")}</button>${db.videos[cur.id]?`<a class="btnlink" href="${esc(db.videos[cur.id])}" target="_blank" rel="noopener">▶ Watch the lesson</a>`:""}</div>
    </div>`:`<div class="card mission" style="align-items:flex-start">${HERO_ART}${scout(msg)}</div>`;
   app.innerHTML=header(`${langToggle()}<button class="ghost" id="out">${t("Sign out")}</button>`)+tbadgeNotice()+creditNotice(p)+cbCard(s)+mission+xtHomeCard(s)+evHomeCard(s)+chalCard(s)+psetCard(s)+hsHomeCard(s)+goFurtherCard(s)+(hsOn()||subjOf(gradeOf())!=="math"?"":fluCard())+gameCard()+`
@@ -35,6 +35,7 @@ function home(){
   </div>
   ${homeMissionCard()}${pfButton()}<div class="card"><h2>${t("My badges")}</h2>${badgesHTML(p)}</div>`;
   document.getElementById("out").onclick=signOut;wireLang();wireHsHome();wirePsetCard();wireHomeMission();
+  app.querySelectorAll("[data-focus]").forEach(b=>b.onclick=()=>{const p=S.student.prog,f=b.dataset.focus;if(f)p.focus=f;else delete p.focus;useMark("focus");save();render()});
   const g=document.getElementById("go"); if(g) g.onclick=()=>{S.chkMode=false;if(newQ()!==false)S.screen="practice";render()};wireEvHome();wireXtHome();wireChal();wirePfButton();
   const fg=document.getElementById("flu-go"); if(fg) fg.onclick=fluStart;
   const ag=document.getElementById("arcade-go"); if(ag) ag.onclick=()=>{S.screen="arcade";render()};
@@ -192,6 +193,11 @@ SCREENS.practice=practice;
 
 /* ---------- 3 Before Me: a help ladder before the teacher (watch it solved → hint → Scout → teacher) ---------- */
 const LE=(en,es)=>S.lang==="es"?es:en;
+/* high school: pick an area to work on first (the teacher's assigned standards still come first) */
+function focusCard(s){if(!focusOK())return"";const p=s.prog,doms=[];for(const k of SKILLS){const d=focusDom(k.std);if(d&&!doms.includes(d)&&p.skills[k.id]&&p.skills[k.id].status!=="off")doms.push(d)}if(doms.length<2)return"";
+  const nm=d=>FOCUS_NAME[d]?LE(FOCUS_NAME[d][0],FOCUS_NAME[d][1]):/^L\d$/.test(d)?LE("Level ","Nivel ")+d.slice(1):d,left=d=>SKILLS.filter(k=>focusDom(k.std)===d&&p.skills[k.id]&&p.skills[k.id].status==="todo").length,cur=p.focus||"";
+  return `<details class="focus" ${cur?"":"open"} style="margin:.5rem 0"><summary><b>🎯 ${LE("Choose your focus","Escoge tu enfoque")}</b> <span class="muted small">${cur?LE("Working on: ","Trabajando en: ")+esc(nm(cur)):LE("Pick what you want to practice first, or keep the full trail.","Escoge qué quieres practicar primero o sigue el camino completo.")}</span></summary>
+   <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:6px">${doms.map(d=>`<button class="${d===cur?"":"ghost"} small" data-focus="${esc(d)}" ${left(d)?"":"disabled"}>${esc(nm(d))} <span class="muted small">(${left(d)} ${LE("left","faltan")})</span></button>`).join("")}<button class="${cur?"ghost":""} small" data-focus="">${LE("Full trail","Camino completo")}</button></div></details>`}
 /* when a class moves to a new trail, show students that their earlier mastered skills still count */
 function carriedNote(p){if(!p||!p.carried)return"";const n=Object.values(p.skills||{}).filter(x=>x&&x.carried&&(x.status==="done"||x.status==="skip")).length;if(!n)return"";
   return `<p class="small" style="margin:.4rem 0;background:var(--hl);color:var(--hl-ink);border-radius:10px;padding:6px 10px">⭐ ${LE(`${n} ${n===1?"skill already counts":"skills already count"} from your earlier trail. Nice work!`,`${n} ${n===1?"destreza ya cuenta":"destrezas ya cuentan"} de tu camino anterior. ¡Buen trabajo!`)}</p>`}
@@ -461,7 +467,7 @@ async function openClass(id,tab){
     useTest(await getTest(d.cls.testId));
     addExtras(allAssigned(d.students));
     CUR={cls:d.cls,rev:d.rev,raw:d.students,students:d.students.map(viewStudent)};
-    db={mastery:d.cls.mastery,videos:d.cls.videos||{},goal:d.cls.goal};
+    db={mastery:d.cls.mastery,videos:d.cls.videos||{},goal:d.cls.goal,choose:d.cls.choose};
     TEACHER=tName(d.cls.teacherId);
     S.cid=id;S.tt="class";S.tab=tab||S.tab||"class";S.edit=0;
   }catch(e){S.err=e.message}

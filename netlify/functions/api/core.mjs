@@ -88,7 +88,7 @@ export function makeApi({ store, env, tenant = null, hooks = null }) {
   /* ---------- helpers ---------- */
   const codeHash = (school, code) => sha(school.salt + ":" + code);
   const pubTeacher = t => ({ id: t.id, name: t.name, admin: !!t.admin });
-  const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false, music: c.music !== false, chal: c.chal !== false, gofur: c.gofur !== false, dokmix: c.dokmix !== false, buddy: c.buddy !== false, handCool: c.handCool || 0, pace: c.pace || null, home: c.home || null, kw: ["on", "optional", "off"].includes(c.kw) ? c.kw : "auto",
+  const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false, music: c.music !== false, chal: c.chal !== false, choose: c.choose !== false, gofur: c.gofur !== false, dokmix: c.dokmix !== false, buddy: c.buddy !== false, handCool: c.handCool || 0, pace: c.pace || null, home: c.home || null, kw: ["on", "optional", "off"].includes(c.kw) ? c.kw : "auto",
     flu: { on: c.flu?.on !== false, secs: c.flu?.secs || 180, pass: c.flu?.pass || 28, n: c.flu?.n || 30 },
     games: { on: c.games?.on !== false, mins: c.games?.mins || 3 },
     ip: { on: c.ip?.on !== false, cut: c.ip?.cut || 60 } });
@@ -327,6 +327,7 @@ How you teach:
       chirp: b.chirp === undefined ? c.chirp !== false : !!b.chirp,
       music: b.music === undefined ? c.music !== false : !!b.music,
       chal: b.chal === undefined ? c.chal !== false : !!b.chal, // next-grade challenges after a standard is verified
+      choose: b.choose === undefined ? c.choose !== false : !!b.choose, // high school: students may choose a focus area
       gofur: b.gofur === undefined ? c.gofur !== false : !!b.gofur, // Go Further: next grade after the summit
       dokmix: b.dokmix === undefined ? c.dokmix !== false : !!b.dokmix, // match the state test DOK mix
       buddy: b.buddy === undefined ? c.buddy !== false : !!b.buddy, // Find Buddy's Mistake in practice

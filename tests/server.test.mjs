@@ -412,6 +412,16 @@ test("owner can rename a district and move a school between districts without to
   await rejects(m.call("ownerSchoolMove", { code: "wrong", id: school, district: "beta" }), /did not match/);
 });
 
+test("high school 'choose your focus' is a class setting, on unless the teacher turns it off", async () => {
+  const s = await school();
+  const c = (await s.call("classSave", { token: s.T, name: "ACT prep", testId: "std10" })).cls;
+  assert.equal(c.choose, true);
+  const off = (await s.call("classSave", { token: s.T, id: c.id, name: "ACT prep", choose: false })).cls;
+  assert.equal(off.choose, false);
+  const again = (await s.call("classSave", { token: s.T, id: c.id, name: "ACT prep 2" })).cls;
+  assert.equal(again.choose, false); // other edits keep the teacher's choice
+});
+
 /* ---------- stage 4: moving today's one-school site into its own school store ---------- */
 test("move: dry run writes nothing; the copy is exact; re-running syncs; the switch keeps everyone's work; switching back undoes it", async () => {
   const stores = new Map(), getStore = n => { if (!stores.has(n)) stores.set(n, memoryStore()); return stores.get(n) };

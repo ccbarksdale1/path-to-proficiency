@@ -59,7 +59,14 @@ const allAssigned=list=>list.flatMap(s=>[...(s.assigned||[]),...ipCodes(s),...go
 /* a student's trail: assigned standards first, then the rest; "off" = not on this student's trail */
 const trailBase=s=>{const on=SKILLS.filter(k=>s.prog.skills[k.id]&&s.prog.skills[k.id].status!=="off"),ipc=ipCodes(s),a=new Set(s.assigned||[]);
   /* an individual plan goes first, in its building-block order; then assigned standards; then the rest */
-  const first=ipc.map(c=>on.find(k=>k.std===c)).filter(Boolean),rest=on.filter(k=>!first.includes(k));return [...first,...rest.filter(k=>a.has(k.std)),...rest.filter(k=>!a.has(k.std))]};
+  const first=ipc.map(c=>on.find(k=>k.std===c)).filter(Boolean),rest=on.filter(k=>!first.includes(k)),fd=focusOn(s),inF=k=>fd&&focusDom(k.std)===fd;
+  /* then the student's chosen focus area (high school), then the rest */
+  return [...first,...rest.filter(k=>a.has(k.std)),...rest.filter(k=>!a.has(k.std)&&inF(k)),...rest.filter(k=>!a.has(k.std)&&!inF(k))]};
+/* ================= Choose your focus (high school): the student picks an area to work on first ================= */
+const FOCUS_NAME={NQ:["Numbers & quantity","Números y cantidad"],ALG:["Algebra","Álgebra"],FUN:["Functions & graphs","Funciones y gráficas"],GEO:["Geometry & trig","Geometría y trigonometría"],SP:["Statistics & probability","Estadística y probabilidad"],IES:["Real-world problems","Problemas de la vida real"]};
+const focusDom=std=>(String(std||"").split(".")[1]||"");
+const focusOK=()=>isHS(gradeOf())&&db.choose!==false;
+const focusOn=s=>focusOK()&&s&&s.prog&&s.prog.focus||"";
 /* ================= Comeback: a short catch-up for students who missed class practice days =================
    The server spots it (the class practiced 3+ days after this student's last practice) and sends the skills
    the class worked on that this student still needs. Those go first on the trail until the student answers
