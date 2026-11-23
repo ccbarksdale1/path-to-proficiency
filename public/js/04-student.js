@@ -524,10 +524,10 @@ function teacher(){
   const allc=document.getElementById("allc");if(allc)allc.onclick=()=>{S.tt="classes";useTest(null);render()};
   app.querySelectorAll("details.dd").forEach(d=>d.ontoggle=()=>{if(d.open)app.querySelectorAll("details.dd").forEach(o=>{if(o!==d)o.open=false})});
   if(!window._ddClose){window._ddClose=1;document.addEventListener("click",e=>{if(!e.target.closest("details.dd"))document.querySelectorAll("details.dd[open]").forEach(d=>d.open=false)})}
-  app.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;S.err="";S.mtssId=null;S.rcpt=null;S.xtNew=false;render();window.scrollTo(0,0)});
+  app.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;S.err="";S.mtssId=null;S.rcpt=null;S.xtNew=false;S.stdId=null;S.stuId=null;render();window.scrollTo(0,0)});
   const sdb=document.getElementById("sub-day");if(sdb)sdb.onclick=subDay;const hbb=document.getElementById("help-buddy");if(hbb)hbb.onclick=()=>helpBuddy((document.getElementById("hb-std")||{}).value);
   const cd=document.getElementById("csv-dl");if(cd)cd.onclick=()=>saveFile(`${CUR.cls.name.replace(/[^\w]+/g,"-")}-${new Date().toISOString().slice(0,10)}.csv`,classCSV());
-  if(tt==="class"&&CUR)({class:wireHands,why:wireMis,plan:wirePlanner,fluency:wireFluency,mtss:wireMtss,ip:wireIP,bench:wireBench,home:wireFamily,celebrate:wireCelebrate,pace:wirePace,badges:wireBadges,bd:wireBreak,items:wireQuality,setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
+  if(tt==="class"&&CUR)({class:()=>{wireHands();if(S.stdId)wireMis()},why:wireMis,plan:wirePlanner,fluency:wireFluency,mtss:wireMtss,ip:wireIP,bench:wireBench,home:wireFamily,celebrate:wireCelebrate,pace:wirePace,badges:wireBadges,bd:wireBreak,items:wireQuality,setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
   else ({classes:wireClasses,compare:wireCompare,standards:wireStandards,tests:wireTests,reports:wireReports,teachers:wireTeachers,tutors:wireTutors,leads:wireLeads,overview:wireOverview,class:wireClasses})[tt]();
   wireDemoBanner();if(DEMO_T){const o=document.getElementById("out");if(o)o.onclick=endDemoSchool}
 }

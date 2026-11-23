@@ -1018,7 +1018,7 @@ function xtLatest(s,days=XT_DAYS){const since=Date.now()-days*864e5,raw=s.raw||s
 /* every ticket in the class, rebuilt from the students' copies */
 function classTickets(){const by={};CUR.students.filter(s=>!isSample(s)).forEach(s=>xtOf(s.raw||s).forEach(x=>{const o=by[x.id]||(by[x.id]={...x,who:[]});o.who.push({s,r:xtRes(s,x.id)})}));
   return Object.values(by).sort((a,b)=>b.d.localeCompare(a.d)||b.id.localeCompare(a.id))}
-function xtCard(){if(!SKILLS.some(k=>genOf(k)))return "";const L=classTickets(),P=S.plan,focus=(()=>{const c={};realStudents().forEach(s=>{const k=curSkill(s);if(k)c[k.id]=(c[k.id]||0)+1});const id=Object.entries(c).sort((a,b)=>b[1]-a[1])[0]?.[0];return SKILLS.find(k=>k.id===id)})();
+function xtCard(){if(!SKILLS.some(k=>genOf(k)))return "";const L=classTickets(),P=S.plan,focus=SKILLS.find(k=>k.id===S.xtFocus)||(()=>{const c={};realStudents().forEach(s=>{const k=curSkill(s);if(k)c[k.id]=(c[k.id]||0)+1});const id=Object.entries(c).sort((a,b)=>b[1]-a[1])[0]?.[0];return SKILLS.find(k=>k.id===id)})();
   return `<div class="card"><div class="top"><h2>Exit tickets</h2><span class="muted small">Results update tomorrow’s groups</span></div>
    <p class="muted">A short check at the end of a lesson: ${3} or ${5} questions on one standard, on their own, no hints. Students see it on their home page. When you press <b>Make groups</b>, anyone who got under two thirds right in the last ${XT_DAYS} days is grouped by that standard.</p>
    ${S.xtNew?`<form class="grid" id="xt-f"><label class="f">Standard<select name="k">${pickSkills().map(k=>`<option value="${esc(k.id)}" ${focus&&k.id===focus.id?"selected":""}>${esc(k.std)} · ${esc(k.name)}</option>`).join("")}</select></label>

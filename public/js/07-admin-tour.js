@@ -554,13 +554,23 @@ function demoBuild(){
     /* yesterday's exit ticket on the standard most students are working on */
     {const c={};raws.forEach(raw=>{const s=viewStudent(raw),k=curSkill(s);if(k&&genOf(k))c[k.id]=(c[k.id]||0)+1});const kid=Object.entries(c).sort((a,b)=>b[1]-a[1])[0]?.[0],k=SKILLS.find(x=>x.id===kid);
      if(k){const d=now-DAY,rec={id:"tdemo"+dc.id,d:isoDay(d),k:k.id,std:k.std,n:3};raws.forEach(raw=>{if(raw.sample)return;raw.xt=[rec];if(r()<.85){const p=raw.prog[dc.testId];(p.xtr=p.xtr||{})[rec.id]={t:d+14*3600e3,ok:ri(0,3),n:3,k:k.id}}})}}
+    /* the sample story (first class only): 6 students made the same mistake, got a small group and a 3-question
+       mistake check two days ago, and most of them fixed it */
+    if(ci===0){const vs=raws.filter(x=>!x.sample).map(x=>viewStudent(x)),c={};vs.forEach(s=>{const k=curSkill(s);if(k&&genOf(k))c[k.id]=(c[k.id]||0)+1});
+      const kid=Object.entries(c).sort((a,b)=>b[1]-a[1])[0]?.[0],pref=SKILLS.find(x=>x.std==="3.OA.1"),gp=pref&&missGroups(vs,pref.id).find(x=>x.who.size>=6&&/addition/i.test(x.ex)),
+        k=gp?pref:SKILLS.find(x=>x.id===kid),g=gp||(k&&missGroups(vs,k.id).find(x=>x.who.size>=4));
+      if(g){const names=[...g.who].slice(0,6),d=now-2*DAY,rec={id:"mdemo"+dc.id,d:isoDay(d),k:k.id,std:k.std,n:3,mis:mnorm(g.ex).slice(0,160),mx:String(g.ex).slice(0,160)};
+        const res=[[3,0],[3,0],[3,0],[3,0],[1,2],[2,0]];
+        raws.filter(x=>names.includes(x.name)).forEach((raw,i)=>{raw.xt=[...(raw.xt||[]),rec];const p=raw.prog[dc.testId],[ok,same]=res[i%res.length];(p.xtr=p.xtr||{})[rec.id]={t:d+DAY+10*3600e3,ok,n:3,k:k.id,same};
+          (raw.ses=raw.ses||[]).push({id:"sdemo"+dc.id,d:isoDay(d),std:k.std,m:15,a:1,n:"Small group on one mistake: drew the groups, then wrote the multiplication.",nx:"",by:"Ms. Johnson",...(ok===3?{g:1}:{g:0})})});
+        store.story={classId:dc.id,k:k.id,std:k.std,ex:g.ex,names,d:isoDay(d)}}}
     /* one "my answer should count" request in the first class, from a student's real missed question */
     if(ci===0){const raw=raws.find(x=>!x.sample&&(x.prog[dc.testId]?.miss||[]).length),p=raw&&raw.prog[dc.testId],m=p&&p.miss[p.miss.length-1],q=m&&getQ(m.q);
       if(q){const vq=viewQ(q),k=SKILLS.find(x=>x.id===m.k);store.reports=[{id:"rdemo1",t:now-5*3600e3,qid:m.q,std:k?k.std:"",testId:dc.testId,reason:"count",note:"I think my answer works too. I checked it two ways.",who:raw.name,classId:cls.id,q:vq,status:"open",sid:raw.id,pick:vq.type==="input"?String(Number(vq.ans)+1):vq.choices?pickText(vq,[[...L].slice(0,vq.choices.length).find(l=>!(Array.isArray(vq.ans)?vq.ans:[vq.ans]).includes(l))]):"",kind:"practice",k:m.k}]}}
     store.classes[cls.id]={cls,rev:"demo",students:raws}});
   db=keep.db;useTest(null);addExtras([]);
   const tests=[{id:"a1",name:"Grade 3 benchmark (older 30-question test: enter missed question numbers)",builtIn:true,grade:"3",nq:30,skills:8},...GRADES.map(g=>({id:"std"+g,name:stdTestName(g),builtIn:true,grade:g===9?"Algebra I":g===10?"ACT Math":g===11?"WorkKeys":g>=23?"ELA "+(g-20):g===19?"Biology":g>=14?"Science "+(g-10):String(g),nq:0,skills:(useTest({id:"std"+g}),SKILLS.length)}))];useTest(null);
-  const tb={me:teachers[0],school:{name:"Magnolia Public Schools (sample school)"},teachers,classes:DEMO_CLASSES.map(c=>store.classes[c.id].cls),allClassCount:DEMO_CLASSES.length,tests,hidden:[],ai:false,license:null};
+  const tb={me:teachers[0],school:{name:"Magnolia Public Schools (sample school)"},teachers,classes:DEMO_CLASSES.map(c=>store.classes[c.id].cls),allClassCount:DEMO_CLASSES.length,tests,hidden:[],ai:false,license:null,story:store.story||null};
   return {tb,store};
 }
 const demoNo=()=>{throw new Error("This is the sample school, so changes aren’t saved. Sign in to your own school to do this.")};
@@ -645,7 +655,7 @@ function ovCompute(data){
   useTest(null);addExtras([]);
   const attn=Object.values(stds).filter(o=>o.n>=5).map(o=>({...o,pct:Math.round(o.prof/o.n*100)})).filter(o=>o.pct<50).sort((a,b)=>a.pct-b.pct||b.n-a.n);
   const goal=classes.length?Math.round(classes.reduce((a,x)=>a+x.goal*x.n,0)/Math.max(1,N)):60;
-  return {BM,N,onT,close,need,interv,grew,grN,mins,goal,prof:N?Math.round(onT/N*100):null,classes,attn,plans,trend:weekly(allProgs)}}
+  return {BM,N,onT,close,need,interv,grew,grN,mins,goal,ev:onT+close+need,prof:(onT+close+need)>=Math.max(3,N*.25)?Math.round(onT/(onT+close+need)*100):null,classes,attn,plans,trend:weekly(allProgs)}}
 function tOverview(){
   if(!TB.classes.length)return `<div class="card"><h2>School overview</h2><p class="muted">Make a class first. This page fills in as students practice.</p></div>`;
   const O=S.ov;if(!O||O.loading){if(!O)ovLoad();return `<div class="card"><h2>School overview</h2><p class="muted">Gathering every class…</p></div>`}
@@ -655,7 +665,7 @@ function tOverview(){
   const byG={};X.classes.forEach(x=>(byG[x.g]=byG[x.g]||[]).push(x));
   return `<div class="card ov-hero"><div class="top"><div><span class="label">${esc(TB.school.name)}</span><h2>School overview</h2></div><span class="muted" style="font-size:.85rem">${X.N} students · ${X.classes.length} classes · updated just now</span></div>
     <div class="kpis">
-     ${tile(X.prof==null?"—":X.prof+"%","Estimated proficiency",`Target ${X.goal}%${gap>0?` · ${gap} points to go`:" · target met"}`,X.prof>=X.goal?"go":"gold")}
+     ${tile(X.prof==null?"Not enough data yet":X.prof+"%","Estimated proficiency",X.prof==null?`Only ${X.ev} of ${X.N} students have enough practice or test data so far`:`Based on ${X.ev} of ${X.N} students with enough data · target ${X.goal}%${gap>0?` · ${gap} points to go`:" · target met"}`,X.prof==null?"":X.prof>=X.goal?"go":"gold")}
      ${tile(X.interv,"Students in intervention",`${P.active} on an IMP · ${P.t2} Tier 2 · ${P.t3} Tier 3`,"")}
      ${tile(X.attn.length,"Standards needing attention","fewer than half of students practicing them are proficient","oops")}
      ${tile(X.grN?Math.round(X.grew/X.grN*100)+"%":"—","Students showing growth","practice accuracy up since week 1","go")}
@@ -663,7 +673,7 @@ function tOverview(){
     </div>
     <div class="pbar" role="img" aria-label="Estimated proficiency ${X.prof}% against a target of ${X.goal}%"><span class="pb-on" style="width:${X.onT/Math.max(1,X.N)*100}%"></span><span class="pb-cl" style="width:${X.close/Math.max(1,X.N)*100}%"></span><i style="left:${X.goal}%"><em>Target ${X.goal}%</em></i></div>
     <div class="row" style="gap:16px;font-size:.9rem"><span><span class="dot go"></span> On track ${X.onT}</span><span><span class="dot gold"></span> Close ${X.close}</span><span><span class="dot oops"></span> Needs support ${X.need}</span></div>
-    <p class="muted" style="font-size:.8rem">Estimated proficiency is the share of students on track on the standards on their trail (mastered, or right on the benchmark). It is an estimate from practice, not a state test score.</p></div>
+    <p class="muted" style="font-size:.8rem">Estimated proficiency is the share of students on track on the standards on their trail (mastered, or right on the benchmark), counting only students with enough practice or test data to judge. It is an estimate from practice, not a state test score.</p></div>
   ${tsCard((S.ov.raw||[]).flatMap(c=>c.students||[]),"whole school")}${ovReportsCard()}
   ${(()=>{const B=X.BM;if(!WINS.some(w=>B[w].n))return "";return `<div class="card"><div class="top"><h2>Benchmark growth · ${esc(schoolYear())}</h2><span class="muted" style="font-size:.85rem">fall, winter, and spring benchmark scores</span></div>
     <div class="kpis small">${WINS.map(w=>B[w].n?`<div class="kpi ${B[w].at/B[w].n>=.6?"go":"gold"}"><b>${Math.round(B[w].sum/B[w].n)}%</b><span>${w} average</span><small>${Math.round(B[w].at/B[w].n*100)}% at or above the cut</small></div>`:`<div class="kpi"><b>—</b><span>${w}</span><small>not entered yet</small></div>`).join("")}

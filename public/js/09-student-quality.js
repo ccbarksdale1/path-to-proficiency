@@ -60,10 +60,10 @@ function nextActions(){const real=realStudents(),now=Date.now(),wk=now-7*864e5,A
   const lastT=s=>s.prog.last||0,idle=real.filter(s=>curSkill(s)&&lastT(s)<wk);
   /* 1. exit ticket results that point at tomorrow's groups */
   const low={};real.forEach(s=>{const L=xtLatest(s);if(L&&!L.pass)(low[L.k.id]=low[L.k.id]||{k:L.k,who:[]}).who.push(s.name)});
-  Object.values(low).sort((a,b)=>b.who.length-a.who.length).forEach(x=>A.push({p:1,t:`Reteach ${x.k.std} (${x.k.name.toLowerCase()})`,d:`${x.who.join(", ")} got under two thirds on the exit ticket. Make groups puts them together.`,tab:"plan",b:"Make groups"}));
+  Object.values(low).sort((a,b)=>b.who.length-a.who.length).forEach(x=>A.push({p:1,t:`Reteach ${x.k.std} (${x.k.name.toLowerCase()})`,d:`${x.who.join(", ")} got under two thirds on the exit ticket. Make groups puts them together.`,tab:"plan",b:"Make groups",k:x.k}));
   /* 2. a standard many students are stuck on */
   const stuck={};real.forEach(s=>{const k=curSkill(s);if(!k)return;const rec=(s.prog.recent||[]).filter(r=>r.k===k.id).slice(-10);if(rec.length>=8&&rec.filter(r=>r.ok).length/rec.length<.6)(stuck[k.id]=stuck[k.id]||{k,who:[]}).who.push(s.name)});
-  Object.values(stuck).filter(x=>x.who.length>=2&&!low[x.k.id]).sort((a,b)=>b.who.length-a.who.length).slice(0,2).forEach(x=>A.push({p:2,t:`Pull a small group on ${x.k.std}`,d:`${x.who.length} students are under 60% on their last 10 tries: ${x.who.join(", ")}.`,tab:"why",b:"See their mistakes"}));
+  Object.values(stuck).filter(x=>x.who.length>=2&&!low[x.k.id]).sort((a,b)=>b.who.length-a.who.length).slice(0,2).forEach(x=>A.push({p:2,t:`Pull a small group on ${x.k.std}`,d:`${x.who.length} students are under 60% on their last 10 tries: ${x.who.join(", ")}.`,std:x.k.id,b:"See who and why"}));
   /* 3. standards that slipped after mastery */
   const ref={};real.forEach(s=>SKILLS.forEach(k=>{if(evLevel(s,k)==="refresh")(ref[k.id]=ref[k.id]||{k,who:[]}).who.push(s.name)}));
   Object.values(ref).sort((a,b)=>b.who.length-a.who.length).slice(0,2).forEach(x=>A.push({p:3,t:`Revisit ${x.k.std}: it slipped`,d:`${x.who.join(", ")} mastered it, then missed two check-ups. A quick review brings it back.`,tab:"plan",b:"Plan a group"}));
@@ -71,7 +71,7 @@ function nextActions(){const real=realStudents(),now=Date.now(),wk=now-7*864e5,A
   const ipNo=real.filter(s=>ipActive(s)&&!sesSum(s.raw||s,wk).n);
   if(ipNo.length)A.push({p:2,t:`Meet with ${ipNo.length} plan student${ipNo.length===1?"":"s"} this week`,d:`No teacher session logged in 7 days: ${ipNo.map(s=>s.name).join(", ")}.`,tab:"ip",b:"Open plans"});
   /* 5. nobody has practiced in a week */
-  if(idle.length)A.push({p:3,t:`Check in with ${idle.length} student${idle.length===1?"":"s"} who stopped practicing`,d:`No practice in 7+ days: ${idle.slice(0,8).map(s=>s.name).join(", ")}${idle.length>8?"…":""}.`,tab:"setup",b:"See students"});
+  if(idle.length)A.push({p:3,t:`Check in with ${idle.length} student${idle.length===1?"":"s"} who stopped practicing`,d:`No practice in 7+ days: ${idle.slice(0,8).map(s=>s.name).join(", ")}${idle.length>8?"…":""}.`,ids:idle.map(s=>s.id),b:`See ${idle.length===1?"this student":"these "+idle.length+" students"}`});
   /* 6. no exit ticket lately */
   const lastXt=classTickets()[0];if(!lastXt||now-new Date(lastXt.d+"T12:00:00").getTime()>3*864e5){const c={};real.forEach(s=>{const k=curSkill(s);if(k)c[k.id]=(c[k.id]||0)+1});const id=Object.entries(c).sort((a,b)=>b[1]-a[1])[0]?.[0],k=SKILLS.find(k=>k.id===id);
     if(k)A.push({p:4,t:`Give an exit ticket on ${k.std}`,d:`${c[id]} students are working on it now. Tomorrow’s groups get sharper with fresh results.`,tab:"plan",b:"Give one"})}
@@ -79,7 +79,7 @@ function nextActions(){const real=realStudents(),now=Date.now(),wk=now-7*864e5,A
   {const m={};real.forEach(s=>xtOf(s.raw||s).filter(x=>x.mis).forEach(x=>{const r=xtRes(s,x.id);if(r&&(r.same||0)>=1&&r.t>wk)(m[x.id]=m[x.id]||{x,who:[]}).who.push(s.name)}));
    Object.values(m).slice(0,2).forEach(o=>A.push({p:1,t:`Same mistake still there on ${o.x.std}`,d:`${o.who.join(", ")} made “${o.x.mx||"the same mistake"}” again on the check. Reteach that idea directly.`,tab:"plan",b:"Plan a group"}))}
   /* 6b. sure but wrong: a misconception, not a slip */
-  confAlerts().slice(0,2).forEach(x=>A.push({p:2,t:`Misconception check on ${x.k.std}`,d:`${x.who.join(", ")} said they were sure and got it wrong more than once. Ask them to explain their thinking.`,tab:"why",b:"See their mistakes"}));
+  confAlerts().slice(0,2).forEach(x=>A.push({p:2,t:`Misconception check on ${x.k.std}`,d:`${x.who.join(", ")} said they were sure and got it wrong more than once. Ask them to explain their thinking.`,std:x.k.id,b:"See who and why"}));
   /* 6c. the class is weaker on Think deeper (DOK 3) */
   {const D=dokClass(),a=D[2].n?D[2].ok/D[2].n:null,b=D[3].n>=15?D[3].ok/D[3].n:null;if(b!=null&&a!=null&&a-b>=.15)A.push({p:3,t:`Practice “Think deeper” (DOK 3) as a class`,d:`The class gets ${Math.round(b*100)}% of DOK 3 questions right vs ${Math.round(a*100)}% of DOK 2. Model one “find the mistake” question out loud.`,tab:"plan",b:"Plan a group"})}
   /* 7. ready to celebrate */
@@ -88,7 +88,7 @@ function nextActions(){const real=realStudents(),now=Date.now(),wk=now-7*864e5,A
   return A.sort((a,b)=>a.p-b.p)}
 function nextCard(){const A=nextActions();if(!A.length)return "";
   return `<div class="card next-card"><div class="top"><h2>Next steps</h2><span class="muted small">Built from today’s data</span></div>
-   <ol class="next-list">${A.slice(0,6).map(a=>`<li><div><b>${esc(a.t)}</b><br><span class="muted">${esc(a.d)}</span></div><button class="ghost small" data-tab="${a.tab}">${esc(a.b)}</button></li>`).join("")}</ol></div>`}
+   <ol class="next-list">${A.slice(0,6).map(a=>`<li><div><b>${esc(a.t)}</b><br><span class="muted">${esc(a.d)}</span></div>${a.ids?`<button class="ghost small" data-ids="${esc(a.ids.join(","))}">${esc(a.b)}</button>`:a.std?`<button class="ghost small" data-std="${esc(a.std)}">${esc(a.b)}</button>`:`<button class="ghost small" data-tab="${a.tab}">${esc(a.b)}</button>`}</li>`).join("")}</ol></div>`}
 /* weekly plan: the teacher-table focus for each day, neediest standard first, Friday for exit tickets and check-ups */
 function weekPlan(){const real=realStudents(),need={};
   real.forEach(s=>{const L=xtLatest(s,7),k=L&&!L.pass?L.k:curSkill(s);if(!k)return;const rec=(s.prog.recent||[]).filter(r=>r.k===k.id).slice(-10),acc=rec.length?rec.filter(r=>r.ok).length/rec.length:.5;

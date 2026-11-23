@@ -27,9 +27,11 @@ function wireClasses(){
 
 /* ---------- class progress ---------- */
 function tClass(){
+  if(S.stdId){const k=SKILLS.find(x=>x.id===S.stdId);if(k)return stdView(k);S.stdId=null}
+  if(S.stuId){const s=CUR.students.find(x=>x.id===S.stuId);if(s)return stuView(s);S.stuId=null}
   const real=realStudents(),N=real.length,goal=db.goal||60,need=Math.ceil(N*goal/100);
   const finished=real.filter(s=>!curSkill(s)).length,pct=N?Math.round(finished/N*100):0;
-  const goalCard=`<div class="card"><div class="top"><h2>Path to ${goal}%</h2><span class="pill">${N} student${N===1?"":"s"}</span></div>
+  const goalCard=`<div class="card"><div class="top"><h2>Trail completion goal: ${goal}%</h2><span class="pill" title="This counts students who finished their practice trail. It is not a proficiency score.">Trail completion · not a proficiency score</span></div>
    ${N?`<div class="goal"><div><span class="big">${pct}%</span><span class="muted">${finished} of ${N} finished their path</span></div>
      <div><span class="big">${goal}%</span><span class="muted">goal: ${need} of ${N}</span></div></div>
      <div class="meter" role="img" aria-label="${pct}% finished, goal ${goal}%"><span style="width:${pct}%"></span><i style="left:${goal}%"></i></div>
@@ -37,33 +39,44 @@ function tClass(){
      <p class="muted" style="font-size:.85rem">“Finished” means the student showed mastery in practice on every standard they missed. That is a good sign, but it is not the same as passing the benchmark.</p>`
    :`<p class="muted">Add your students under Students to track your class goal.</p>`}</div>`;
   const stdRows=SKILLS.map(k=>{const who=real.filter(s=>s.prog.skills[k.id]&&s.prog.skills[k.id].status!=="off"),M=who.length,ok=who.filter(s=>s.prog.skills[k.id].status!=="todo").length,on=real.filter(s=>curSkill(s)===k);
-    const p2=M?Math.round(ok/M*100):0,col=heat(p2);
-    return `<tr><td><b>${esc(k.std)}</b>${k.extra?' <span class="pill purple">Assigned</span>':""}<br><span class="muted">${esc(k.name)}</span></td><td>${M?`<span class="bar"><span style="width:${p2}%;background:${col}"></span></span> ${ok}/${M}`:"—"}</td>
-      <td>${on.length?on.map(s=>esc(s.name)).join(", "):'<span class="muted">—</span>'}</td></tr>`}).join("");
+    const p2=M?Math.round(ok/M*100):0,col=heat(p2),judged=who.filter(s=>{const x=stuStd(s,k);return x&&x.st!=="few"&&x.st!=="none"}).length;
+    return `<tr class="clickrow"><td><b>${stdLink(k)}</b>${k.extra?' <span class="pill purple">Assigned</span>':""}<br><span class="muted">${esc(k.name)}</span></td><td>${!M?"—":!judged?'<span class="muted small">Not enough data yet</span>':`<span class="bar"><span style="width:${p2}%;background:${col}"></span></span> ${ok}/${M}${judged<M?`<br><span class="muted small">${M-judged} not enough data yet</span>`:""}`}</td>
+      <td>${on.length?namesOf(on,8):'<span class="muted">—</span>'}</td></tr>`}).join("");
   const attn=real.map(s=>{const cur=curSkill(s);if(!cur)return null;const rec=(s.prog.recent||[]).filter(r=>r.k===cur.id).slice(-5);
       const miss=rec.filter(r=>!r.ok).length;if(rec.length<3||miss<3)return null;
       const qs={};(s.prog.recent||[]).filter(r=>r.k===cur.id&&!r.ok&&(getQ(r.q)||{}).n).forEach(r=>qs[r.q]=(qs[r.q]||0)+1);
       const top=Object.entries(qs).sort((a,b)=>b[1]-a[1])[0];return {s,cur,miss,n:rec.length,top:top&&getQ(top[0]).n,tm:topMiss(s,cur.id)}}).filter(Boolean);
   const attnCard=`<div class="card"><div class="top"><h2>Needs attention</h2><span class="pill ${attn.length?'oops':'go'}">${attn.length} student${attn.length===1?"":"s"}</span></div>
-   ${attn.length?`<ul class="attn">${attn.map(a=>`<li><b>${esc(a.s.name)}</b><span class="pill purple">${esc(a.cur.std)}</span>
+   ${attn.length?`<ul class="attn">${attn.map(a=>`<li><b>${nameLink(a.s)}</b><span class="pill purple">${stdLink(a.cur)}</span>
      <p>Missed ${a.miss} of their last ${a.n} on ${esc(a.cur.name.toLowerCase())}. Next step: pull them into a small group for ${esc(a.cur.std)}${a.top?` and go over <button class="link" data-goq="${a.top}">breakdown #${a.top}</button> together`:""}.</p>${a.tm?`<p style="font-size:.9rem"><b>Most common mistake:</b> ${fmt(a.tm.ex)}</p>`:""}</li>`).join("")}</ul>`
    :`<p class="muted">No one is stuck right now. A student shows up here after missing 3 of their last 5 questions on the same standard.</p>`}</div>`;
   const groupsCard=`<div class="card"><h2>Standards and small groups</h2><p class="muted">Students in the same row are working on the same standard right now. Pull them together for a small group.</p>
-   <div class="tablewrap"><table class="roster"><thead><tr><th>Standard</th><th>Proficient</th><th>Small group (working on it now)</th></tr></thead><tbody>${stdRows}</tbody></table></div></div>`;
-  const rows=CUR.students.map(s=>{const p=s.prog,cur=curSkill(s),TR=trailFor(s),done=TR.filter(k=>p.skills[k.id].status!=="todo").length;
+   <div class="tablewrap"><table class="roster"><thead><tr><th>Standard <span class="muted small">(tap to open)</span></th><th>Mastered</th><th>Small group (working on it now)</th></tr></thead><tbody>${stdRows}</tbody></table></div></div>`;
+  const EF=S.ef||{},q=(EF.q||"").toLowerCase(),idset=EF.ids?new Set(EF.ids):null;
+  const acc=s=>{const p=s.prog,t=Object.values(p.log).reduce((a,l)=>a+l.tries,0)+(p.prior?.tries||0),r=Object.values(p.log).reduce((a,l)=>a+l.right,0)+(p.prior?.right||0);return t?r/t:-1};
+  const rdOf=s=>{const r=readiness(s);return r==null?"none":band(r).c};
+  let list=CUR.students.filter(s=>(!q||s.name.toLowerCase().includes(q))&&(!idset||idset.has(s.id))&&(!EF.std||(curSkill(s)||{}).id===EF.std)&&(!EF.rd||rdOf(s)===EF.rd));
+  const SORT={name:s=>s.name.toLowerCase(),acc,rd:s=>readiness(s)??-1,path:s=>{const TR=trailFor(s);return TR.length?TR.filter(k=>s.prog.skills[k.id].status!=="todo").length/TR.length:0}};
+  if(EF.sort&&SORT[EF.sort]){const f=SORT[EF.sort],d=EF.dir||1;list=[...list].sort((a,b)=>{const x=f(a),y=f(b);return (x<y?-1:x>y?1:0)*d})}
+  const th=(key,label)=>`<th><button class="link th-sort" data-sort="${key}" aria-label="Sort by ${label}">${label}${EF.sort===key?(EF.dir===-1?" ▼":" ▲"):""}</button></th>`;
+  const filters=`<div class="row ef" style="flex-wrap:wrap;gap:8px;margin:.3rem 0"><input id="ef-q" type="search" placeholder="Search a name" value="${esc(EF.q||"")}" style="max-width:190px" aria-label="Search students">
+    <select id="ef-std" aria-label="Filter by standard they're working on"><option value="">Any standard</option>${SKILLS.filter(k=>realStudents().some(s=>curSkill(s)===k)).map(k=>`<option value="${esc(k.id)}" ${EF.std===k.id?"selected":""}>Working on ${esc(k.std)}</option>`).join("")}</select>
+    <select id="ef-rd" aria-label="Filter by readiness"><option value="">Any readiness</option>${[["oops","Needs support"],["gold","Close"],["go","On track"],["none","Not enough data yet"]].map(([v,l])=>`<option value="${v}" ${EF.rd===v?"selected":""}>${l}</option>`).join("")}</select>
+    ${EF.q||EF.std||EF.rd||EF.ids?`<button class="ghost small" id="ef-clear">Show everyone (${list.length} of ${CUR.students.length} shown)</button>`:""}</div>`;
+  const rows=list.map(s=>{const p=s.prog,cur=curSkill(s),TR=trailFor(s),done=TR.filter(k=>p.skills[k.id].status!=="todo").length;
     const tries=Object.values(p.log).reduce((a,l)=>a+l.tries,0)+(p.prior?.tries||0),right=Object.values(p.log).reduce((a,l)=>a+l.right,0)+(p.prior?.right||0);
-    return `<tr><td><b>${esc(s.name)}</b>${p.go?' <span class="pill gold">🚀 Working ahead</span>':""}${cbTag(s)}<br><span class="muted">code ${esc(s.code)}</span></td>
+    return `<tr><td><b>${isSample(s)?esc(s.name):nameLink(s)}</b>${p.go?' <span class="pill gold">🚀 Working ahead</span>':""}${cbTag(s)}<br><span class="muted">code ${esc(s.code)}</span></td>
      <td>${s.missed==null?'<span class="muted">not entered</span>':missedText(s.missed)}</td>
      <td><span class="bar"><span style="width:${TR.length?done/TR.length*100:0}%;background:var(--go)"></span></span> ${done}/${TR.length}${(()=>{const n=TR.filter(k=>p.skills[k.id]&&p.skills[k.id].carried&&p.skills[k.id].status!=="todo").length;return n?`<br><span class="muted" style="font-size:.8rem" title="Mastered on the class's earlier test. They count on this trail too.">⭐ ${n} from earlier trail</span>`:""})()}${focusOn(s)?`<br><span class="muted" style="font-size:.8rem" title="The student chose this area to work on first.">🎯 Focus: ${esc((FOCUS_NAME[focusOn(s)]||[focusOn(s)])[0])}</span>`:""}${(s.assigned||[]).length?`<br><span class="muted" style="font-size:.8rem">Assigned: ${esc(s.assigned.join(", "))}</span>`:""}</td>
-     <td>${cur?`${esc(cur.std)}<br><span class="muted">${esc(cur.name)}</span>`:'<span style="color:var(--go);font-weight:700">Proficient</span>'}</td>
+     <td>${cur?`${stdLink(cur)}<br><span class="muted">${esc(cur.name)}</span>`:'<span style="color:var(--go);font-weight:700">Finished their trail</span>'}</td>
      <td>${tries?Math.round(right/tries*100)+"%":"—"}<br><span class="muted">${tries} answered</span></td>
-     <td>${(()=>{const r=readiness(s),b=band(r);return r==null?`<span class="pill" title="Not enough practice or test data yet">Evidence needed</span>`:`<span class="pill ${b.c}">${r}%</span>`})()}</td><td>${p.tutor?.total||0}${p.tutor?.off?.n?`<br><span class="pill gold" title="${esc((p.tutor.off.last||[]).map(x=>"“"+x.t+"”").join("\n"))}">⚠️ ${p.tutor.off.n} off-topic</span>`:""}</td></tr>`}).join("");
+     <td>${(()=>{const r=readiness(s),b=band(r);return r==null?`<span class="pill" title="Not enough practice or test data yet">Not enough data yet</span>`:`<span class="pill ${b.c}">${r}%</span>`})()}</td><td>${p.tutor?.total||0}${p.tutor?.off?.n?`<br><span class="pill gold" title="${esc((p.tutor.off.last||[]).map(x=>"“"+x.t+"”").join("\n"))}">⚠️ ${p.tutor.off.n} off-topic</span>`:""}</td></tr>`}).join("");
   const offS=CUR.students.filter(s=>s.prog.tutor?.off?.n);
   const offCard=offS.length?`<div class="card"><details><summary><b>⚠️ Off-topic Scout chats (${offS.reduce((a,s)=>a+s.prog.tutor.off.n,0)})</b> <span class="muted">Scout steered these students back to math. Tap to see what they asked.</span></summary>
    <ul>${offS.map(s=>`<li><b>${esc(s.name)}</b> (${s.prog.tutor.off.n}): ${(s.prog.tutor.off.last||[]).slice(-3).map(x=>`<span class="muted">“${esc(x.t)}”</span>`).join(", ")}</li>`).join("")}</ul></details></div>`:"";
-  return `${nextCard()}${tsCard(CUR.raw)}${goalCard}${hsClassCard()}${readinessCard()}${evClassCard()}${stepsCard()}${handsCard()}${attnCard}${offCard}${groupsCard}<div class="card"><div class="top"><h2>Every student</h2><span class="row" style="gap:.4rem;margin:0"><button class="small" id="sub-day">🧑‍🏫 Sub Day</button><select id="hb-std" aria-label="Standard for the Help Buddy warm-up" style="max-width:220px"><option value="">🦝 Most of the class (auto)</option>${SKILLS.filter(k=>genOf(k)).map(k=>`<option value="${esc(k.id)}">${esc(k.std)} · ${esc(k.name)}</option>`).join("")}</select><button class="ghost small" id="help-buddy">🦝 Help Buddy warm-up</button><button class="ghost small" id="csv-dl">Download class data (CSV)</button></span></div>
-   <p class="muted">Each student’s path skips any standard where they got every test question right. Students marked “sample” are examples and are not counted in your goal.</p>
-   <div class="tablewrap"><table class="roster"><thead><tr><th>Student</th><th>Missed on test</th><th>Path</th><th>Working on</th><th>Accuracy</th><th>Readiness</th><th>Asked Scout</th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="muted">No students yet.</td></tr>`}</tbody></table></div>
+  return `${storyCard()}${startHere()}${nextCard()}${tsCard(CUR.raw)}${goalCard}${hsClassCard()}${readinessCard()}${evClassCard()}${stepsCard()}${handsCard()}${attnCard}${offCard}${groupsCard}<div class="card" id="every"><div class="top"><h2>Every student</h2><span class="row" style="gap:.4rem;margin:0"><button class="small" id="sub-day">🧑‍🏫 Sub Day</button><select id="hb-std" aria-label="Standard for the Help Buddy warm-up" style="max-width:220px"><option value="">🦝 Most of the class (auto)</option>${SKILLS.filter(k=>genOf(k)).map(k=>`<option value="${esc(k.id)}">${esc(k.std)} · ${esc(k.name)}</option>`).join("")}</select><button class="ghost small" id="help-buddy">🦝 Help Buddy warm-up</button><button class="ghost small" id="csv-dl">Download class data (CSV)</button></span></div>
+   <p class="muted">Each student’s path skips any standard where they got every test question right. Students marked “sample” are examples and are not counted in your goal. Tap a name for their portfolio, or a column title to sort.</p>${filters}
+   <div class="tablewrap"><table class="roster"><thead><tr>${th("name","Student")}<th>Missed on test</th>${th("path","Path")}<th>Working on</th>${th("acc","Accuracy")}${th("rd","Readiness")}<th>Asked Scout</th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="muted">${CUR.students.length?"No students match.":"No students yet."}</td></tr>`}</tbody></table></div>
    <p class="muted" style="font-size:.85rem">Progress saves online, so students can use any device. <button class="link" id="reload">Refresh</button></p></div>${growthCard()}`;
 }
 const heat=p=>p>=70?"var(--go)":p>=50?"var(--star)":"var(--oops)";
@@ -117,7 +130,7 @@ function itemStats(students){
     return {n,sk,pct,t,r}});
 }
 function tItems(){
-  if(!qNums().length)return `<div class="card"><h2>Item analysis</h2><p class="muted">Item analysis shows how students did on each question of a test that is saved in the app. ${esc(TEST_NAME)} has no saved questions, so there is nothing to show here. Import your own test on the Tests page to use item analysis, or see results by standard on Class progress and Why they missed it.</p></div>`;
+  if(!qNums().length)return practiceItems();
   const rows=itemStats(CUR.students),withData=realStudents().filter(s=>s.missed);
   const sorted=[...rows].sort((a,b)=>(a.pct??101)-(b.pct??101));
   return `<div class="card"><h2>Item analysis</h2><p class="muted">Test % is how many students got each question right on ${esc(TEST_NAME)} (from the missed questions you entered). Lowest first, so you know what to reteach. Sample students are not counted.</p>
@@ -928,3 +941,109 @@ const FLU_G3=[
  {name:"Mixed review (facts + spiral)",ops:["x","d","r"],f:[2,3,4,5,6,7,8,9]},
 ];
 
+
+/* ================= One tap to the work: Start here, the standard view, student portfolios =================
+   Every student name and standard code in Class progress is a link. Tapping a standard shows who is
+   struggling, why, and what to do; tapping a student shows the work behind their numbers. */
+const nameLink=s=>`<button class="link" data-stu="${esc(s.id)}">${esc(s.name)}</button>`;
+const stdLink=(k,label)=>`<button class="link" data-std="${esc(k.id)}">${esc(label||k.std)}</button>`;
+const namesOf=(list,max=6)=>list.slice(0,max).map(nameLink).join(", ")+(list.length>max?` <span class="muted">and ${list.length-max} more</span>`:"");
+/* one student on one standard: what we know and how sure we are */
+function stuStd(s,k){const sk=s.prog.skills[k.id];if(!sk||sk.status==="off")return null;
+  let n=0,ok=0,last="";Object.entries(s.prog.days||{}).forEach(([d,x])=>{const y=x[k.id];if(y){n+=y.n;ok+=y.ok;if(d>last)last=d}});
+  const rec=(s.prog.recent||[]).filter(r=>r.k===k.id).slice(-10),racc=rec.length?rec.filter(r=>r.ok).length/rec.length:null;
+  const done=sk.status==="done"||sk.status==="skip",lv=typeof evLevel==="function"?evLevel(s,k):null;
+  const st=done?(lv==="refresh"?"refresh":"mastered"):n===0?"none":n<5?"few":(rec.length>=5&&racc<.6)?"reteach":"progress";
+  return {s,k,sk,n,ok,acc:n?Math.round(ok/n*100):null,racc:racc==null?null:Math.round(racc*100),rn:rec.length,last,st}}
+const ST_LBL={reteach:["oops","Needs reteaching"],refresh:["gold","Slipped · needs a refresh"],progress:["gold","Working on it"],few:["","Not enough data yet"],none:["","Not started"],mastered:["go","Mastered"]};
+const stLbl=x=>x.st==="mastered"?(x.sk.status==="skip"?"Mastered on the test":"Passed the checkpoint"):ST_LBL[x.st][1];
+const ST_ORDER=["reteach","refresh","progress","few","none","mastered"];
+const agoDay=d=>{if(!d)return"—";const n=Math.round((Date.now()-new Date(d+"T12:00:00").getTime())/864e5);return n<=0?"today":n===1?"yesterday":n+" days ago"};
+
+/* ---------- Start here: who needs me, what to reteach, who's ready ---------- */
+function startHere(){const real=realStudents();if(!real.length)return "";
+  const need=[],seen=new Set(),add=(s,why,k)=>{if(seen.has(s.id))return;seen.add(s.id);need.push({s,why,k})};
+  real.forEach(s=>{const L=xtLatest(s,3);if(L&&!L.pass)add(s,`under two thirds on yesterday’s exit ticket (${L.k.std})`,L.k)});
+  real.forEach(s=>{const k=curSkill(s);if(!k)return;const x=stuStd(s,k);if(x&&x.st==="reteach")add(s,`${x.racc}% on their last ${x.rn} tries on ${k.std}`,k)});
+  real.forEach(s=>SKILLS.forEach(k=>{if(evLevel(s,k)==="refresh")add(s,`${k.std} slipped after mastery`,k)}));
+  /* a standard to reteach: students under two thirds on its exit ticket, or under 60% on recent practice */
+  const by={},addK=(k,s)=>{const o=by[k.id]||(by[k.id]={k,who:[]});if(!o.who.includes(s))o.who.push(s)};
+  real.forEach(s=>{const L=xtLatest(s,3);if(L&&!L.pass)addK(L.k,s);const k=curSkill(s);if(!k)return;const x=stuStd(s,k);if(x&&x.st==="reteach")addK(k,s)});
+  const reteach=Object.values(by).sort((a,b)=>b.who.length-a.who.length).slice(0,3).map(o=>({...o,mis:missGroups(o.who,o.k.id)[0]}));
+  const ready=[];real.forEach(s=>{if(seen.has(s.id))return;const k=curSkill(s);if(!k){ready.push({s,why:"finished their trail: ready for a challenge"});return}
+    const sk=s.prog.skills[k.id],x=stuStd(s,k);if(sk&&sk.streak>=Math.max(2,MAST()-2))ready.push({s,why:`${sk.streak} right in a row on ${k.std}: almost at the checkpoint`});else if(x&&x.rn>=5&&x.racc>=90)ready.push({s,why:`${x.racc}% on recent ${k.std} practice`})});
+  const block=(ico,title,items,empty)=>`<div class="sh-col"><h3>${ico} ${title}</h3>${items||`<p class="muted small">${empty}</p>`}</div>`;
+  return `<div class="card start-here"><div class="top"><h2>Start here</h2><span class="muted small">From practice so far · tap a name or a standard</span></div>
+   <div class="sh-grid">
+    ${block("🙋","Who needs me today",need.length?`<ul class="sh-list">${need.slice(0,5).map(x=>`<li>${nameLink(x.s)} <span class="muted small">${esc(x.why)}</span></li>`).join("")}</ul>${need.length>5?`<button class="link small" data-ids="${esc(need.map(x=>x.s.id).join(","))}">See all ${need.length}</button>`:""}`:"","No one is stuck right now. Students show up here when recent practice or an exit ticket says they need help.")}
+    ${block("🎯","What to reteach",reteach.length?`<ul class="sh-list">${reteach.map(o=>`<li>${stdLink(o.k)} · ${o.who.length} student${o.who.length===1?"":"s"}${o.mis?`<br><span class="muted small">Most common: “${fmt(o.mis.ex)}”</span>`:""}</li>`).join("")}</ul>`:"","No standard has a group struggling yet. This fills in once students have 5+ tries on a standard.")}
+    ${block("🚀","Ready to move on",ready.length?`<ul class="sh-list">${ready.slice(0,5).map(x=>`<li>${nameLink(x.s)} <span class="muted small">${esc(x.why)}</span></li>`).join("")}</ul>${ready.length>5?`<button class="link small" data-ids="${esc(ready.map(x=>x.s.id).join(","))}">See all ${ready.length}</button>`:""}`:"","Not yet. Students show up here when they’re close to a checkpoint or finished their trail.")}
+   </div></div>`}
+
+/* ---------- the standard view ---------- */
+function stdView(k){const real=realStudents(),rows=real.map(s=>stuStd(s,k)).filter(Boolean),c={};rows.forEach(x=>c[x.st]=(c[x.st]||0)+1);
+  const q=(S.sq||"").toLowerCase(),shown=rows.filter(x=>!q||x.s.name.toLowerCase().includes(q)).sort((a,b)=>ST_ORDER.indexOf(a.st)-ST_ORDER.indexOf(b.st)||(a.racc??101)-(b.racc??101));
+  const grp=rows.filter(x=>x.st==="reteach"||x.st==="refresh").map(x=>x.s),mis=missGroups(real,k.id),L=LIBG[k.id]||LIB.find(x=>x.code===k.std)||{};
+  const chip=st=>c[st]?`<span class="pill ${ST_LBL[st][0]}">${c[st]} ${ST_LBL[st][1].toLowerCase()}</span>`:"";
+  return `<div class="row"><button class="ghost small" id="sv-back">← Class progress</button></div>
+  <div class="card"><span class="label">Standard</span><h2 style="margin:.1rem 0">${esc(k.std)} · ${esc(k.name)}</h2>${L.desc?`<p class="muted">${esc(L.desc)}</p>`:""}
+   <div class="row" style="flex-wrap:wrap;gap:6px">${ST_ORDER.map(chip).join("")}<span class="muted small">of ${rows.length} students with this standard on their trail</span></div></div>
+  <div class="card"><h2>🎯 What to do</h2>${grp.length?`<p><b>Pull a small group:</b> ${namesOf(grp,12)}</p>${mis[0]?`<p><b>Reteach this idea first:</b> most of their wrong answers come from “${fmt(mis[0].ex)}”.</p>`:""}
+    <div class="row"><button class="small" id="sv-xt">Give a 3-question exit ticket on ${esc(k.std)}</button><button class="ghost small" data-tab="plan">Plan small groups</button>${genOf(k)&&mis[0]?`<button class="ghost small" data-misc="${esc(k.id)}|0">Practice set on this mistake</button>`:""}</div>`
+    :`<p class="muted">No one needs reteaching on ${esc(k.std)} right now.${c.few||c.none?` ${(c.few||0)+(c.none||0)} student${(c.few||0)+(c.none||0)===1?" hasn’t":"s haven’t"} practiced enough to judge yet.`:""}</p>`}</div>
+  <div class="card"><h2>🤔 Why they’re missing it</h2>${mis.length?`<ol class="miss">${mis.slice(0,4).map((x,i)=>`<li><div class="mhead"><b>${x.who.size} student${x.who.size===1?"":"s"}</b><span class="muted">${x.n} time${x.n===1?"":"s"}</span></div><p class="mex">“${fmt(x.ex)}”</p><p class="small">${namesOf(real.filter(s=>x.who.has(s.name)),10)}</p></li>`).join("")}</ol>`:`<p class="muted">No wrong answers on ${esc(k.std)} yet.</p>`}</div>
+  <div class="card"><div class="top"><h2>👥 Every student on ${esc(k.std)}</h2><input id="sv-q" type="search" placeholder="Search a name" value="${esc(S.sq||"")}" style="max-width:200px" aria-label="Search students"></div>
+   <div class="tablewrap"><table class="roster"><thead><tr><th>Student</th><th>Status</th><th>Accuracy</th><th>Recent tries</th><th>Last practiced</th></tr></thead><tbody>
+   ${shown.map(x=>`<tr><td><b>${nameLink(x.s)}</b></td><td><span class="pill ${ST_LBL[x.st][0]}" style="white-space:nowrap">${stLbl(x)}</span></td><td>${x.acc==null?"—":`${x.acc}% <span class="muted small">on ${x.n} answer${x.n===1?"":"s"}</span>`}</td><td>${x.racc==null?"—":`${x.racc}% <span class="muted small">last ${x.rn}</span>`}</td><td>${agoDay(x.last)}</td></tr>`).join("")||`<tr><td colspan="5" class="muted">No students match.</td></tr>`}</tbody></table></div>
+   <p class="muted small">“Not enough data yet” means fewer than 5 answers, so we don’t judge yet. Accuracy counts every practice answer on this standard, including early tries before mastery; recent tries are the last 10. “Mastered on the test” means they got every test question on it right, so the trail skipped it.</p></div>`}
+
+/* ---------- the student portfolio ---------- */
+function readinessInfo(s){let W=0,w=0,v=0;const tested=Array.isArray(s.missed)||(s.scores&&s.scores[TESTID]!=null&&s.scores[TESTID]!=="");let ev=0,tot=0;
+  SKILLS.forEach(k=>{const sk=s.prog.skills[k.id];if(!sk||sk.status==="off"||sk.go)return;tot++;let sc=stdScore(s,k);if(sc===0&&!tested&&(s.prog.recent||[]).filter(r=>r.k===k.id).length<5)sc=null;if(sc!=null)ev++});return {r:readiness(s),ev,tot}}
+function stuView(s){const raw=CUR.raw.find(r=>r.id===s.id)||s,p=s.prog,R=readinessInfo(s),b=band(R.r),cur=curSkill(s);
+  const rows=SKILLS.map(k=>stuStd(s,k)).filter(Boolean).sort((a,b)=>ST_ORDER.indexOf(a.st)-ST_ORDER.indexOf(b.st));
+  let n=0,ok=0;rows.forEach(x=>{n+=x.n;ok+=x.ok});const days=Object.keys(p.days||{}).length,h=Object.values(p.help3||{}).reduce((a,x)=>({stuck:a.stuck+(x.stuck||0),self:a.self+(x.self||0),teacher:a.teacher+(x.teacher||0)}),{stuck:0,self:0,teacher:0});
+  const miss=(p.miss||[]).slice(-8).reverse(),wk=weekly([p]);
+  const tile=(v,l,sub)=>`<div class="kpi"><b>${v}</b><span>${l}</span>${sub?`<small>${sub}</small>`:""}</div>`;
+  return `<div class="row"><button class="ghost small" id="sv-back">← Class progress</button></div>
+  <div class="card"><div class="top"><div><span class="label">Student</span><h2 style="margin:.1rem 0">${esc(s.name)}</h2><p class="muted">Working on: ${cur?`${stdLink(cur)} · ${esc(cur.name)}`:"<b>finished their trail</b>"}</p>
+   <div class="sv-ready">${R.r==null?`<span class="pill">Readiness: not enough data yet</span>`:`<span class="pill ${b.c}">Readiness: ${b.t} · ${R.r}%</span>`} <span class="muted small">based on ${R.ev} of ${R.tot} standards with enough evidence</span></div></div></div>
+   <div class="kpis small">${tile(n,"Questions answered",`${days} day${days===1?"":"s"} of practice`)}${tile(n?Math.round(ok/n*100)+"%":"—","Accuracy",n?`${ok} of ${n} right`:"")}${tile(minsOf(p),"Minutes practiced")}${tile(rows.filter(x=>x.st==="mastered").length,"Standards mastered",`of ${rows.length} on their trail`)}${tile(h.stuck?Math.round(h.self/h.stuck*100)+"%":"—","Solved it on their own",h.stuck?`after getting stuck ${h.stuck} time${h.stuck===1?"":"s"}`:"hasn’t used 3 Before Me")}${tile((p.tutor&&p.tutor.total)||0,"Questions to Scout")}</div>
+   <div class="row"><button class="ghost small" id="sv-mtss">Intervention report (MTSS)</button><button class="ghost small" data-tab="home">Family update</button><button class="ghost small" data-tab="setup">Assign standards</button></div></div>
+  <div class="card"><h2>Standards</h2><div class="tablewrap"><table class="roster"><thead><tr><th>Standard</th><th>Status</th><th>Accuracy</th><th>Recent tries</th><th>Last practiced</th></tr></thead><tbody>
+   ${rows.map(x=>`<tr><td><b>${stdLink(x.k)}</b><br><span class="muted small">${esc(x.k.name)}</span></td><td><span class="pill ${ST_LBL[x.st][0]}" style="white-space:nowrap">${stLbl(x)}</span></td><td>${x.acc==null?"—":`${x.acc}% <span class="muted small">on ${x.n}</span>`}</td><td>${x.racc==null?"—":`${x.racc}% <span class="muted small">last ${x.rn}</span>`}</td><td>${agoDay(x.last)}</td></tr>`).join("")}</tbody></table></div></div>
+  <div class="card"><h2>Recent mistakes</h2>${miss.length?`<ul class="sh-list">${miss.map(m=>{const q=getQ(m.q),k=SKILLS.find(x=>x.id===m.k),w=missWhy(m),txt=q?(q.parts||[]).filter(x=>typeof x==="string").join(" ").slice(0,140):"";
+     return `<li>${k?stdLink(k):""} <span class="muted small">${new Date(m.t).toLocaleDateString()}</span><br>${esc(txt)}${m.p!=null?` <span class="muted small">· picked ${esc(String(m.p))}</span>`:""}${w?`<br><span class="small">Why: ${fmt(w)}</span>`:""}</li>`}).join("")}</ul>`:`<p class="muted">No wrong answers yet.</p>`}</div>
+  <div class="card"><h2>Accuracy each week</h2>${lineChart(wk.map(x=>({label:shortDate(x.w),y:x.acc,tip:`Week of ${shortDate(x.w)}: ${x.acc}% (${x.ok}/${x.n})`})),{max:100,unit:"%",goal:80,goalLabel:"80%",title:"Weekly accuracy"})}</div>`}
+
+/* links: a student name or a standard anywhere in a class opens its view; "See all" filters the student table */
+document.addEventListener("click",e=>{if(!CUR||S.screen!=="teacher")return;
+  const st=e.target.closest("[data-stu]");if(st){e.preventDefault();S.tt="class";S.tab="class";S.stuId=st.dataset.stu;S.stdId=null;S.sq="";render();window.scrollTo(0,0);return}
+  const sd=e.target.closest("[data-std]");if(sd){e.preventDefault();S.tt="class";S.tab="class";S.stdId=sd.dataset.std;S.stuId=null;S.sq="";render();window.scrollTo(0,0);return}
+  const ids=e.target.closest("[data-ids]");if(ids){e.preventDefault();S.tt="class";S.tab="class";S.stdId=null;S.stuId=null;S.ef={...(S.ef||{}),ids:ids.dataset.ids.split(",")};render();document.getElementById("every")?.scrollIntoView({block:"start"});return}
+  const so=e.target.closest("[data-sort]");if(so){const k=so.dataset.sort,E=S.ef||{};S.ef={...E,sort:k,dir:E.sort===k?-(E.dir||1):(k==="name"?1:-1)};render();document.getElementById("every")?.scrollIntoView({block:"start"});return}
+  if(e.target.id==="ef-clear"){S.ef={sort:(S.ef||{}).sort,dir:(S.ef||{}).dir};render();document.getElementById("every")?.scrollIntoView({block:"start"});return}
+  if(e.target.id==="sv-back"){S.stdId=null;S.stuId=null;render();window.scrollTo(0,0)}
+  if(e.target.id==="sv-mtss"&&S.stuId){S.tab="mtss";S.mtssId=S.stuId;S.stuId=null;render();window.scrollTo(0,0)}
+  if(e.target.id==="sv-xt"&&S.stdId){S.tab="plan";S.xtNew=true;S.xtFocus=S.stdId;S.stdId=null;render();setTimeout(()=>document.getElementById("xt-f")?.scrollIntoView({block:"center"}),50)}});
+document.addEventListener("input",e=>{if(e.target.id==="sv-q"){S.sq=e.target.value;const pos=e.target.selectionStart;render();const i=document.getElementById("sv-q");if(i){i.focus();i.setSelectionRange(pos,pos)}}
+  if(e.target.id==="ef-q"){S.ef={...(S.ef||{}),q:e.target.value};const pos=e.target.selectionStart;render();const i=document.getElementById("ef-q");if(i){i.focus();i.setSelectionRange(pos,pos)}}});
+document.addEventListener("change",e=>{if(e.target.id==="ef-std"||e.target.id==="ef-rd"){S.ef={...(S.ef||{}),[e.target.id==="ef-std"?"std":"rd"]:e.target.value};render();document.getElementById("every")?.scrollIntoView({block:"start"})}});
+
+/* Item analysis when the test has no saved questions: show practice results by standard, lowest first */
+function practiceItems(){const real=realStudents();
+  const rows=SKILLS.map(k=>{let n=0,ok=0,who=0,miss=[];real.forEach(s=>{const x=stuStd(s,k);if(!x||!x.n)return;n+=x.n;ok+=x.ok;who++});
+    const g=typeof missGroups==="function"?missGroups(real,k.id)[0]:null;return {k,n,ok,who,pct:n?Math.round(ok/n*100):null,g}}).filter(r=>r.n>=5).sort((a,b)=>a.pct-b.pct);
+  return `<div class="card"><h2>Item analysis</h2><p class="muted">${esc(TEST_NAME)} has no saved questions, so this shows practice instead: how often students got each standard right in the app, lowest first. Tap a standard to see who and why. To see results question by question, import your own test on the Tests page.</p>
+   ${rows.length?`<div class="tablewrap"><table class="roster"><thead><tr><th>Standard</th><th>Right in practice</th><th>Students</th><th>Most common mistake</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${stdLink(r.k)}</b><br><span class="muted small">${esc(r.k.name)}</span></td><td><span class="bar"><span style="width:${r.pct}%;background:${heat(r.pct)}"></span></span> ${r.pct}% <span class="muted small">of ${r.n}</span></td><td>${r.who}</td><td class="small">${r.g?`“${esc(r.g.ex)}” <span class="muted">(${r.g.who.size} students)</span>`:"—"}</td></tr>`).join("")}</tbody></table></div>`:`<p class="fb info">Once students practice, each standard shows up here with how often they got it right.</p>`}</div>`}
+
+/* sample school only: one small-group loop told start to finish, from the sample data */
+function storyCard(){const st=DEMO_T&&TB&&TB.story;if(!st||!CUR||CUR.cls.id!==st.classId)return "";const k=SKILLS.find(x=>x.id===st.k);if(!k)return "";
+  const who=realStudents().filter(s=>st.names.includes(s.name)),rid="mdemo"+st.classId,rows=who.map(s=>({s,v:misVerdict(xtRes(s,rid))})),fixed=rows.filter(x=>x.v&&x.v[1]==="Fixed").length;
+  return `<div class="card mis-story"><div class="top"><h2>📖 How one mistake got fixed in this class</h2><span class="pill purple">Sample story</span></div>
+   <ol class="story-steps">
+    <li><b>Practice found it.</b> On ${stdLink(k)}, ${who.length} students kept picking the same wrong answer. The reason behind it: <i>“${esc(st.ex)}”</i></li>
+    <li><b>The teacher saw who.</b> ${who.map(x=>nameLink(x)).join(", ")}. No grading, no spreadsheet.</li>
+    <li><b>One small group, one 3-question check.</b> ${niceDay(st.d)}: 15 minutes on that one idea, then a short check aimed only at that mistake.</li>
+    <li><b>The check showed who fixed it.</b> ${fixed} of ${who.length} fixed it. ${rows.map(x=>`${nameLink(x.s)} ${x.v?`<span class="pill ${x.v[0]}">${x.v[1]}</span>`:`<span class="pill">Not taken</span>`}`).join(" ")}</li>
+   </ol><div class="row"><button class="small" data-std="${k.id}">See ${esc(k.std)}: who and why</button></div></div>`}
