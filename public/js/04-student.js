@@ -92,7 +92,7 @@ function answerArea0(q){
      ${!done?`<button id="check" ${S.sel.length!==need?'disabled':''}>${need===2?t("Check my answers"):t("Check my answer")}</button>`:''}`;
   }
   if(q.type==="input") return `<div class="row"><label class="f" style="font-size:1rem;color:var(--ink)">${t("Your answer")}<input class="num" id="num" inputmode="decimal" ${done?'disabled':''} value="${esc(S.sel[0]||"")}"></label>${done?"":`<button id="check">${t("Check my answer")}</button>`}</div>`;
-  if(q.type==="matrix") return `<table class="matrix"><thead><tr><th></th>${q.cols.map(c=>`<th>Rounds to ${c}</th>`).join("")}</tr></thead><tbody>
+  if(q.type==="matrix") return `<table class="matrix"><thead><tr><th><span class="sr-only">Actions</span></th>${q.cols.map(c=>`<th>Rounds to ${c}</th>`).join("")}</tr></thead><tbody>
     ${q.rows.map((r,i)=>`<tr><td>${r.n}</td>${q.cols.map(c=>{let cl="",mk="";if(done&&S.sel[i]===c){cl=c===r.a?"right":"wrong";mk=c===r.a?" ✓":" ✗"}else if(done&&c===r.a){cl="right";mk=" ✓"}
       return `<td class="${cl}"><input type="radio" name="m${i}" id="m${i}-${c}" value="${c}" ${S.sel[i]===c?'checked':''} ${done?'disabled':''} aria-label="${r.n} rounds to ${c}"><b class="mk">${mk}</b></td>`}).join("")}</tr>`).join("")}</tbody></table>
     ${done?"":`<button id="check" ${q.rows.every((_,i)=>S.sel[i])?'':'disabled'}>Check my answers</button>`}`;

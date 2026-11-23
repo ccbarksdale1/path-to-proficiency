@@ -41,7 +41,7 @@ function sdQs(s){const todo=trailFor(s).filter(k=>s.prog.skills[k.id]&&s.prog.sk
 function sdItem(q,i){let a="";
   if((q.type==="mc"||q.type==="multi")&&q.choices)a=`<div class="sd-ch">${q.choices.map((c,j)=>`<div>${q.type==="multi"?"☐":"○"} <b>${L[j]}.</b> ${choiceInner(c)}</div>`).join("")}</div>${q.type==="multi"?'<p class="muted">Pick all that are right.</p>':""}`;
   else if(q.type==="input")a=`<p>Answer: ______________</p>`;
-  else if(q.type==="matrix")a=`<table class="sd-mx"><tr><th></th>${q.cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr>${q.rows.map(r=>`<tr><td>${esc(r.n)}</td>${q.cols.map(()=>"<td>○</td>").join("")}</tr>`).join("")}</table>`;
+  else if(q.type==="matrix")a=`<table class="sd-mx"><tr><th><span class="sr-only">Actions</span></th>${q.cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr>${q.rows.map(r=>`<tr><td>${esc(r.n)}</td>${q.cols.map(()=>"<td>○</td>").join("")}</tr>`).join("")}</table>`;
   return `<div class="sd-q"><b class="sd-n">${i}.</b><div>${bodyHTML(q,null,"print")}${a}</div></div>`}
 function subDay(){const list=realStudents();if(!list.length){alert("Add students first.");return}
   const w=window.open("","_blank");if(!w){alert("Allow pop-ups to print.");return}
@@ -99,7 +99,7 @@ function scrCard(){const cut=ipCfg().cut||60,imp=S.scr,cur=WINS[ipWinOf(Date.now
     <label class="ghost filebtn" style="align-self:flex-end">Choose file<input type="file" id="scr-file" accept=".csv,.tsv,.txt,text/csv" hidden></label>
     <button class="link" id="scr-tpl" style="align-self:flex-end">Download a sample</button></div><p class="oops" id="scr-err" role="alert"></p>
    ${imp?`<p><b>${imp.rows.filter(r=>r.id&&r.sc!=null).length}</b> of ${imp.rows.length} rows matched a student.${imp.rows.some(r=>!r.id)?` Not matched (check spelling): ${imp.rows.filter(r=>!r.id).map(r=>esc(r.nm)).join(", ")}.`:""}</p>
-    <div class="tablewrap"><table class="roster"><thead><tr><th>In file</th><th>Student</th><th>Score</th><th></th></tr></thead><tbody>${imp.rows.map(r=>{const s=r.id&&CUR.students.find(x=>x.id===r.id);
+    <div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>In file</th><th>Student</th><th>Score</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>${imp.rows.map(r=>{const s=r.id&&CUR.students.find(x=>x.id===r.id);
       return `<tr><td>${esc(r.nm)}</td><td>${s?esc(s.name):'<span class="muted">no match</span>'}</td><td>${r.sc??"—"}${r.sc!=null?"%":""}</td><td>${s&&r.sc!=null&&r.sc<cut?`<span class="pill oops">below ${cut}%</span>`:""}</td></tr>`}).join("")}</tbody></table></div>
     <div class="row"><button id="scr-go">Save ${esc(imp.w)} scores and update plans</button><button class="ghost" id="scr-no">Cancel</button></div>`:""}
    <p class="muted" id="scr-msg" role="status">${S.scrMsg?esc(S.scrMsg):""}</p></div>`}
@@ -258,7 +258,7 @@ function printImpE3(s){const ip=s.ip;if(!ip)return;const box=on=>on?"☑":"☐",
 const TKEY="p2p-bigtext";let BIG=(()=>{try{return localStorage.getItem(TKEY)==="1"}catch(e){return false}})();
 document.head.insertAdjacentHTML("beforeend","<style>html.big-text{font-size:118%}html.big-text body{font-size:19px}</style>");
 const applyBig=()=>document.documentElement.classList.toggle("big-text",BIG);applyBig();
-function textBtn(){const es=S&&S.lang==="es",l=BIG?(es?"Letra normal":"Normal text"):(es?"Letra más grande":"Bigger text");return `<button class="ghost small" id="bigtext-btn" aria-pressed="${BIG}" aria-label="${l}" title="${l}">${BIG?"A−":"A+"}</button>`}
+function textBtn(){const es=S&&S.lang==="es",l=BIG?(es?"Letra normal":"Normal text"):(es?"Letra más grande":"Bigger text");return `<button class="ghost small" id="bigtext-btn" aria-pressed="${BIG}" title="${l}"><span aria-hidden="true">${BIG?"A−":"A+"}</span><span class="sr-only">${l}</span></button>`}
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("#bigtext-btn");if(!b)return;BIG=!BIG;try{localStorage.setItem(TKEY,BIG?"1":"0")}catch(x){}applyBig();b.outerHTML=textBtn()});
 
 /* ================= Read-aloud voices: pick the most natural voice on the device, let students choose ================= */
@@ -538,12 +538,12 @@ function hsClassCard(){if(!hsOn())return "";const real=realStudents();if(!real.l
   if(isWK()){const ls=real.map(s=>({s,w:wkLevel(s),pt:lastPT(s)})),cnt=[0,3,4,5,6,7].map(L=>ls.filter(x=>x.w.lvl===L).length);
     return `<div class="card"><div class="top"><h2>🏅 WorkKeys level estimates</h2><span class="muted" style="font-size:.85rem">from practice · not official scores</span></div>
      <div class="kpis small">${[0,3,4,5,6,7].map((L,i)=>`<div class="kpi ${L>=5?"go":L===4?"gold":L?"":"oops"}"><b>${cnt[i]}</b><span>${lvlTxt(L)}</span></div>`).join("")}</div>
-     <div class="tablewrap"><table class="roster"><thead><tr><th>Student</th><th>Estimate</th>${WK_LVLS.map(L=>`<th>L${L}</th>`).join("")}<th>Last practice test</th></tr></thead><tbody>
+     <div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Student</th><th>Estimate</th>${WK_LVLS.map(L=>`<th>L${L}</th>`).join("")}<th>Last practice test</th></tr></thead><tbody>
       ${ls.sort((a,b)=>b.w.lvl-a.w.lvl).map(x=>`<tr><td>${esc(x.s.name)}</td><td><b>${lvlTxt(x.w.lvl)}</b></td>${WK_LVLS.map(L=>`<td>${x.w.per[L]==null?"—":x.w.per[L]+"%"}</td>`).join("")}<td>${x.pt?`${lvlTxt(x.pt.lvl)} · ${x.pt.right}/${x.pt.n} · ${dShort(x.pt.at)}`:'<span class="muted">none yet</span>'}</td></tr>`).join("")}</tbody></table></div>
      <p class="muted" style="font-size:.85rem">A level counts when a student has mastered at least 75% of its skills and every level below it. The National Career Readiness Certificate uses scores from three WorkKeys tests (Applied Math, Workplace Documents, and Graphic Literacy): Silver needs Level 4 or higher on each, and Gold needs Level 5 or higher on each.</p></div>`}
   const avg=d=>{const v=real.map(s=>catPct(s,d)).filter(x=>x!=null);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null};
   return `<div class="card"><div class="top"><h2>🎯 ACT Math skills by category</h2><span class="muted" style="font-size:.85rem">class average mastery</span></div>${hsBars(ACT_CATS.map(d=>[DOMS[d],avg(d)]))}
-   <div class="tablewrap"><table class="roster"><thead><tr><th>Student</th>${ACT_CATS.map(d=>`<th>${esc(DOMS[d].split(" ")[0])}</th>`).join("")}<th>Last practice test</th></tr></thead><tbody>
+   <div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Student</th>${ACT_CATS.map(d=>`<th>${esc(DOMS[d].split(" ")[0])}</th>`).join("")}<th>Last practice test</th></tr></thead><tbody>
     ${real.map(s=>{const pt=lastPT(s);return `<tr><td>${esc(s.name)}</td>${ACT_CATS.map(d=>{const p=catPct(s,d);return `<td>${p==null?"—":p+"%"}</td>`}).join("")}<td>${pt?`${pt.right}/${pt.n} (${Math.round(pt.right/pt.n*100)}%) · ${dShort(pt.at)}`:'<span class="muted">none yet</span>'}</td></tr>`}).join("")}</tbody></table></div>
    <p class="muted" style="font-size:.85rem">Mastery comes from practice on each skill. Practice test results show percent correct only; they are not ACT scores.</p></div>`}
 
@@ -745,7 +745,7 @@ function tBadges(){const list=CUR.students.filter(s=>!isSample(s)).length?CUR.st
    <label class="f">Note to the student (optional)<input id="bg-note" maxlength="80" value="${esc(S.bg.note)}" placeholder="You kept going on fractions all week!"></label>
    <div class="row"><button id="bg-give" ${S.bg.sel.size?"":"disabled"}>Give to ${S.bg.sel.size} student${S.bg.sel.size===1?"":"s"}</button><button class="ghost small" id="bg-all">${S.bg.sel.size===list.length?"Clear all":"Select all"}</button></div><p class="err" id="bg-err" role="alert"></p></div>
   <div class="card"><h2>Badges earned</h2><p class="muted">Badges students earned on their own (trail, streaks, skills, and mastery), their best streak of right answers, and badges you gave.</p>
-   <div class="tablewrap"><table class="roster"><thead><tr><th>Student</th><th>Earned badges</th><th>Best streak</th><th>From you</th></tr></thead><tbody>${rows||`<tr><td colspan="4" class="muted">No students yet.</td></tr>`}</tbody></table></div></div>`}
+   <div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Student</th><th>Earned badges</th><th>Best streak</th><th>From you</th></tr></thead><tbody>${rows||`<tr><td colspan="4" class="muted">No students yet.</td></tr>`}</tbody></table></div></div>`}
 function wireBadges(){const B=S.bg;
   app.querySelectorAll("[data-bgp]").forEach(b=>b.onclick=()=>{B.pick=b.dataset.bgp;B.note=document.getElementById("bg-note").value;render()});
   app.querySelectorAll("[data-bgs]").forEach(c=>c.onchange=()=>{c.checked?B.sel.add(c.dataset.bgs):B.sel.delete(c.dataset.bgs);B.note=document.getElementById("bg-note").value;render()});
@@ -892,7 +892,7 @@ function sesForm(gi,ids,focus){const o=S.planO||PLAN_DEF,studs=ids.map(id=>CUR.s
 function sesLogCard(){const L=classSessions();if(!L.length)return `<div class="card"><h2>Sessions taught</h2><p class="muted">No sessions logged yet. After you teach a group, press <b>Log this session</b> on its card. Only students who were there get credit.</p></div>`;
   const wk=Date.now()-7*864e5,thisWk=L.filter(x=>new Date(x.d+"T12:00:00").getTime()>=wk);
   return `<div class="card"><div class="top"><h2>Sessions taught</h2><span class="pill">${thisWk.length} this week · ${thisWk.reduce((a,x)=>a+(+x.m||0),0)} min</span></div>
-   <div class="tablewrap"><table class="roster"><thead><tr><th>Date</th><th>Standard</th><th>Minutes</th><th>There</th><th>Absent</th><th>Notes</th><th></th></tr></thead><tbody>
+   <div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Date</th><th>Standard</th><th>Minutes</th><th>There</th><th>Absent</th><th>Notes</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
    ${L.slice(0,S.sesAll?200:8).map(x=>`<tr><td>${niceDay(x.d)}</td><td><b>${esc(x.std)}</b></td><td>${x.m}</td><td>${x.here.map(esc).join(", ")||"—"}</td><td>${x.away.length?x.away.map(esc).join(", "):'<span class="muted">none</span>'}</td><td>${esc(x.n)}${x.nx?`<br><span class="muted small">Next check ${niceDay(x.nx)}</span>`:""}</td><td><button class="ghost small" data-sesdel="${x.id}" aria-label="Delete the ${niceDay(x.d)} session">Delete</button></td></tr>`).join("")}</tbody></table></div>
    ${L.length>8&&!S.sesAll?`<button class="ghost small" id="ses-all">Show all ${L.length}</button>`:""}</div>`}
 function wireSessions(){
@@ -971,7 +971,7 @@ function evClassCard(){const real=realStudents();if(!real.length)return "";
   return `<div class="card"><div class="top"><h2>Evidence ladder</h2><span class="muted small">Practiced → Verified → Retained</span></div>
    <p class="muted">A checkpoint shows practice. <b>Verified</b> means ${VERIFY_N} right on their own on a later day (or right on the test). <b>Retained</b> means right on their own again ${RETAIN_DAYS}+ days later. Check-ups come up on their own during practice.</p>
    <div class="row" style="gap:14px">${["practiced","verified","retained","refresh"].map(l=>`<span>${evPill(l)} <b>${tot[l]||0}</b></span>`).join("")}</div>
-   <div class="tablewrap"><table class="roster"><thead><tr><th>Standard</th><th>Learning</th><th>Practiced</th><th>Verified</th><th>Retained</th><th>Needs a refresh</th></tr></thead><tbody>
+   <div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Standard</th><th>Learning</th><th>Practiced</th><th>Verified</th><th>Retained</th><th>Needs a refresh</th></tr></thead><tbody>
    ${rows.map(x=>`<tr><td><b>${esc(x.k.std)}</b><br><span class="muted small">${esc(x.k.name)}</span></td><td>${x.c.learning+x.c.none}</td><td>${x.c.practiced}</td><td>${x.c.verified}</td><td>${x.c.retained}</td><td>${x.c.refresh||""}</td></tr>`).join("")}</tbody></table></div></div>`}
 
 /* ================= Proficiency Receipt (F05): one printable page per student ================= */
@@ -984,7 +984,7 @@ function receiptHTML(r,s){const now=new Date(),rows=SKILLS.map(k=>{const lv=evLe
     <p class="muted" style="margin:0">${esc(CUR.cls.name)} · ${esc(tName(CUR.cls.teacherId))} · ${esc(TB.school.name)}<br>${esc(TEST_NAME)} · ${now.toLocaleDateString()}</p></div>
     <div style="text-align:right"><span class="pill ${b.c}">${b.t}${rd!=null?` · ${rd}%`:""}</span><br><span class="muted small">benchmark readiness (estimate)</span></div></div>
    <div class="mstats">${[["Retained",c.retained||0],["Verified",c.verified||0],["Practiced",c.practiced||0],["Learning",(c.learning||0)+(c.refresh||0)],["Not started",c.none||0],["Sessions with teacher",T.n],["App minutes",minsOf(s.prog)],["Fluency level",f?`${(f.level||0)+1} of ${FLU().length}`:"—"]].concat(stepsMstats(s)).map(([l,v])=>`<div><b>${esc(String(v))}</b><span>${l}</span></div>`).join("")}</div>
-   <div class="tablewrap"><table class="roster rtab"><thead><tr><th>Standard</th><th>Evidence</th><th>Practiced</th><th>Verified</th><th>Retained</th><th>Accuracy</th></tr></thead><tbody>
+   <div class="tablewrap" tabindex="0"><table class="roster rtab"><thead><tr><th>Standard</th><th>Evidence</th><th>Practiced</th><th>Verified</th><th>Retained</th><th>Accuracy</th></tr></thead><tbody>
    ${rows.map(x=>`<tr><td><b>${esc(x.k.std)}</b> <span class="muted">${esc(x.k.name)}</span></td><td>${evPill(x.lv)}</td><td>${dd(x.d.p)}</td><td>${x.k&&s.prog.skills[x.k.id].status==="skip"&&!evOf(s.prog.skills[x.k.id]).v?"Test":dd(x.d.v)}</td><td>${dd(x.d.r)}</td><td>${x.st.acc==null?"—":x.st.n<5?`<span class="muted">${x.st.acc}% (${x.st.n})</span>`:x.st.acc+"%"}</td></tr>`).join("")||`<tr><td colspan="6" class="muted">No standards on this trail yet.</td></tr>`}</tbody></table></div>
    <p class="muted small" style="margin:0"><b>Practiced:</b> reached the checkpoint in practice. <b>Verified:</b> ${VERIFY_N} right on their own on a later day, or right on the benchmark test. <b>Retained:</b> right on their own again ${RETAIN_DAYS} or more days after it was verified. Readiness is an estimate from practice and test data, not a MAAP score.</p>
   </div>`}
@@ -1026,7 +1026,7 @@ function xtCard(){if(!SKILLS.some(k=>genOf(k)))return "";const L=classTickets(),
      <label class="f">Who<select name="who"><option value="all">Whole class</option>${P&&P.groups?P.groups.map((g,i)=>`<option value="${i}">${esc(g.name)} (${g.ids.length})</option>`).join(""):""}</select></label>
      <div class="row" style="grid-column:1/-1"><button type="submit">Give exit ticket</button><button type="button" class="ghost" id="xt-x">Cancel</button><span class="muted" id="xt-msg" role="status"></span></div></form>`
     :`<div class="row"><button id="xt-new">＋ Give an exit ticket</button>${S.xtSaved?`<span class="fb ok" role="status" style="padding:6px 10px">Exit ticket sent. Students see it when they sign in.</span>`:""}</div>`}
-   ${L.length?`<div class="tablewrap"><table class="roster"><thead><tr><th>Date</th><th>Standard</th><th>Taken</th><th>Average</th><th>Under ⅔ (regroup)</th><th>Not taken yet</th><th></th></tr></thead><tbody>
+   ${L.length?`<div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Date</th><th>Standard</th><th>Taken</th><th>Average</th><th>Under ⅔ (regroup)</th><th>Not taken yet</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
     ${L.slice(0,S.xtAll?40:5).map(x=>{const done=x.who.filter(w=>w.r),avg=done.length?Math.round(done.reduce((a,w)=>a+w.r.ok/w.r.n,0)/done.length*100):null,low=done.filter(w=>w.r.ok/w.r.n<XT_PASS-1e-9);
       return `<tr><td>${niceDay(x.d)}</td><td>${x.qs?`<b>📝 ${esc(x.name||"Test")}</b> · ${x.qs.length} q${tbResults(x)}`:`<b>${esc(x.std)}</b> · ${x.n} q`}${x.mis?`<br><span class="pill purple">Mistake check</span> <span class="muted small">“${esc(x.mx||"")}”</span>`:""}</td><td>${done.length} of ${x.who.length}</td><td>${avg==null?"—":avg+"%"}</td><td>${x.mis?done.map(w=>{const v=misVerdict(w.r);return `${esc(w.s.name)} <span class="pill ${v[0]}">${v[1]}</span>`}).join(" ")||"—":low.map(w=>`${esc(w.s.name)} <span class="muted">${w.r.ok}/${w.r.n}</span>`).join(", ")||(done.length?'<span class="muted">none</span>':"—")}</td><td>${x.who.filter(w=>!w.r).map(w=>esc(w.s.name)).join(", ")||'<span class="muted">none</span>'}</td><td><button class="ghost small" data-xtdel="${x.id}" aria-label="Delete the ${niceDay(x.d)} exit ticket">Delete</button></td></tr>`}).join("")}</tbody></table></div>
     ${L.length>5&&!S.xtAll?`<button class="ghost small" id="xt-all">Show all ${L.length}</button>`:""}`:""}</div>`}

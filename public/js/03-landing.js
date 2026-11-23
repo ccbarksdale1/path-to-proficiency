@@ -52,9 +52,9 @@ const lPreview={
    <div class="mock"><div class="mock-h">Needs attention</div><ul class="attn"><li><b>Jaylen</b><span class="pill purple">3.OA.4</span><p>Missed 4 of last 5. Pull into a small group and review breakdown #9.</p></li><li><b>Mia</b><span class="pill purple">3.G.2</span><p>Missed 3 of last 5 on equal parts.</p></li></ul></div></div>`,
  items:()=>`<div class="mock"><div class="mock-h">Item analysis: lowest first, so you know what to reteach</div>${[[29,"3.NBT.1",38],[12,"3.OA.4",45],[24,"3.G.2",52],[16,"3.OA.2",64],[3,"3.OA.1",81]].map(([n,s,p])=>`<div class="hb"><span class="hl2"><b>#${n}</b> <span class="muted">${s}</span></span><span class="track"><span style="width:${p}%;background:${heat(p)}"></span></span><b>${p}%</b></div>`).join("")}</div>`,
  why:()=>`<div class="mock"><div class="mock-h">Why they missed it · 3.NF.2b Fractions on a number line</div><ol class="miss"><li><div class="mhead"><b>5 students</b><span class="muted">9 times</span></div><p class="mex">“Count the spaces between 0 and 1, not the tick marks.”</p></li><li><div class="mhead"><b>2 students</b><span class="muted">3 times</span></div><p class="mex">“Start counting after 0. The 0 mark is not a jump.”</p></li></ol></div>`,
- compare:()=>`<div class="mock"><div class="mock-h">Compare classes by standard</div><div class="tablewrap"><table class="roster cmp"><thead><tr><th>Standard</th><th>Homeroom</th><th>Room 12</th><th>Room 14</th></tr></thead><tbody>
+ compare:()=>`<div class="mock"><div class="mock-h">Compare classes by standard</div><div class="tablewrap" tabindex="0"><table class="roster cmp"><thead><tr><th>Standard</th><th>Homeroom</th><th>Room 12</th><th>Room 14</th></tr></thead><tbody>
    ${[["3.NBT.1",[48,72,66]],["3.NBT.2",[85,90,78]],["3.OA.4",[42,58,71]],["3.G.2",[67,54,80]]].map(([s,v])=>`<tr><td><b>${s}</b></td>${v.map(x=>`<td><span class="hc" style="--c:${heat(x)}">${x}%</span></td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`,
- student:()=>`<div class="mock"><div class="mock-h">Every student</div><div class="tablewrap"><table class="roster"><thead><tr><th>Student</th><th>Path</th><th>Working on</th><th>Accuracy</th></tr></thead><tbody>
+ student:()=>`<div class="mock"><div class="mock-h">Every student</div><div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Student</th><th>Path</th><th>Working on</th><th>Accuracy</th></tr></thead><tbody>
    ${[["Ava",6,"3.OA.4","82%"],["Ben",8,"Proficient","91%"],["Cara",3,"3.G.2","64%"]].map(([n,d,w,a])=>`<tr><td><b>${n}</b></td><td><span class="bar"><span style="width:${d/8*100}%;background:var(--go)"></span></span> ${d}/8</td><td>${w==="Proficient"?`<span style="color:var(--go);font-weight:700">${w}</span>`:w}</td><td>${a}</td></tr>`).join("")}</tbody></table></div></div>`,
 };
 function landing(){
@@ -239,6 +239,24 @@ function wireGoogle(id,onCred,text="signin_with"){const go=document.getElementBy
       const box=document.getElementById(id);if(!box)return;box.innerHTML=`<p class="muted small" style="margin:0">Choose your school Google account:</p><div id="${id}-btn"></div>`;
       google.accounts.id.renderButton(document.getElementById(id+"-btn"),{theme:"outline",size:"large",text,shape:"pill"})}
     catch(e){go.disabled=false;go.innerHTML=GICON+esc(label);const m=document.createElement("p");m.className="err small";m.textContent=e.message;go.after(m)}}}
+/* ---------- Log in with Clever: shown only once the server says Clever is turned on ---------- */
+let CLEVER=null;
+async function cleverCfg(){if(CLEVER)return CLEVER;try{CLEVER=await api("cleverConfig")}catch(e){CLEVER={on:false}}return CLEVER}
+const CICON=`<span aria-hidden="true" style="display:inline-grid;place-items:center;width:20px;height:20px;border-radius:5px;background:#1464FF;color:#fff;font:700 13px system-ui;margin-right:8px">C</span>`;
+function cleverBox(){if(!CLEVER){if(!DEMO_T)cleverCfg().then(c=>{if(c.on&&["joinclass","signin","schoolcode"].includes(S.screen))render()});return ""}if(!CLEVER.on)return "";return `<div class="gbox" style="display:flex;justify-content:center;margin:.4rem 0"><button class="ghost" id="clever-go" type="button">${CICON}Log in with Clever</button></div>`}
+function wireClever(){const b=document.getElementById("clever-go");if(!b)return;b.onclick=()=>{const st=Math.random().toString(36).slice(2)+Date.now().toString(36);try{sessionStorage.setItem("ptp-cstate",st)}catch(e){}
+  location.href=`https://clever.com/oauth/authorize?response_type=code&client_id=${encodeURIComponent(CLEVER.clientId)}&redirect_uri=${encodeURIComponent(CLEVER.redirect)}&state=${st}`}}
+/* back from Clever with ?code=…: sign in, or ask the person to sign in the usual way once to connect */
+async function cleverReturn(){const q=new URLSearchParams(location.search),code=q.get("code"),state=q.get("state");history.replaceState(null,"","/");
+  let saved=null;try{saved=sessionStorage.getItem("ptp-cstate");sessionStorage.removeItem("ptp-cstate")}catch(e){}
+  if(!code){S.screen="landing";S.err="";render();return}
+  if(state&&saved&&state!==saved){S.screen="landing";render();return} /* logins that start in the Clever Portal come with no state of ours */
+  try{const d=await api("cleverLogin",{code});
+    if(d.role==="teacher"){S.mode="teacher";startTeacher(d);return}
+    if(d.role==="student"){S.mode="student";if(d.cls&&d.cls.join)ls.set(CKEY,{join:d.cls.join,name:d.cls.name,teacher:d.teacher});startStudent(d);return}
+    if(d.needLink){S.clever=d;S.err="";if(d.kind==="teacher"){await teacherEntry();return}S.mode="student";S.screen=ls.get(CKEY)?"signin":"joinclass";render();return}
+  }catch(e){S.err=e.message;S.screen="landing";render()}}
+const cleverNote=()=>S.clever?`<p class="fb info" style="text-align:left">Hi${S.clever.name?" "+esc(S.clever.kind==="teacher"?S.clever.name:S.clever.name.split(" ")[0]):""}! Sign in the usual way <b>one time</b> to connect your Clever account. After that, Log in with Clever takes you right in.</p>`:"";
 const googleSignin=async cred=>{try{const d=await api("googleLogin",{credential:cred});S.mode="teacher";startTeacher(d)}catch(e){S.err=e.message;render()}};
 
 /* teacher sign-in: on a multi-district site the teacher first types their school code (remembered on this device) */
@@ -251,9 +269,9 @@ function schoolcode(){
    <h2>Type your school code</h2><p class="muted">Your school admin or Path to Proficiency gave it to you, like <b>rh-bearden</b>. This device will remember it.</p>
    <form id="scf" class="row" style="justify-content:center"><input id="scc" style="width:240px;text-align:center" maxlength="24" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="School code" value="${esc(ls.get(SITEKEY)||"")}"><button>Next</button></form>
    <p class="err" role="alert">${esc(S.err)}</p>
-   <p class="muted small" style="margin:.2rem 0">or, if you connected Google before:</p>${googleBox("g-sc")}
+${cleverNote()}   <p class="muted small" style="margin:.2rem 0">or, if you connected Google before:</p>${googleBox("g-sc")}${S.clever?"":cleverBox()}
    <p class="muted" style="font-size:.85rem">District leader? <button class="link" id="to-da">Sign in to your district</button></p></div>`;
-  wireGoogle("g-sc",googleSignin);
+  wireGoogle("g-sc",googleSignin);wireClever();
   document.getElementById("back").onclick=()=>{S.screen="landing";S.err="";render()};
   document.getElementById("to-da").onclick=()=>{S.screen="districtSignin";S.err="";render()};
   const i=document.getElementById("scc");i.focus();
@@ -262,11 +280,11 @@ function schoolcode(){
 SCREENS.schoolcode=schoolcode;
 function joinclass(){
   app.innerHTML=header(`<button class="ghost" id="back">Back</button>`)+`<div class="card" style="text-align:center;align-items:center">
-   <p class="kicker">Your next adventure starts here!</p><h2>Type your class code</h2>
+   ${cleverNote()}<p class="kicker">Your next adventure starts here!</p><h2>Type your class code</h2>
    <p class="muted">Your teacher has it. It has 6 letters and numbers.</p>
    <form id="jf" class="row" style="justify-content:center"><input id="jc" class="num" style="width:200px;text-transform:uppercase;letter-spacing:.2em;text-align:center" maxlength="6" autocomplete="off" autocapitalize="characters" aria-label="Class code" value="${esc(S.join||"")}"><button type="submit">Next</button></form>
-   <p class="err" role="alert">${esc(S.err)}</p></div>`;
-  document.getElementById("back").onclick=()=>{S.screen="landing";S.err="";render()};
+   <p class="err" role="alert">${esc(S.err)}</p>${S.clever?"":cleverBox()}</div>`;
+  document.getElementById("back").onclick=()=>{S.screen="landing";S.err="";S.clever=null;render()};wireClever();
   const jc=document.getElementById("jc");jc.focus();
   document.getElementById("jf").onsubmit=async e=>{e.preventDefault();S.join=jc.value.trim().toUpperCase();if(!S.join)return;
     try{const d=await api("join",{join:S.join});ls.set(CKEY,d);S.err="";S.screen="signin";S.code=""}catch(er){S.err=er.message}render()};
@@ -277,25 +295,27 @@ function signin(){
   const teacherMode=S.mode==="teacher",max=teacherMode?6:4,dev=ls.get(CKEY);
   app.innerHTML=header(`<button class="ghost" id="back">Back</button>`)+`<div class="card" style="text-align:center">
    ${teacherMode?"":`<p class="kicker">${dev?esc(dev.name)+(dev.teacher?" · "+esc(dev.teacher):""):"Your next adventure starts here!"}</p>`}
-   <h2>${teacherMode?"Type your teacher code":"Type your secret code"}</h2>
+   ${cleverNote()}<h2>${teacherMode?"Type your teacher code":"Type your secret code"}</h2>
    <div class="code-dots" aria-label="${S.code.length} digits typed">${Array.from({length:teacherMode?Math.max(4,S.code.length):4},(_,i)=>`<span class="${i<S.code.length?'on':''}"></span>`).join("")}</div>
    <div class="pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-n="${n}">${n}</button>`).join("")}<button data-n="back" aria-label="Delete">⌫</button><button data-n="0">0</button><button data-n="go">Go</button></div>
    <p class="err" role="alert">${esc(S.err)}</p>
    ${teacherMode&&S.siteInfo?`<p class="muted" style="font-size:.85rem">${esc(S.siteInfo.school.name)}${S.siteInfo.district?" · "+esc(S.siteInfo.district):""} · <button class="link" id="chg-school">Change school</button></p>`:""}
-   ${teacherMode?`<p class="muted small" style="margin:.2rem 0">or</p>${googleBox("g-si")}<p class="muted" style="font-size:.85rem">Forgot your code? <button class="link" id="forgot">Reset it</button></p>`:`<p class="muted" style="font-size:.85rem">Not your class? <button class="link" id="chg">Change class</button></p>`}</div>`;
+   ${teacherMode?`<p class="muted small" style="margin:.2rem 0">or</p>${googleBox("g-si")}${S.clever?"":cleverBox()}<p class="muted" style="font-size:.85rem">Forgot your code? <button class="link" id="forgot">Reset it</button></p>`:`<p class="muted" style="font-size:.85rem">Not your class? <button class="link" id="chg">Change class</button></p>`}</div>`;
   document.getElementById("back").onclick=()=>{S.screen="landing";S.err="";render()};
   const chg=document.getElementById("chg");if(chg)chg.onclick=()=>{S.screen="joinclass";S.join="";S.err="";render()};
   const fg=document.getElementById("forgot");if(fg)fg.onclick=()=>{S.screen="recover";S.err="";render()};
   const cs=document.getElementById("chg-school");if(cs)cs.onclick=()=>{S.screen="schoolcode";S.err="";render()};
-  if(teacherMode)wireGoogle("g-si",googleSignin);
+  if(teacherMode)wireGoogle("g-si",googleSignin);wireClever();
   app.querySelectorAll(".pad button").forEach(b=>b.onclick=async()=>{const n=b.dataset.n;S.err="";
     if(n==="back")S.code=S.code.slice(0,-1);
     else if(n==="go"){const code=S.code;S.code="";
       if(code.length<4){S.err=teacherMode?"Teacher codes have 4 to 6 digits.":"Your code has 4 digits.";render();return}
       app.querySelectorAll(".pad button").forEach(x=>x.disabled=true);
       try{
-        if(teacherMode){const d=await api("login",{code});startTeacher(d)}
-        else{const d=await api("studentLogin",{join:dev.join,code});startStudent(d)}
+        if(teacherMode){const d=await api("login",{code});
+          if(S.clever&&S.clever.kind==="teacher"){try{Object.assign(d,await api("cleverLink",{token:d.token,ticket:S.clever.ticket}))}catch(e){d.cleverErr=e.message}S.clever=null}
+          startTeacher(d);if(d.cleverErr)setTimeout(()=>{const m=document.createElement("p");m.className="fb info";m.setAttribute("role","alert");m.textContent="Clever wasn’t connected: "+d.cleverErr;document.getElementById("app")?.prepend(m)},300)}
+        else{const d=await api("studentLogin",{join:dev.join,code,...(S.clever&&S.clever.kind==="student"?{clever:S.clever.ticket}:{})});S.clever=null;startStudent(d)}
         return;
       }catch(e){S.err=e.message}}
     else if(S.code.length<max)S.code+=n; render();});

@@ -126,7 +126,7 @@ function tFluency(){
   const hard=Object.entries(facts).filter(([,v])=>v.t>=2).map(([k,v])=>({k,p:Math.round(v.r/v.t*100),t:v.t,who:v.who})).sort((a,b)=>a.p-b.p||b.t-a.t).slice(0,12);
   return `<div class="card"><div class="top"><h2>⚡ Fluency</h2><span class="pill">${c.pass} of ${c.n} in ${Math.round(c.secs/60*10)/10} min to pass</span></div>
    <p class="muted">Students do timed fact sheets from their trail page, like a Multiplication Madness sheet. Passing moves them up a level. Change the timer and pass score in Class settings, and change a student’s level here.</p>
-   <div class="tablewrap"><table class="roster"><thead><tr><th>Student</th><th>Level</th><th>Last try</th><th>Best at level</th><th>Tries this week</th><th>Passes</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="muted">No students yet.</td></tr>`}</tbody></table></div>
+   <div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Student</th><th>Level</th><th>Last try</th><th>Best at level</th><th>Tries this week</th><th>Passes</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="muted">No students yet.</td></tr>`}</tbody></table></div>
    <p class="muted" id="flv-msg" role="status"></p></div>
   <div class="card"><h2>Class trouble facts</h2><p class="muted">The facts your class gets wrong most often in fluency (tried at least twice).</p>
    ${hard.length?`<div class="facts">${hard.map(x=>`<div class="fact"><b>${esc(x.k)}</b><span class="hc" style="--c:${heat(x.p)}">${x.p}%</span><span class="muted">${esc([...x.who].slice(0,4).join(", "))}${x.who.size>4?"…":""}</span></div>`).join("")}</div>`:`<p class="fb info">This fills in as students do fluency.</p>`}</div>`;
@@ -230,7 +230,7 @@ function tPlanner(){
     const at=(g,r)=>(order.indexOf(g)+r)%R; /* neediest group starts at the first station */
     const time=r=>{if(!o.start)return `Round ${r+1}`;const [h,m]=o.start.split(":").map(Number),t=h*60+m+r*o.mins,H=Math.floor(t/60),M=t%60;return `${((H+11)%12)+1}:${String(M).padStart(2,"0")}`};
     body=`<div class="card"><div class="top"><h2>Rotation</h2><div class="row"><button class="ghost small" id="pl-print">Print</button><button class="small" id="pl-save">Save plan</button></div></div>
-      <div class="tablewrap"><table class="roster rot"><thead><tr><th></th>${stations.map(s=>`<th>${esc(s)}</th>`).join("")}</tr></thead><tbody>
+      <div class="tablewrap" tabindex="0"><table class="roster rot"><thead><tr><th><span class="sr-only">Actions</span></th>${stations.map(s=>`<th>${esc(s)}</th>`).join("")}</tr></thead><tbody>
       ${Array.from({length:R},(_,r)=>`<tr><td><b>${time(r)}</b>${o.start?"":""}</td>${stations.map((_,st)=>`<td>${P.groups.map((g,gi)=>at(gi,r)===st?`<span class="gchip g${gi%8}">${esc(g.name)}</span>`:"").join(" ")||'<span class="muted">—</span>'}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
       ${(o.absent||[]).length?`<p class="small"><b>Absent today:</b> ${(o.absent||[]).map(id=>CUR.students.find(s=>s.id===id)).filter(Boolean).map(s=>esc(s.name)).join(", ")}. Not in a group; catch them up when they’re back.</p>`:""}<p class="muted" style="font-size:.85rem">${o.mins}-minute rotations. The group that needs you most starts at ${esc(stations[0]||"the first station")}.${G>R?" Some stations have more than one group.":""}</p><p class="muted" id="pl-msg" role="status"></p></div>
      <div class="pgrid">${P.groups.map((g,gi)=>{const I=infos[gi],L0=I.focus&&LIBC[I.focus.std],rank=order.indexOf(gi);
@@ -284,7 +284,7 @@ function printPlan(){
   const infos=S.plan.groups.map(g=>groupInfo(g.ids)),order=infos.map((x,i)=>i).sort((a,b)=>infos[a].acc-infos[b].acc),R=Math.max(1,stations.length),at=(g,r)=>(order.indexOf(g)+r)%R;
   w.document.write(`<!doctype html><meta charset="utf-8"><title>Stations · ${esc(CUR.cls.name)}</title><style>body{font-family:system-ui,sans-serif;margin:24px}table{border-collapse:collapse;width:100%;margin-bottom:20px}td,th{border:1px solid #999;padding:8px;text-align:left}.g{display:grid;grid-template-columns:1fr 1fr;gap:12px}.c{border:2px solid #333;border-radius:10px;padding:12px;break-inside:avoid}h3{margin:0 0 6px}</style>
    <h2>${esc(CUR.cls.name)} · Stations · ${new Date().toLocaleDateString()}</h2>
-   <table><tr><th></th>${stations.map(s=>`<th>${esc(s)}</th>`).join("")}</tr>${Array.from({length:R},(_,r)=>`<tr><td><b>Round ${r+1}</b></td>${stations.map((_,st)=>`<td>${S.plan.groups.filter((g,gi)=>at(gi,r)===st).map(g=>esc(g.name)).join(", ")}</td>`).join("")}</tr>`).join("")}</table>
+   <table><tr><th><span class="sr-only">Actions</span></th>${stations.map(s=>`<th>${esc(s)}</th>`).join("")}</tr>${Array.from({length:R},(_,r)=>`<tr><td><b>Round ${r+1}</b></td>${stations.map((_,st)=>`<td>${S.plan.groups.filter((g,gi)=>at(gi,r)===st).map(g=>esc(g.name)).join(", ")}</td>`).join("")}</tr>`).join("")}</table>
    <div class="g">${S.plan.groups.map((g,gi)=>{const I=infos[gi];return `<div class="c"><h3>${esc(g.name)}</h3><p><b>${I.focus?esc(I.focus.std+" "+I.focus.name):"Challenge work"}</b></p><p>${I.studs.map(s=>esc(s.name)).join(", ")}</p>${I.mis?`<p><i>Shared mistake:</i> ${esc(I.mis.ex)}</p>`:""}${S.reteach&&S.reteach[gi]?`<p style="white-space:pre-wrap">${esc(S.reteach[gi])}</p>`:""}</div>`}).join("")}</div><script>print()<\/script>`);
   w.document.close();
 }
@@ -381,7 +381,7 @@ function tMtss(){
   const real=CUR.raw.filter(s=>!isSample(s)).map((r,i)=>({r,s:CUR.students.find(x=>x.id===r.id)})),mo=Date.now()-30*864e5;
   if(S.mtssId){const x=real.find(y=>y.r.id===S.mtssId);if(x)return mtssReport(x.r,x.s)}
   return `<div class="card"><h2>MTSS and intervention records</h2><p class="muted">Mark a student’s tier, then open their report. Every report is built from their practice: standards worked on, time, accuracy growth, mistakes, and fluency. Add your goal and notes, then print it for meetings.</p>
-   <div class="tablewrap"><table class="roster"><thead><tr><th>Student</th><th>Tier</th><th>Readiness</th><th>Working on</th><th>Minutes (30 days)</th><th></th></tr></thead><tbody>
+   <div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Student</th><th>Tier</th><th>Readiness</th><th>Working on</th><th>Minutes (30 days)</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
    ${real.map(({r,s})=>{const cur=curSkill(s),rd=readiness(s),b=band(rd);return `<tr><td><b>${esc(r.name)}</b></td><td><select data-tier="${r.id}" aria-label="Tier for ${esc(r.name)}"><option value="">Tier 1</option><option value="2" ${r.mtss?.tier==="2"?"selected":""}>Tier 2</option><option value="3" ${r.mtss?.tier==="3"?"selected":""}>Tier 3</option></select></td>
      <td>${rd==null?`<span class="pill" title="Not enough practice or test data yet">Evidence needed</span>`:`<span class="pill ${b.c}">${b.t} · ${rd}%</span>`}</td><td>${cur?esc(cur.std):'<span style="color:var(--go);font-weight:700">Finished</span>'}</td><td>${minsOf(s.prog,null,mo)}</td><td><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="ghost small" data-mrep="${r.id}">Open report</button><button class="ghost small" data-rcpt="${r.id}">Receipt</button></div></td></tr>`}).join("")||`<tr><td colspan="6" class="muted">No students yet.</td></tr>`}</tbody></table></div><div class="row"><button class="ghost small" data-rcpt="all">Print all Proficiency Receipts</button><span class="muted small">One page per student: what each standard has been practiced, verified, and retained.</span></div><p class="muted" id="tier-msg" role="status"></p></div>`;
 }
@@ -402,11 +402,11 @@ function mtssReport(r,s){
    <div class="mstats">${(()=>{const T=sesSum(r,since);return [["Sessions with teacher",T.n],["Minutes with teacher",T.mins],["Sessions missed",T.absent]]})().concat([["App minutes",total],["Days with practice",days],["Minutes since start",m.start?minsOf(s.prog,null,since):"—"],["Fluency level",f?`${(f.level||0)+1} of ${FLU().length}`:"—"],["Now working on",cur?cur.std:"Finished"]]).concat(stepsMstats(s)).map(([l,v])=>`<div><b>${esc(String(v))}</b><span>${l}</span></div>`).join("")}</div>
    ${fidelityHTML(r,s)}
    <h3>Accuracy each week</h3>${lineChart(wk.map(x=>({label:shortDate(x.w),y:x.acc,tip:`Week of ${shortDate(x.w)}: ${x.acc}% (${x.ok}/${x.n}), ${Math.round(x.ms/60000)} min`})),{max:100,unit:"%",goal:80,goalLabel:"80%",title:"Weekly accuracy"})}
-   <h3>Standards</h3><div class="tablewrap"><table class="roster"><thead><tr><th>Standard</th><th>Status</th><th>Questions</th><th>Accuracy</th><th>First day → latest day</th><th>Days</th><th>Minutes</th></tr></thead><tbody>
+   <h3>Standards</h3><div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Standard</th><th>Status</th><th>Questions</th><th>Accuracy</th><th>First day → latest day</th><th>Days</th><th>Minutes</th></tr></thead><tbody>
     ${rows.map(x=>`<tr><td><b>${esc(x.k.std)}</b><br><span class="muted">${esc(x.k.name)}</span></td><td>${x.st}</td><td>${x.n}</td><td>${x.acc==null?"—":x.n<5?`<span class="muted">${x.acc}% (only ${x.n})</span>`:x.acc+"%"}</td><td>${x.fa==null?"—":x.la==null?x.fa+"%":`${x.fa}% → ${x.la}%`}${x.first?`<br><span class="muted" style="font-size:.8rem">${shortDate(x.first)}–${shortDate(x.last)}</span>`:""}</td><td>${x.sessions}</td><td>${x.mins}</td></tr>`).join("")}</tbody></table></div>
-   <h3>Sessions taught</h3>${(()=>{const L=sesOf(r).filter(x=>new Date(x.d+"T12:00:00").getTime()>=since).slice().reverse();return L.length?`<div class="tablewrap"><table class="roster"><thead><tr><th>Date</th><th>Standard</th><th>Attended</th><th>Minutes</th><th>What was taught</th></tr></thead><tbody>${L.slice(0,20).map(x=>`<tr><td>${niceDay(x.d)}</td><td>${esc(x.std)}</td><td>${x.a?"Yes":"<b>Absent</b>"}</td><td>${x.a?x.m:0}</td><td>${esc(x.n||"")}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No teacher-led sessions logged${m.start?" since the start date":""}. Log them from the Station planner.</p>`})()}
+   <h3>Sessions taught</h3>${(()=>{const L=sesOf(r).filter(x=>new Date(x.d+"T12:00:00").getTime()>=since).slice().reverse();return L.length?`<div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Date</th><th>Standard</th><th>Attended</th><th>Minutes</th><th>What was taught</th></tr></thead><tbody>${L.slice(0,20).map(x=>`<tr><td>${niceDay(x.d)}</td><td>${esc(x.std)}</td><td>${x.a?"Yes":"<b>Absent</b>"}</td><td>${x.a?x.m:0}</td><td>${esc(x.n||"")}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No teacher-led sessions logged${m.start?" since the start date":""}. Log them from the Station planner.</p>`})()}
    <h3>Most common mistakes</h3>${mis.length?`<ol class="miss">${mis.map(x=>`<li><div class="mhead"><b>${esc((LIBG[x.k]||SKILLS.find(k=>k.id===x.k)||{}).code||(SKILLS.find(k=>k.id===x.k)||{}).std||"")}</b><span class="muted">${x.n} time${x.n===1?"":"s"}</span></div><p class="mex">“${fmt(x.ex)}”</p></li>`).join("")}</ol>`:`<p class="muted">No mistakes recorded yet.</p>`}
-   ${f&&(f.att||[]).length?`<h3>Fluency</h3><div class="tablewrap"><table class="roster"><thead><tr><th>Date</th><th>Level</th><th>Score</th><th>Passed</th></tr></thead><tbody>${f.att.slice(-8).reverse().map(a=>`<tr><td>${new Date(a.d).toLocaleDateString()}</td><td>${a.lvl+1}</td><td>${a.r}/${a.n}</td><td>${a.p?"Yes":"No"}</td></tr>`).join("")}</tbody></table></div>`:""}
+   ${f&&(f.att||[]).length?`<h3>Fluency</h3><div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Date</th><th>Level</th><th>Score</th><th>Passed</th></tr></thead><tbody>${f.att.slice(-8).reverse().map(a=>`<tr><td>${new Date(a.d).toLocaleDateString()}</td><td>${a.lvl+1}</td><td>${a.r}/${a.n}</td><td>${a.p?"Yes":"No"}</td></tr>`).join("")}</tbody></table></div>`:""}
    <p class="muted" style="font-size:.8rem">Teacher minutes come from the sessions the teacher logged; absent students get no credit. App minutes are estimated from time spent on each question (up to 3 minutes per question). Readiness is an estimate from practice and test data, not a MAAP score.</p>
   </div>`;
 }
@@ -441,7 +441,7 @@ function backupCard(){
   if(!isAdmin())return"";const B=S.backups;
   return `<div class="card"><h2>Backups</h2><p class="muted">The site makes an automatic backup every night and keeps the newest 21. You can also download a full copy any time and keep it somewhere safe.</p>
    <div class="row"><button class="ghost" id="bk-dl">Download a full backup</button><button class="ghost" id="bk-now">Make a backup now</button><label class="ghost filebtn">Restore from a file<input type="file" id="bk-file" accept=".json,application/json" hidden></label></div>
-   ${B?B.length?`<div class="tablewrap"><table class="roster"><thead><tr><th>Backup</th><th></th></tr></thead><tbody>${B.map(k=>`<tr><td>${esc(k.replace("backup/",""))}</td><td><div class="row"><button class="ghost small" data-bkd="${esc(k)}">Download</button><button class="ghost small" data-bkr="${esc(k)}">Restore</button></div></td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No automatic backups yet. The first one runs tonight.</p>`:`<button class="link" id="bk-list">Show automatic backups</button>`}
+   ${B?B.length?`<div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Backup</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>${B.map(k=>`<tr><td>${esc(k.replace("backup/",""))}</td><td><div class="row"><button class="ghost small" data-bkd="${esc(k)}">Download</button><button class="ghost small" data-bkr="${esc(k)}">Restore</button></div></td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No automatic backups yet. The first one runs tonight.</p>`:`<button class="link" id="bk-list">Show automatic backups</button>`}
    <p class="muted" id="bk-msg" role="status"></p></div>`;
 }
 function wireBackups(){
@@ -454,6 +454,35 @@ function wireBackups(){
   app.querySelectorAll("[data-bkd]").forEach(b=>b.onclick=async()=>{try{const d=await api("backupGet",{key:b.dataset.bkd});saveFile(b.dataset.bkd.replace("backup/","p2p-backup-")+".json",JSON.stringify(d.backup),"application/json")}catch(e){msg().textContent=e.message}});
   app.querySelectorAll("[data-bkr]").forEach(b=>b.onclick=()=>restore({key:b.dataset.bkr}));
   document.getElementById("bk-file").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!j.data||!j.data.school)throw new Error("That file is not a Path to Proficiency backup.");restore({backup:j})}catch(er){msg().textContent=er.message}};
+}
+
+/* ================= new school year (admin) ================= */
+const NEXT_GRADE={std3:"std4",std4:"std5",std5:"std6",std6:"std7",std7:"std8",std8:"std9"};
+function yearDefault(){const d=new Date(),y=d.getFullYear()+(d.getMonth()>=8?1:0);return `${y}-${String((y+1)%100).padStart(2,"0")}`} /* the coming school year: Sep–Dec looks ahead to next fall */
+function yearCard(){
+  if(!isAdmin())return"";const Y=TB.school||{},cur=Y.year,saved=Object.entries(Y.yearSaved||{});S.yr=S.yr||{};
+  return `<div class="card" id="yr-card"><h2>Start a new school year</h2>
+   <p class="muted">Do this once, over the summer. First a year-end copy of everything is saved and kept for good. Then, for each class, pick what happens:</p>
+   <ul class="muted small" style="margin:.2rem 0 .8rem 1.1rem"><li><b>Keep as is:</b> nothing changes.</li><li><b>Move up a grade:</b> same students and codes, next grade’s standards. For teachers who move up with their class. Last year’s progress is kept.</li><li><b>Empty for new students:</b> removes the students so the teacher can add this year’s class. Their work stays in the year-end copy.</li></ul>
+   ${cur?`<p>Current school year: <b>${esc(cur)}</b></p>`:""}
+   ${TB.classes.length?`<div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Class</th><th>Standards now</th><th>What happens</th></tr></thead><tbody>${TB.classes.map(c=>`<tr><td><b>${esc(c.name)}</b><br><span class="muted small">${esc(tName(c.teacherId)||"")}</span></td><td>${esc(testName(c.testId))}</td><td><select data-yr="${c.id}" style="width:100%" aria-label="What happens to ${esc(c.name)}">
+     <option value="keep" ${(S.yr[c.id]||"keep")==="keep"?"selected":""}>Keep as is</option>${NEXT_GRADE[c.testId]?`<option value="up" ${S.yr[c.id]==="up"?"selected":""}>Move up to ${esc(testName(NEXT_GRADE[c.testId]))}</option>`:""}<option value="empty" ${S.yr[c.id]==="empty"?"selected":""}>Empty for new students</option></select></td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No classes yet.</p>`}
+   <form class="grid" id="yr-f" style="margin-top:.8rem"><label class="f">New school year<input id="yr-y" value="${esc(S.yrY||yearDefault())}" placeholder="2027-28" required maxlength="9"></label>
+    <label class="f">Type NEW YEAR to confirm<input id="yr-c" autocomplete="off" placeholder="NEW YEAR"></label><button type="submit">Start ${esc(S.yrY||yearDefault())}</button></form>
+   <p class="err" id="yr-err" role="alert"></p>
+   ${saved.length?`<p class="muted small">Year-end copies: ${saved.map(([y,k])=>`<button class="link" data-bkd="${esc(k)}">${esc(y)} (download)</button>`).join(" · ")}</p>`:""}</div>`;
+}
+function wireYear(){
+  const f=document.getElementById("yr-f");if(!f)return;
+  app.querySelectorAll("[data-yr]").forEach(x=>x.onchange=()=>{S.yr[x.dataset.yr]=x.value});
+  document.getElementById("yr-y").oninput=e=>{S.yrY=e.target.value};
+  f.onsubmit=async e=>{e.preventDefault();const err=document.getElementById("yr-err"),y=document.getElementById("yr-y").value.trim();
+    if(document.getElementById("yr-c").value.trim().toUpperCase()!=="NEW YEAR"){err.textContent="Type NEW YEAR in the box to confirm.";return}
+    const plan={};TB.classes.forEach(c=>plan[c.id]=S.yr[c.id]||"keep");
+    busy(e.submitter,"Saving a year-end copy…");
+    try{const d=await api("yearStart",{year:y,plan,confirm:"NEW YEAR"});Object.assign(TB,d);S.yr={};S.yrY=null;render();
+      flash("yr-err",`Done. ${d.done.up} moved up, ${d.done.empty} emptied, ${d.done.keep} kept. The year-end copy is saved.`)}
+    catch(er){err.textContent=er.message;e.submitter.disabled=false;e.submitter.textContent=`Start ${y}`}};
 }
 
 /* ================= report a problem ================= */

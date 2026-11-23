@@ -1,4 +1,5 @@
 import { verifyGoogle, DEFAULT_GOOGLE_CLIENT_ID } from "./google.mjs";
+import { verifyClever, readTicket, cleverTicket, cleverOn } from "./clever.mjs";
 // Path to Proficiency: school server.
 // Data lives in Netlify Blobs. Everything goes through POST /api/<action> with a JSON body.
 import crypto from "node:crypto";
@@ -19,7 +20,7 @@ const str = (v, max = 200) => String(v ?? "").trim().slice(0, max);
 
 /* tenant + hooks are set only when the multi-district router runs this code for one school's own store (see router.mjs).
    With them unset, everything works exactly as the single-school site always has. */
-export function makeApi({ store, env, tenant = null, hooks = null, googleVerify = verifyGoogle }) {
+export function makeApi({ store, env, tenant = null, hooks = null, googleVerify = verifyGoogle, cleverVerify = verifyClever }) {
   const getJ = async k => (await store.get(k, { type: "json" })) ?? null;
   const setJ = (k, v) => store.setJSON(k, v);
   const del = k => store.delete(k);
@@ -88,7 +89,7 @@ export function makeApi({ store, env, tenant = null, hooks = null, googleVerify 
 
   /* ---------- helpers ---------- */
   const codeHash = (school, code) => sha(school.salt + ":" + code);
-  const pubTeacher = t => ({ id: t.id, name: t.name, admin: !!t.admin, google: !!t.google });
+  const pubTeacher = t => ({ id: t.id, name: t.name, admin: !!t.admin, google: !!t.google, clever: !!t.clever });
   const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false, music: c.music !== false, chal: c.chal !== false, choose: c.choose !== false, gofur: c.gofur !== false, dokmix: c.dokmix !== false, buddy: c.buddy !== false, handCool: c.handCool || 0, pace: c.pace || null, home: c.home || null, kw: ["on", "optional", "off"].includes(c.kw) ? c.kw : "auto",
     flu: { on: c.flu?.on !== false, secs: c.flu?.secs || 180, pass: c.flu?.pass || 28, n: c.flu?.n || 30 },
     games: { on: c.games?.on !== false, mins: c.games?.mins || 3 },
@@ -135,7 +136,7 @@ export function makeApi({ store, env, tenant = null, hooks = null, googleVerify 
   function boot(ctx) {
     const { school, me, admin } = ctx;
     return {
-      me: { ...pubTeacher(me), ...(me.google ? { googleEmail: me.google.email } : {}) }, school: { name: school.name },
+      me: { ...pubTeacher(me), ...(me.google ? { googleEmail: me.google.email } : {}), ...(me.clever ? { cleverName: me.clever.name || "Clever account" } : {}) }, school: { name: school.name, year: school.year || null, yearSaved: school.yearSaved || {} },
       teachers: school.teachers.map(pubTeacher),
       classes: school.classes.filter(c => admin || c.teacherId === me.id).map(pubClass),
       allClassCount: school.classes.length,
@@ -295,6 +296,48 @@ How you teach:
     await seenTeacher(t.id);
     return { token: sign(school, { r: "t", id: t.id }), ...boot({ school, me: t, admin: !!t.admin }) };
   };
+  /* ---------- Log in with Clever ----------
+     Clever tells us who signed in. The first time, that person signs in the usual way once (teacher code, or class
+     code + secret code) and the Clever account is connected; after that, Clever alone signs them in. */
+  const cTicket = t => { const p = readTicket(t, env); if (!p) bad("That Clever sign-in expired. Tap Log in with Clever again."); return p };
+  A.cleverLink = async b => {
+    if (!cleverOn(env)) bad("Clever isn’t turned on yet.");
+    const ctx = await teacherCtx(b.token), { school, me } = ctx, p = cTicket(b.ticket);
+    if (p.type !== "teacher") bad("That Clever account is a student account. Teachers connect a teacher Clever account.", 403);
+    if (school.teachers.some(t => t !== me && t.clever && t.clever.sub === p.sub)) bad("That Clever account is already connected to another teacher here.", 409);
+    if (hooks && hooks.claimClever && !(await hooks.claimClever(p.sub, { t: me.id }))) bad("That Clever account is already connected to another Path to Proficiency school.", 409);
+    const old = me.clever; me.clever = { sub: p.sub, name: p.name, at: Date.now() };
+    await saveSchool(school);
+    if (old && old.sub !== p.sub && hooks && hooks.releaseClever) await hooks.releaseClever(old.sub);
+    await logAct(tName(ctx), "Clever account connected", p.name || "");
+    return boot(ctx);
+  };
+  A.cleverUnlink = async b => {
+    const ctx = await teacherCtx(b.token), { school, me } = ctx, was = me.clever;
+    if (!was) return boot(ctx);
+    delete me.clever; await saveSchool(school);
+    if (hooks && hooks.releaseClever) await hooks.releaseClever(was.sub);
+    await logAct(tName(ctx), "Clever account disconnected");
+    return boot(ctx);
+  };
+  A.cleverLogin = async b => {
+    if (!cleverOn(env)) bad("Clever isn’t turned on yet.");
+    const school = await loadSchool(); if (!school) bad("This school is not set up yet.");
+    const p = (hooks && hooks.preClever) || await cleverVerify(str(b.code, 200), env);
+    if (!p) bad("Clever sign-in didn’t work. Please try again.", 401);
+    if (p.type === "teacher") {
+      const t = school.teachers.find(x => x.clever && x.clever.sub === p.sub);
+      if (t) { await seenTeacher(t.id); return { role: "teacher", token: sign(school, { r: "t", id: t.id }), ...boot({ school, me: t, admin: !!t.admin }) } }
+    } else if (p.type === "student") {
+      const hit = hooks && hooks.cleverHit, list = hit && hit.c ? school.classes.filter(c => c.id === hit.c) : school.classes;
+      for (const c of list) {
+        const roster = (await getJ("roster/" + c.id)) || { students: [] }, st = roster.students.find(s => s.clever === p.sub);
+        if (st) return { role: "student", ...(await studentPayload(school, c, st, sign(school, { r: "s", id: st.id, c: c.id }))) };
+      }
+    } else bad("Path to Proficiency works with Clever student and teacher accounts.", 403);
+    return { needLink: true, kind: p.type, name: p.name || "", ticket: cleverTicket(p, env) };
+  };
+
   A.boot = async b => { const ctx = await teacherCtx(b.token); await seenTeacher(ctx.me.id); return boot(ctx) };
 
   A.teacherSave = async b => {
@@ -335,6 +378,7 @@ How you teach:
     school.teachers = school.teachers.filter(x => x !== t);
     await saveSchool(school);
     if (t.google && hooks && hooks.releaseGoogle) await hooks.releaseGoogle(t.google.sub);
+    if (t.clever && hooks && hooks.releaseClever) await hooks.releaseClever(t.clever.sub);
     await logAct(tName(ctx), "Teacher removed", t.name);
     return boot(ctx);
   };
@@ -445,6 +489,7 @@ How you teach:
       const acc = s.acc && typeof s.acc === "object" ? { read: !!s.acc.read, big: !!s.acc.big, es: !!s.acc.es, fewer: !!s.acc.fewer } : null; // accommodations
       students.push({ id: s.id && /^[A-Za-z0-9]{4,20}$/.test(s.id) ? s.id : "s" + rid(8), name, code, missed, assigned, ...(acc && Object.values(acc).some(Boolean) ? { acc } : {}), ...(m ? { mtss: m } : {}), ...(ip ? { ip } : {}), ...(ses.length ? { ses } : {}), ...(xt.length ? { xt } : {}), ...(pp.length ? { pp } : {}), ...(Object.keys(scores).length ? { scores } : {}), ...(Object.keys(bm).length ? { bm } : {}), sample: !!s.sample });
     }
+    for (const st of students) { const o = old.students.find(x => x.id === st.id); if (o && o.clever) st.clever = o.clever } // a connected Clever account stays with the student; the browser can't set it
     if (students.filter(x => x.sample).length > 3) bad("A class can have up to 3 sample students.");
     const L = license(ctx.school), realNew = students.filter(x => !x.sample).length, realOld = old.students.filter(x => !x.sample).length;
     if (L && realNew > realOld) { const other = await seatsUsed(ctx.school, c.id); if (other + realNew > L.students) bad(`${capMsg("students", L)} (${other + realOld} of ${L.students} used.)`, 402) }
@@ -788,6 +833,15 @@ How you teach:
     const st = roster.students.find(s => s.code === str(b.code, 4));
     if (!st) { await noteFail(ip, "s" + c.id); await classFail(c.id); bad("That code did not match. Try again.", 401) }
     await clearFail(ip, "s" + c.id);
+    if (b.clever) { // first Clever sign-in: connect this student's Clever account now that their class and code matched
+      const p = cTicket(b.clever);
+      if (p.type !== "student") bad("That is a teacher Clever account. Use Teacher sign-in.", 403);
+      if (st.clever !== p.sub) {
+        if (hooks && hooks.claimClever && !(await hooks.claimClever(p.sub, { c: c.id, s: st.id }))) bad("That Clever account is already connected in another school.", 409);
+        const { v, etag } = await getJE("roster/" + c.id), r2 = v || { students: [] }, s2 = r2.students.find(x => x.id === st.id);
+        if (s2) { const old = s2.clever; for (const x of r2.students) if (x.clever === p.sub) delete x.clever; s2.clever = p.sub; await store.setJSON("roster/" + c.id, r2, etag ? { onlyIfMatch: etag } : {}); if (old && old !== p.sub && hooks && hooks.releaseClever) await hooks.releaseClever(old) }
+      }
+    }
     return studentPayload(school, c, st, sign(school, { r: "s", id: st.id, c: c.id }));
   };
   async function studentPayload(school, c, st, token) {
@@ -944,6 +998,37 @@ How you teach:
     await logAct(tName(ctx), "Backup restored", str(b.key, 60) || "from a file");
     return { ok: true, restored: keep.size };
   };
+  /* new school year: save a year-end copy that is never rotated out, then per class keep it, move it up a grade
+     (same students and codes, next grade's standards; last year's progress stays under the old test), or empty it */
+  const NEXT_GRADE = { std3: "std4", std4: "std5", std5: "std6", std6: "std7", std7: "std8", std8: "std9" };
+  A.yearStart = async b => {
+    const ctx = await teacherCtx(b.token), { school } = ctx; if (!ctx.admin) bad("Only a school admin can start a new school year.", 403);
+    if (b.confirm !== "NEW YEAR") bad("Type NEW YEAR to confirm.");
+    const year = str(b.year, 20); if (!/^\d{4}-\d{2,4}$/.test(year)) bad("Write the new school year like 2027-28.");
+    const plan = b.plan && typeof b.plan === "object" ? b.plan : {};
+    for (const [id, a] of Object.entries(plan)) { if (!school.classes.some(c => c.id === id)) bad("That class was not found."); if (!["keep", "up", "empty"].includes(a)) bad("Pick keep, move up, or empty for each class."); }
+    const key = await snapshot("yearend");
+    const done = { up: 0, empty: 0, keep: 0 };
+    for (const c of school.classes) {
+      const a = plan[c.id] || "keep";
+      if (a === "up") {
+        const nx = NEXT_GRADE[c.testId]; if (!nx) { done.keep++; continue; }
+        c.testId = nx;
+        const r = (await getJ("roster/" + c.id)) || { students: [] };
+        for (const st of r.students) st.assigned = []; // last year's assigned standards are cleared; accommodations stay with the student
+        await setJ("roster/" + c.id, r);
+        done.up++;
+      } else if (a === "empty") {
+        for (const k of await listKeys("prog/" + c.id + "/")) await del(k);
+        await setJ("roster/" + c.id, { students: [] }); await del("hands/" + c.id);
+        done.empty++;
+      } else done.keep++;
+    }
+    school.year = year; school.yearSaved = { ...(school.yearSaved || {}), [year]: key };
+    await saveSchool(school);
+    await logAct(tName(ctx), "New school year started", `${year}: ${done.up} moved up, ${done.empty} emptied, ${done.keep} kept`);
+    return { key, done, ...boot(ctx) };
+  };
   async function collect() {
     const data = {};
     for (const k of await listKeys("")) if (!/^(backup|fail|tutorfile|tapply|log|seen|use)\//.test(k)) data[k] = await getJ(k); // résumé files are kept out of backups
@@ -952,7 +1037,7 @@ How you teach:
   async function snapshot(tag) {
     const d = await collect(), key = `backup/${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}${tag ? "-" + tag : ""}`;
     await setJ(key, d);
-    const all = (await listKeys("backup/")).sort();
+    const all = (await listKeys("backup/")).filter(k => !k.endsWith("-yearend")).sort(); // year-end copies are kept for good
     for (const k of all.slice(0, Math.max(0, all.length - 21))) await del(k); // keep the newest 21
     return key;
   }

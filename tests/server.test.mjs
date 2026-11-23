@@ -23,9 +23,11 @@ function memoryStore() {
 }
 
 /* a stand-in for Google's token check: "g:<sub>:<email>" is a valid Google sign-in, anything else is not */
+/* a stand-in for Clever: code "c:<id>:<teacher|student>:<name>" is a valid Clever sign-in */
+const FAKE_CLEVER = async code => { const m = /^c:([^:]+):([^:]+):(.*)$/.exec(code || ""); return m ? { sub: m[1], type: m[2], name: m[3], district: "d1" } : null };
 const FAKE_GOOGLE = async cred => { const m = /^g:([^:]+):(.+)$/.exec(cred || ""); return m ? { sub: m[1], email: m[2] } : null };
 function client(env = {}) {
-  const store = memoryStore(), api = makeApi({ store, env, googleVerify: FAKE_GOOGLE });
+  const store = memoryStore(), api = makeApi({ store, env, googleVerify: FAKE_GOOGLE, cleverVerify: FAKE_CLEVER });
   let ip = 1;
   const call = async (action, body, from) => {
     const r = await api(new Request("http://x/api/" + action, { method: "POST", body: JSON.stringify(body) }), from || "10.0.0." + (ip++ % 200));
@@ -126,7 +128,7 @@ test("owner research export: no names, codes or class names; new IDs each time",
 /* ---------- multi-district: the security tests from the plan ---------- */
 function multi(env = {}) {
   const stores = new Map(), getStore = n => { if (!stores.has(n)) stores.set(n, memoryStore()); return stores.get(n) };
-  const router = makeRouter({ getStore, env: { MULTI_DISTRICT: "on", OWNER_CODE: "owner-secret-1", ...env }, googleVerify: FAKE_GOOGLE });
+  const router = makeRouter({ getStore, env: { MULTI_DISTRICT: "on", OWNER_CODE: "owner-secret-1", CLEVER_CLIENT_SECRET: "test-secret", ...env }, googleVerify: FAKE_GOOGLE, cleverVerify: FAKE_CLEVER });
   const call = async (action, body, from = "10.1.1.1") => {
     const r = await router.handle(new Request("http://x/api/" + action, { method: "POST", body: JSON.stringify(body) }), from);
     const j = await r.json();
@@ -505,6 +507,59 @@ test("move: dry run writes nothing; the copy is exact; re-running syncs; the swi
 
   const back = mk({}); // undo: switch off and the old store answers again, untouched
   assert.ok((await back("login", { code: "1234" })).token);
+});
+
+test("new school year: year-end copy kept for good, move up keeps students, empty clears them", async () => {
+  const s = await school();
+  const c2 = (await s.call("classSave", { token: s.T, name: "Room 2" })).cls;
+  await s.call("rosterSave", { token: s.T, classId: c2.id, students: [{ name: "Zoe K.", code: "4321" }] });
+  const st = await s.login(s.roster[0].code);
+  await s.call("progSave", { token: st.token, testId: "std3", prog: { score: 7 } });
+  await rejects(s.call("yearStart", { token: s.T, year: "2027-28", plan: {}, confirm: "nope" }), /NEW YEAR/);
+  await rejects(s.call("yearStart", { token: st.token, year: "2027-28", plan: {}, confirm: "NEW YEAR" }));
+  const r = await s.call("yearStart", { token: s.T, year: "2027-28", plan: { [s.cls.id]: "up", [c2.id]: "empty" }, confirm: "NEW YEAR" });
+  assert.deepEqual(r.done, { up: 1, empty: 1, keep: 0 });
+  assert.equal(r.classes.find(c => c.id === s.cls.id).testId, "std4");
+  assert.equal(s.store.M.get("roster/" + s.cls.id).v.students.length, 6);
+  assert.equal(s.store.M.get("roster/" + c2.id).v.students.length, 0);
+  assert.equal(r.school.year, "2027-28"); assert.ok(r.key.endsWith("-yearend"));
+  const saved = s.store.M.get(r.key).v; assert.ok(JSON.stringify(saved).includes("Zoe K.") && JSON.stringify(saved).includes('"score":7'));
+  assert.ok((await s.login(s.roster[0].code)).token); // same codes still work after moving up
+  for (let i = 0; i < 23; i++) await s.call("backupNow", { token: s.T });
+  assert.ok(s.store.M.has(r.key)); // nightly rotation never removes the year-end copy
+});
+
+test("Clever: off until the secret is set; first sign-in connects once, then Clever alone signs in", async () => {
+  const off = await school();
+  await rejects(off.call("cleverLogin", { code: "c:t1:teacher:Ms. Clever" }), /isn’t turned on/);
+  const { A, B, m } = await twoDistricts();
+  assert.equal((await m.call("cleverConfig", {})).on, true);
+  await rejects(m.call("cleverLogin", { code: "nope" }), /didn’t work/);
+  // a teacher: first time asks to connect, then signs straight in
+  const t1 = await m.call("cleverLogin", { code: "c:T1:teacher:Ms. Alpha" });
+  assert.equal(t1.needLink, true); assert.equal(t1.kind, "teacher"); assert.ok(t1.ticket);
+  await rejects(m.call("cleverLink", { token: A.T, ticket: t1.ticket + "x" }), /expired/); // a changed ticket is refused
+  const linked = await m.call("cleverLink", { token: A.T, ticket: t1.ticket });
+  assert.equal(linked.me.cleverName, "Ms. Alpha");
+  const t2 = await m.call("cleverLogin", { code: "c:T1:teacher:Ms. Alpha" });
+  assert.equal(t2.role, "teacher"); assert.ok(t2.token); assert.equal(t2.me.name, "Ms. Alpha");
+  await rejects(m.call("cleverLink", { token: B.T, ticket: t1.ticket }), /another Path to Proficiency school/); // one school per Clever account
+  // a student: connects with class code + secret code once
+  const s1 = await m.call("cleverLogin", { code: "c:S1:student:Avery A" });
+  assert.equal(s1.needLink, true); assert.equal(s1.kind, "student");
+  await rejects(m.call("cleverLink", { token: A.T, ticket: s1.ticket }), /student account/); // a student's Clever can't be put on a teacher
+  await rejects(m.call("studentLogin", { join: A.cls.join, code: A.roster[0].code, clever: t1.ticket }), /teacher Clever/);
+  const sl = await m.call("studentLogin", { join: A.cls.join, code: A.roster[0].code, clever: s1.ticket });
+  assert.ok(sl.token);
+  const s2 = await m.call("cleverLogin", { code: "c:S1:student:Avery A" });
+  assert.equal(s2.role, "student"); assert.equal(s2.student.name, "Avery Alpha");
+  // the teacher saving the roster keeps the connection (the browser can't change or drop it)
+  const ro = m.getStore("ptp-d-" + A.sid).M.get("roster/" + A.cls.id).v.students;
+  await m.call("rosterSave", { token: A.T, classId: A.cls.id, students: ro.map(({ clever, ...x }) => ({ ...x, ...(x.id === ro[1].id ? { clever: "S1" } : {}) })) });
+  assert.equal((await m.call("cleverLogin", { code: "c:S1:student:Avery A" })).student.name, "Avery Alpha");
+  // disconnecting ends Clever sign-in for that teacher
+  await m.call("cleverUnlink", { token: A.T });
+  assert.equal((await m.call("cleverLogin", { code: "c:T1:teacher:Ms. Alpha" })).needLink, true);
 });
 
 let failed = 0;

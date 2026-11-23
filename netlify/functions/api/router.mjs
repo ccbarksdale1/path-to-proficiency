@@ -1,4 +1,5 @@
 import { verifyGoogle, DEFAULT_GOOGLE_CLIENT_ID } from "./google.mjs";
+import { verifyClever, cleverTicket, cleverConfig, cleverOn } from "./clever.mjs";
 // Path to Proficiency: multi-district router.
 // With MULTI_DISTRICT unset (today's live site), every request goes to the one "p2p" store exactly as before.
 // With MULTI_DISTRICT=on:
@@ -30,9 +31,10 @@ export function tokenTenant(token) {
   try { const p = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString()); return typeof p.d === "string" && ID.test(p.d) ? p.d : null } catch { return null }
 }
 
-export function makeRouter({ getStore, env, googleVerify = null }) {
+export function makeRouter({ getStore, env, googleVerify = null, cleverVerify = null }) {
   const multi = env.MULTI_DISTRICT === "on";
-  const single = () => makeApi({ store: getStore("p2p"), env, ...(googleVerify ? { googleVerify } : {}) });
+  const VER = { ...(googleVerify ? { googleVerify } : {}), ...(cleverVerify ? { cleverVerify } : {}) };
+  const single = () => makeApi({ store: getStore("p2p"), env, ...VER });
 
   let _reg = null; // opened only when needed, so a single-school site never touches the registry
   const R = () => (_reg ||= getStore("ptp-registry"));
@@ -57,8 +59,15 @@ export function makeRouter({ getStore, env, googleVerify = null }) {
       return true;
     },
     releaseGoogle: async sub => { const k = "gsub/" + sha("g" + sub).slice(0, 40), cur = await getR(k); if (cur && cur.d === id) await R().delete(k) },
+    /* a Clever account signs in to one teacher, or one student, in one school; only a hash of Clever's id is kept */
+    claimClever: async (sub, who) => {
+      const k = "csub/" + sha("c" + sub).slice(0, 40), cur = await getR(k);
+      if (cur && cur.d !== id) return false;
+      await setR(k, { d: id, ...who, at: Date.now() }); return true;
+    },
+    releaseClever: async sub => { const k = "csub/" + sha("c" + sub).slice(0, 40), cur = await getR(k); if (cur && cur.d === id) await R().delete(k) },
   });
-  const apiFor = (id, extra = {}) => makeApi({ store: schoolStore(id), env, tenant: id, hooks: { ...hooksFor(id), ...extra }, ...(googleVerify ? { googleVerify } : {}) });
+  const apiFor = (id, extra = {}) => makeApi({ store: schoolStore(id), env, tenant: id, hooks: { ...hooksFor(id), ...extra }, ...VER });
 
   /* ---------- lockouts and tokens for the registry-level sign-ins ---------- */
   async function locked(scope, ip) {
@@ -170,6 +179,7 @@ export function makeRouter({ getStore, env, googleVerify = null }) {
       for (const k of await listR("join/")) { const j = await getR(k); if (j && j.d === id) await R().delete(k) }
       for (const k of await listR("host/")) { const h = await getR(k); if (h && h.d === id) await R().delete(k) }
       for (const k of await listR("gsub/")) { const g = await getR(k); if (g && g.d === id) await R().delete(k) }
+      for (const k of await listR("csub/")) { const g = await getR(k); if (g && g.d === id) await R().delete(k) }
       await R().delete("school/" + id);
       return { ok: true };
     },
@@ -319,6 +329,7 @@ export function makeRouter({ getStore, env, googleVerify = null }) {
     try { body = await req.clone().json() } catch { body = {} }
     try {
       if (action === "ownerMove") { await ownerCheck(body, ip); return J(200, await ownerMove(body)) }
+      if (action === "cleverConfig") return J(200, cleverConfig(env));
       if (!multi) return single()(req, ip);
       if (OWNER_ACTIONS.has(action)) { await ownerCheck(body, ip); const out = await OWNER[action](body, ip); if (LOG_TEXT[action]) await logR("Site owner", ...LOG_TEXT[action](body)); return J(200, out) }
       if (DISTRICT_ACTIONS.has(action)) return J(200, await DISTRICT[action](body, ip));
@@ -328,6 +339,15 @@ export function makeRouter({ getStore, env, googleVerify = null }) {
         const g = await getR("gsub/" + sha("g" + p.sub).slice(0, 40));
         if (!g || !(await schoolRec(g.d))) no(404, "That Google account isn’t connected to a teacher yet. Sign in with your school code and teacher code once, then choose Connect Google in My account.");
         return await apiFor(g.d, { preGoogle: p })(req, ip);
+      }
+      if (action === "cleverLogin") { // Clever decides the school: find which teacher or student this Clever account is connected to
+        if (!cleverOn(env)) no(400, "Clever isn’t turned on yet.");
+        const p = await (cleverVerify || verifyClever)(str(body.code, 200), env);
+        if (!p) no(401, "Clever sign-in didn’t work. Please try again.");
+        if (p.type !== "teacher" && p.type !== "student") no(403, "Path to Proficiency works with Clever student and teacher accounts.");
+        const g = await getR("csub/" + sha("c" + p.sub).slice(0, 40));
+        if (g && (await schoolRec(g.d))) return await apiFor(g.d, { preClever: p, cleverHit: g })(req, ip);
+        return J(200, { needLink: true, kind: p.type, name: p.name || "", ticket: cleverTicket(p, env) });
       }
       const id = await resolve(action, body, req), rec = id && await schoolRec(id);
       if (!rec) {

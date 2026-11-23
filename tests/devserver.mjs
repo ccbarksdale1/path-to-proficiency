@@ -31,15 +31,19 @@ function memoryStore() {
 const getStore = name => { if (!stores.has(name)) stores.set(name, memoryStore()); return stores.get(name) };
 const env = { ...process.env, OWNER_CODE: process.env.OWNER_CODE || "owner-dev", ...(multi ? { MULTI_DISTRICT: "on" } : { MULTI_DISTRICT: "" }) };
 
+/* FAKE_CLEVER=1: a pretend Clever for local testing. code "c:<id>:<teacher|student>:<name>" signs in as that person */
+const fakeClever = process.env.FAKE_CLEVER ? async code => { const m = /^c:([^:]+):([^:]+):(.*)$/.exec(code || ""); return m ? { sub: m[1], type: m[2], name: m[3] } : null } : null;
+if (fakeClever) env.CLEVER_CLIENT_SECRET = env.CLEVER_CLIENT_SECRET || "dev-secret";
 http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
   if (url.pathname.startsWith("/api/")) {
     const chunks = []; for await (const c of req) chunks.push(c);
-    const r = await makeRouter({ getStore, env }).handle(new Request(url, { method: req.method, headers: req.headers, body: req.method === "POST" ? Buffer.concat(chunks) : undefined }), "127.0.0.1");
+    const r = await makeRouter({ getStore, env, ...(fakeClever ? { cleverVerify: fakeClever } : {}) }).handle(new Request(url, { method: req.method, headers: req.headers, body: req.method === "POST" ? Buffer.concat(chunks) : undefined }), "127.0.0.1");
     res.writeHead(r.status, { "content-type": "application/json" }); res.end(await r.text()); return;
   }
   let p = normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, "");
   if (p.startsWith("/home/") && !extname(p)) p = "/home/index.html"; // same as the netlify.toml rule
+  if (p === "/clever") p = "/index.html";
   let file = join(ROOT, p);
   try { if ((await stat(file)).isDirectory()) file = join(file, "index.html"); const body = await readFile(file); res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream" }); res.end(body) }
   catch { res.writeHead(404); res.end("not found") }

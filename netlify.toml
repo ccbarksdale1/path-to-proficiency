@@ -22,3 +22,9 @@
   from = "/home/*"
   to = "/home/index.html"
   status = 200
+
+# Log in with Clever comes back to /clever?code=… ; the app handles it
+[[redirects]]
+  from = "/clever"
+  to = "/index.html"
+  status = 200

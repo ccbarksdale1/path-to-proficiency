@@ -51,7 +51,7 @@ function tClass(){
      <p>Missed ${a.miss} of their last ${a.n} on ${esc(a.cur.name.toLowerCase())}. Next step: pull them into a small group for ${esc(a.cur.std)}${a.top?` and go over <button class="link" data-goq="${a.top}">breakdown #${a.top}</button> together`:""}.</p>${a.tm?`<p style="font-size:.9rem"><b>Most common mistake:</b> ${fmt(a.tm.ex)}</p>`:""}</li>`).join("")}</ul>`
    :`<p class="muted">No one is stuck right now. A student shows up here after missing 3 of their last 5 questions on the same standard.</p>`}</div>`;
   const groupsCard=`<div class="card"><h2>Standards and small groups</h2><p class="muted">Students in the same row are working on the same standard right now. Pull them together for a small group.</p>
-   <div class="tablewrap"><table class="roster"><thead><tr><th>Standard <span class="muted small">(tap to open)</span></th><th>Mastered</th><th>Small group (working on it now)</th></tr></thead><tbody>${stdRows}</tbody></table></div></div>`;
+   <div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Standard <span class="muted small">(tap to open)</span></th><th>Mastered</th><th>Small group (working on it now)</th></tr></thead><tbody>${stdRows}</tbody></table></div></div>`;
   const EF=S.ef||{},q=(EF.q||"").toLowerCase(),idset=EF.ids?new Set(EF.ids):null;
   const acc=s=>{const p=s.prog,t=Object.values(p.log).reduce((a,l)=>a+l.tries,0)+(p.prior?.tries||0),r=Object.values(p.log).reduce((a,l)=>a+l.right,0)+(p.prior?.right||0);return t?r/t:-1};
   const rdOf=s=>{const r=readiness(s);return r==null?"none":band(r).c};
@@ -76,7 +76,7 @@ function tClass(){
    <ul>${offS.map(s=>`<li><b>${esc(s.name)}</b> (${s.prog.tutor.off.n}): ${(s.prog.tutor.off.last||[]).slice(-3).map(x=>`<span class="muted">“${esc(x.t)}”</span>`).join(", ")}</li>`).join("")}</ul></details></div>`:"";
   return `${storyCard()}${startHere()}${nextCard()}${tsCard(CUR.raw)}${goalCard}${hsClassCard()}${readinessCard()}${evClassCard()}${stepsCard()}${handsCard()}${attnCard}${offCard}${groupsCard}<div class="card" id="every"><div class="top"><h2>Every student</h2><span class="row" style="gap:.4rem;margin:0"><button class="small" id="sub-day">🧑‍🏫 Sub Day</button><select id="hb-std" aria-label="Standard for the Help Buddy warm-up" style="max-width:220px"><option value="">🦝 Most of the class (auto)</option>${SKILLS.filter(k=>genOf(k)).map(k=>`<option value="${esc(k.id)}">${esc(k.std)} · ${esc(k.name)}</option>`).join("")}</select><button class="ghost small" id="help-buddy">🦝 Help Buddy warm-up</button><button class="ghost small" id="csv-dl">Download class data (CSV)</button></span></div>
    <p class="muted">Each student’s path skips any standard where they got every test question right. Students marked “sample” are examples and are not counted in your goal. Tap a name for their portfolio, or a column title to sort.</p>${filters}
-   <div class="tablewrap"><table class="roster"><thead><tr>${th("name","Student")}<th>Missed on test</th>${th("path","Path")}<th>Working on</th>${th("acc","Accuracy")}${th("rd","Readiness")}<th>Asked Scout</th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="muted">${CUR.students.length?"No students match.":"No students yet."}</td></tr>`}</tbody></table></div>
+   <div class="tablewrap" tabindex="0"><table class="roster"><thead><tr>${th("name","Student")}<th>Missed on test</th>${th("path","Path")}<th>Working on</th>${th("acc","Accuracy")}${th("rd","Readiness")}<th>Asked Scout</th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="muted">${CUR.students.length?"No students match.":"No students yet."}</td></tr>`}</tbody></table></div>
    <p class="muted" style="font-size:.85rem">Progress saves online, so students can use any device. <button class="link" id="reload">Refresh</button></p></div>${growthCard()}`;
 }
 const heat=p=>p>=70?"var(--go)":p>=50?"var(--star)":"var(--oops)";
@@ -90,7 +90,7 @@ function reviewHTML(q,label){const sk=SKILLS.find(k=>k.id===q.skill)||{std:(LIBG
     ${q.choices?`<div class="choices${q.choices.some(c=>typeof c==="string"&&c.length>40)||q.choices.some(c=>c.table)?' one':''}">${q.choices.map((c,i)=>{const l=L[i],ok=q.type==="mc"?q.ans===l:q.ans.includes(l);
       return `<div class="choice${ok?' right':''}"><b class="l">${l}</b><div>${choiceInner(c)}</div></div>`}).join("")}</div>`:''}
     ${q.type==="input"?`<p class="eq">Answer: ${esc(q.ans)}</p>`:''}
-    ${q.type==="matrix"?`<table class="matrix"><tr><th></th>${q.cols.map(c=>`<th>Rounds to ${c}</th>`).join("")}</tr>${q.rows.map(r=>`<tr><td>${r.n}</td>${q.cols.map(c=>`<td class="${c===r.a?'right':''}">${c===r.a?'✔':''}</td>`).join("")}</tr>`).join("")}</table>`:''}
+    ${q.type==="matrix"?`<table class="matrix"><tr><th><span class="sr-only">Actions</span></th>${q.cols.map(c=>`<th>Rounds to ${c}</th>`).join("")}</tr>${q.rows.map(r=>`<tr><td>${r.n}</td>${q.cols.map(c=>`<td class="${c===r.a?'right':''}">${c===r.a?'✔':''}</td>`).join("")}</tr>`).join("")}</table>`:''}
    </div>
    <div class="card"><h3>Key words to highlight</h3><p>${q.keys.map(k=>`<span class="tok hit">${fmt(k)}</span>`).join(" ")}</p>
     <h3>Step by step</h3><ol class="bd">${q.steps.map(st=>`<li><p>${fmt(st.say)}</p>${st.show?`<div class="stage" style="margin-top:8px;min-height:0">${showHTML(st.show)}</div>`:''}</li>`).join("")}</ol>
@@ -135,7 +135,7 @@ function tItems(){
   const sorted=[...rows].sort((a,b)=>(a.pct??101)-(b.pct??101));
   return `<div class="card"><h2>Item analysis</h2><p class="muted">Test % is how many students got each question right on ${esc(TEST_NAME)} (from the missed questions you entered). Lowest first, so you know what to reteach. Sample students are not counted.</p>
    ${withData.length?"":`<p class="fb info">Add your students and their missed questions to fill this in.</p>`}
-   <div class="tablewrap"><table class="roster"><thead><tr><th>Question</th><th>Standard</th><th>Right on test</th><th>Right in practice</th><th></th></tr></thead><tbody>${sorted.map(r=>`<tr><td><b>#${r.n}</b></td><td>${esc(r.sk.std)}</td><td>${r.pct==null?"—":`<span class="bar"><span style="width:${r.pct}%;background:${heat(r.pct)}"></span></span> ${r.pct}%`}</td><td>${r.t?Math.round(r.r/r.t*100)+"% of "+r.t:"—"}</td><td><button class="ghost small" data-goq="${r.n}">Breakdown</button></td></tr>`).join("")}</tbody></table></div></div>`;
+   <div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Question</th><th>Standard</th><th>Right on test</th><th>Right in practice</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>${sorted.map(r=>`<tr><td><b>#${r.n}</b></td><td>${esc(r.sk.std)}</td><td>${r.pct==null?"—":`<span class="bar"><span style="width:${r.pct}%;background:${heat(r.pct)}"></span></span> ${r.pct}%`}</td><td>${r.t?Math.round(r.r/r.t*100)+"% of "+r.t:"—"}</td><td><button class="ghost small" data-goq="${r.n}">Breakdown</button></td></tr>`).join("")}</tbody></table></div></div>`;
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-goq]");if(b){S.tab="bd";S.bdq=+b.dataset.goq;render()}});
 
@@ -164,19 +164,22 @@ function tSetup(){
    <p class="muted" id="upd-msg" role="status"></p>
    <div class="row" id="rm-box"><button class="ghost" id="rm">Remove ${esc(e.name)}</button></div></div>`:"";
   const imp=S.imp;
-  const csvCard=`<div class="card" id="csv-card"><h2>Import scores from a spreadsheet</h2>
-   <p class="muted">Save your spreadsheet as CSV. It needs a <b>Name</b> column. Then either a <b>Missed</b> column (like “2, 5, 11”), or one column per question named 1, 2, 3… with 1/0, right/wrong, or the letter each student picked. A <b>Code</b> column is optional; new students without one get a random code. Students already in the class are matched by name.</p>
-   <div class="row"><label class="ghost filebtn">Choose CSV file<input type="file" id="sc-file" accept=".csv,text/csv" hidden></label><button class="link" id="sc-tpl">Download a sample CSV</button></div>
-   ${imp?`<div class="tablewrap"><table class="roster"><thead><tr><th>Name</th><th>Code</th><th>Missed</th><th></th></tr></thead><tbody>${imp.rows.map(r=>`<tr><td>${esc(r.name)}</td><td>${esc(r.code)}</td><td>${missedText(r.missed)}</td><td>${r.match?'<span class="pill">update</span>':'<span class="pill go">new</span>'}</td></tr>`).join("")}</tbody></table></div>
+  const csvCard=`<div class="card" id="csv-card"><h2>Add your class from a spreadsheet</h2>
+   <p class="muted">Upload an Excel or CSV file, or paste names straight from a spreadsheet, one student per line. Only names are needed. If the file also has a <b>Missed</b> column (like “2, 5, 11”), or one column per question named 1, 2, 3… with 1/0, right/wrong, or the letter each student picked, scores come in too. A <b>Code</b> column is optional; new students without one get a random code. Students already in the class are matched by name.</p>
+   <div class="row"><label class="ghost filebtn">Choose Excel or CSV file<input type="file" id="sc-file" accept=".csv,.xlsx,.txt,.tsv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label><button class="link" id="sc-tpl">Download a sample CSV</button></div>
+   <label class="f" style="margin-top:.6rem">Or paste names<textarea id="sc-paste" rows="4" placeholder="Ava Johnson&#10;Ben Carter&#10;Johnson, Imani"></textarea></label>
+   <div class="row"><button class="ghost small" id="sc-pgo">Preview pasted names</button>
+    <label class="chk"><input type="checkbox" id="sc-short" ${S.impShort!==false?"checked":""}> Shorten to first name and last initial (Ava J.) for privacy</label></div>
+   ${imp?`<div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Name</th><th>Code</th><th>Missed</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>${imp.rows.map(r=>`<tr><td>${esc(r.name)}</td><td>${esc(r.code)||'<span class="muted small">new code</span>'}</td><td>${r.missed==null?'<span class="muted small">'+(r.match?'no change':'no scores yet')+'</span>':missedText(r.missed)}</td><td>${r.match?'<span class="pill">update</span>':'<span class="pill go">new</span>'}</td></tr>`).join("")}</tbody></table></div>
      ${imp.warn.length?`<div class="fb info">${imp.warn.slice(0,6).map(w=>`<p>${esc(w)}</p>`).join("")}</div>`:""}
-     <div class="row"><button id="sc-go">Import ${imp.rows.length} student${imp.rows.length===1?"":"s"}</button><button class="ghost" id="sc-no">Cancel</button></div>`:""}
+     <div class="row"><button id="sc-go">Add ${imp.rows.length} student${imp.rows.length===1?"":"s"}</button><button class="ghost" id="sc-no">Cancel</button></div>`:""}
    <p class="err" id="sc-err" role="alert"></p></div>`;
   const codes=list.length?`<div class="card"><div class="top"><h2>Login cards</h2><button class="ghost small" id="print">Print login cards</button></div>
    <p class="muted">Students sign in with the class code <b style="letter-spacing:.1em;color:var(--ink)">${esc(CUR.cls.join)}</b> and their own 4-digit code. A device remembers the class after the first sign-in.</p></div>`:"";
   return `<div class="card"><h2>Add a student</h2><p class="muted">Type the question numbers they missed on ${esc(TEST_NAME)}, like 2, 5, 11. Type “none” if they missed nothing. Leave it blank if you don’t have their scores yet, and they will practice every standard.</p>
    <form class="grid" id="add"><label class="f">First name<input id="f-name" required maxlength="60"></label><label class="f">Secret code (4 digits)<input id="f-code" inputmode="numeric" pattern="[0-9]{4}" required value="${newCode(new Set(list.map(s=>s.code)))}"></label>
     <label class="f" style="grid-column:1/-1">Questions missed<input id="f-missed" placeholder="2, 5, 11, 19"></label><button type="submit">Add student</button></form><p class="err" id="add-err" role="alert"></p></div>
-  ${assignCard()}${editCard}${csvCard}${codes}
+  ${csvCard}${assignCard()}${editCard}${codes}
   ${oldReal.length?`<div class="card"><h2>Students saved on this device</h2><p class="muted">This device has ${oldReal.length} student${oldReal.length===1?"":"s"} from the old version of the app (${esc(oldReal.slice(0,5).map(s=>s.name).join(", "))}${oldReal.length>5?"…":""}). Bring them into ${esc(CUR.cls.name)} with their progress?</p>
    <div class="row"><button id="old-go">Bring them in</button></div><p class="err" id="old-err" role="alert"></p></div>`:""}`;
 }
@@ -209,17 +212,21 @@ function wireSetup(){
   }
   document.getElementById("sc-tpl").onclick=()=>{const nums=qNums();
     download("scores-sample.csv",`Name,Code,${nums.join(",")}\nAva,1234,${nums.map((n,i)=>i%3?1:0).join(",")}\nBen,,${nums.map(()=>1).join(",")}\n`)};
+  const scParse=src=>{S.impSrc=src;S.imp=parseScores(src);render();document.getElementById("csv-card")?.scrollIntoView({block:"start"})};
   document.getElementById("sc-file").onchange=async e=>{const f=e.target.files[0];if(!f)return;const err=document.getElementById("sc-err");
-    try{S.imp=parseScores(await f.text());render()}catch(er){err.textContent=er.message}};
+    try{scParse(/\.xlsx$/i.test(f.name)?await readXlsx(await f.arrayBuffer()):await f.text())}catch(er){err.textContent=er.message}};
+  document.getElementById("sc-pgo").onclick=()=>{const t=document.getElementById("sc-paste").value,err=document.getElementById("sc-err");
+    if(!t.trim()){err.textContent="Paste some names first.";return}try{scParse(t)}catch(er){err.textContent=er.message}};
+  document.getElementById("sc-short").onchange=e=>{S.impShort=e.target.checked;if(S.impSrc){try{S.imp=parseScores(S.impSrc)}catch(er){}}render()};
   const go=document.getElementById("sc-go");
-  if(go){document.getElementById("sc-no").onclick=()=>{S.imp=null;render()};
+  if(go){document.getElementById("sc-no").onclick=()=>{S.imp=null;S.impSrc=null;render()};
     go.onclick=async()=>{busy(go,"Importing…");const imp=S.imp,next=list.map(s=>({...s,missed:{...(s.missed||{})}})),taken=new Set(next.map(s=>s.code)),resets=[];
       for(const r of imp.rows){
-        if(r.match){const s=next.find(x=>x.id===r.match);const before=JSON.stringify(s.missed[TESTID]??null);s.missed[TESTID]=r.missed;if(r.code&&!taken.has(r.code)){taken.delete(s.code);s.code=r.code;taken.add(r.code)}if(before!==JSON.stringify(r.missed))resets.push(s)}
-        else{const code=r.code&&!taken.has(r.code)?r.code:newCode(taken);taken.add(code);next.push({name:r.name,code,missed:{[TESTID]:r.missed}})}
+        if(r.match){const s=next.find(x=>x.id===r.match);if(r.code&&!taken.has(r.code)){taken.delete(s.code);s.code=r.code;taken.add(r.code)}if(r.missed!==undefined){const before=JSON.stringify(s.missed[TESTID]??null);s.missed[TESTID]=r.missed;if(before!==JSON.stringify(r.missed))resets.push(s)}}
+        else{const code=r.code&&!taken.has(r.code)?r.code:newCode(taken);taken.add(code);next.push({name:r.name,code,missed:{[TESTID]:r.missed??null}})}
       }
       try{for(const s of resets){const old=s.prog?.[TESTID];await api("progSet",{classId:CUR.cls.id,studentId:s.id,testId:TESTID,prog:old?{stars:old.stars||0,badges:old.badges||{}}:null});s.prog={...(s.prog||{}),[TESTID]:old?{stars:old.stars||0,badges:old.badges||{}}:undefined}}
-        await saveRoster(next);S.imp=null;S.tab="class";render()}
+        await saveRoster(next);S.imp=null;S.impSrc=null;S.tab="class";render()}
       catch(er){document.getElementById("sc-err").textContent=er.message;go.disabled=false;go.textContent="Try again"}}}
   const pr=document.getElementById("print");if(pr)pr.onclick=printCards;
   const og=document.getElementById("old-go");
@@ -238,6 +245,24 @@ function printCards(){
 }
 function download(name,text){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"text/csv"}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 
+/* ---------- Excel (.xlsx): read the first sheet with the browser's own unzip ---------- */
+async function readXlsx(buf){const u=new Uint8Array(buf),dv=new DataView(buf),td=new TextDecoder();
+  let e=-1;for(let i=u.length-22;i>=Math.max(0,u.length-70000);i--)if(dv.getUint32(i,true)===0x06054b50){e=i;break}
+  if(e<0)throw new Error("That file doesn’t look like an Excel file. Save it as .xlsx or .csv and try again.");
+  const files={};let p=dv.getUint32(e+16,true);const n=dv.getUint16(e+10,true);
+  for(let k=0;k<n;k++){const m=dv.getUint16(p+10,true),cs=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),off=dv.getUint32(p+42,true);
+    files[td.decode(u.subarray(p+46,p+46+nl))]={m,cs,off};p+=46+nl+xl+cl}
+  const get=async name=>{const f=files[name];if(!f)return null;const ln=dv.getUint16(f.off+26,true),lx=dv.getUint16(f.off+28,true),d=u.subarray(f.off+30+ln+lx,f.off+30+ln+lx+f.cs);
+    if(f.m===0)return td.decode(d);if(f.m!==8||typeof DecompressionStream==="undefined")throw new Error("This browser can’t open that Excel file. Save it as CSV and try again.");
+    return await new Response(new Blob([d]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text()};
+  const X=t=>new DOMParser().parseFromString(t,"application/xml");
+  const ssT=await get("xl/sharedStrings.xml"),ss=ssT?[...X(ssT).getElementsByTagName("si")].map(si=>[...si.getElementsByTagName("t")].map(t=>t.textContent).join("")):[];
+  const sheetName=Object.keys(files).filter(f=>/^xl\/worksheets\/sheet\d+\.xml$/.test(f)).sort((a,b)=>parseInt(a.match(/\d+/)[0])-parseInt(b.match(/\d+/)[0]))[0];
+  const sh=sheetName&&await get(sheetName);if(!sh)throw new Error("I couldn’t find a sheet in that Excel file.");
+  const col=r=>{let c=0;for(const ch of r.replace(/\d+/g,""))c=c*26+ch.charCodeAt(0)-64;return c-1};
+  return [...X(sh).getElementsByTagName("row")].map(row=>{const out=[];[...row.getElementsByTagName("c")].forEach(c=>{const t=c.getAttribute("t"),v=c.getElementsByTagName("v")[0]?.textContent??"",
+    val=t==="s"?ss[+v]??"":t==="inlineStr"?[...c.getElementsByTagName("t")].map(x=>x.textContent).join(""):v;out[col(c.getAttribute("r")||"A")]=val});return Array.from(out,x=>x??"")})}
+
 /* ---------- CSV ---------- */
 function parseCSV(text){
   text=text.replace(/^﻿/,"");const rows=[];let row=[],f="",q=false;
@@ -248,16 +273,29 @@ function parseCSV(text){
   row.push(f);if(row.some(x=>x.trim()))rows.push(row);
   return rows.map(r=>r.map(x=>x.trim()));
 }
+/* "Johnson, Ava" -> "Ava Johnson"; shortened: "Ava J." */
+function rosterName(first,last){first=String(first||"").replace(/\s+/g," ").trim();last=String(last||"").replace(/\s+/g," ").trim();
+  if(!last){const c=first.match(/^([^,]+),\s*(.+)$/);if(c){last=c[1];first=c[2]}else if(S.impShort!==false){const w=first.split(" ");if(w.length>1){last=w.pop();first=w.join(" ")}}}
+  if(!last)return first.slice(0,60);
+  return (S.impShort!==false?`${first} ${last[0].toUpperCase()}.`:`${first} ${last}`).slice(0,60)}
 function parseScores(text){
-  const rows=parseCSV(text);if(rows.length<2)throw new Error("The file needs a header row and at least one student.");
-  const h=rows[0].map(x=>x.toLowerCase().replace(/[^a-z0-9#]/g,""));
-  const ni=h.findIndex(x=>/^(name|student|studentname|firstname|first)$/.test(x));
-  if(ni<0)throw new Error("I couldn’t find a Name column. Name the first column “Name”.");
+  let rows=Array.isArray(text)?text.map(r=>r.map(x=>String(x??"").trim())):parseCSV(text);rows=rows.filter(r=>r.some(x=>x));
+  if(!rows.length)throw new Error("No students were found.");
+  let h=rows[0].map(x=>x.toLowerCase().replace(/[^a-z0-9#]/g,""));
+  let ni=h.findIndex(x=>/^(name|student|students|studentname|fullname|first|firstname)$/.test(x)),li=h.findIndex(x=>/^(last|lastname|surname)$/.test(x));
+  if(ni<0){/* a plain list of names: no header row */
+    if(rows[0].length>2||rows.some(r=>/^\d+$/.test(r[0])))throw new Error("I couldn’t find a Name column. Name the first column “Name”, or paste just the names, one per line.");
+    /* a typed line "Last, First" stays one name; two spreadsheet cells are first and last */
+    const L=typeof text==="string"?text.replace(/^\uFEFF/,"").split(/\r?\n/).filter(l=>l.trim()).map(l=>l.includes("\t")?l.split("\t").map(x=>x.trim()):[l.trim().replace(/^"|"$/g,"")]):rows;
+    rows=[["name","last"],...L.map(r=>[r[0]||"",r[1]||""])];h=["name","last"];ni=0;li=1;
+    if(rows.length===2&&/^(name|names)$/i.test(rows[1][0]))throw new Error("No students were found.")}
   const ci=h.findIndex(x=>/^(code|secretcode|pin)$/.test(x)),mi=h.findIndex(x=>/^(missed|wrong|questionsmissed)$/.test(x));
   const qcols=h.map((x,i)=>{const m=x.match(/^(?:q|question|#)?(\d{1,3})$/);return m?{i,n:+m[1]}:null}).filter(Boolean).filter(c=>c.i!==ci);
-  if(mi<0&&!qcols.length)throw new Error("Add a “Missed” column, or one column per question named 1, 2, 3…");
+  const hasScores=mi>=0||qcols.length>0;
   const warn=[],out=[];
-  for(const r of rows.slice(1)){const name=(r[ni]||"").trim();if(!name)continue;
+  const seen=new Set();
+  for(const r of rows.slice(1)){const name=rosterName(r[ni],li>=0?r[li]:"");if(!name)continue;
+    if(seen.has(name.toLowerCase())){warn.push(`${name} is listed twice, so only the first one was kept. Add a last initial to tell them apart.`);continue}seen.add(name.toLowerCase());
     let code=ci>=0?(r[ci]||"").replace(/\D/g,""):"";if(code&&code.length!==4){warn.push(`${name}: code “${r[ci]}” is not 4 digits, so a new one will be made.`);code=""}
     let missed;
     if(mi>=0&&(r[mi]||"").trim()!=="")missed=parseMissed(r[mi]);
@@ -274,9 +312,10 @@ function parseScores(text){
       if(!any)missed=null}
     else missed=null;
     const match=CUR.raw.find(s=>s.name.trim().toLowerCase()===name.toLowerCase());
-    out.push({name,code,missed,match:match&&match.id});
+    out.push({name,code,missed:hasScores?missed:undefined,match:match&&match.id});
   }
-  if(!out.length)throw new Error("No students were found in the file.");
+  if(!out.length)throw new Error("No students were found.");
+  if(out.length>60)throw new Error(`That is ${out.length} students. Add up to 60 at a time, one class at a time.`);
   return {rows:out,warn};
 }
 
@@ -375,10 +414,10 @@ function tCompare(){
     rows=Object.entries(byT).map(([tid,list])=>row(sum(list),esc(tName(tid)),`${list.length} class${list.length===1?"":"es"}`,"tgrp")+list.map(x=>row(x,"&nbsp;&nbsp;"+esc(x.cls.name),"")).join("")).join("")}
   if(st.length>1)rows+=row(sum(st),"All classes","","tot");
   const bars=st.map(x=>`<div class="hb"><span class="hl2">${esc(x.cls.name)} <span class="muted">· ${esc(tName(x.cls.teacherId))}</span></span><span class="track"><span style="width:${x.fin||0}%"></span><i style="left:${x.goal}%" title="Goal ${x.goal}%"></i></span><b>${x.fin==null?"—":x.fin+"%"}</b></div>`).join("");
-  const stdTable=`<div class="tablewrap"><table class="roster cmp"><thead><tr><th>Standard</th>${st.map(x=>`<th>${esc(x.cls.name)}<br><span style="text-transform:none">${esc(tName(x.cls.teacherId))}</span></th>`).join("")}${st.length>1?"<th>All</th>":""}</tr></thead><tbody>
+  const stdTable=`<div class="tablewrap" tabindex="0"><table class="roster cmp"><thead><tr><th>Standard</th>${st.map(x=>`<th>${esc(x.cls.name)}<br><span style="text-transform:none">${esc(tName(x.cls.teacherId))}</span></th>`).join("")}${st.length>1?"<th>All</th>":""}</tr></thead><tbody>
     ${SKILLS.map((k,i)=>`<tr><td><b>${esc(k.std)}</b><br><span class="muted">${esc(k.name)}</span></td>${st.map(x=>cell(S.cmpM==="test"?x.stdTest[i]:x.std[i])).join("")}${st.length>1?cell(S.cmpM==="test"?sum(st).stdTest[i]:sum(st).std[i]):""}</tr>`).join("")}</tbody></table></div>`;
   return pick+`<div class="card"><h2>Class summary</h2>
-   <div class="tablewrap"><table class="roster cmp"><thead><tr><th>${S.cmpG==="c"?"Class":"Teacher / class"}</th><th>Students</th><th>Test score</th><th>Finished path</th><th>Practice accuracy</th><th>Answered</th><th>Active this week</th><th>Asked Scout</th></tr></thead><tbody>${rows}</tbody></table></div>
+   <div class="tablewrap" tabindex="0"><table class="roster cmp"><thead><tr><th>${S.cmpG==="c"?"Class":"Teacher / class"}</th><th>Students</th><th>Test score</th><th>Finished path</th><th>Practice accuracy</th><th>Answered</th><th>Active this week</th><th>Asked Scout</th></tr></thead><tbody>${rows}</tbody></table></div>
    <p class="muted" style="font-size:.85rem">Test score is the average % right on ${esc(TEST_NAME)} for students whose scores you entered. Finished path means mastery on every standard they missed.</p></div>
    <div class="card"><h2>Finished their path</h2><p class="muted">The line on each bar is that class’s goal.</p><div class="hbars">${bars}</div></div>
    <div class="card"><div class="top"><h2>By standard</h2><div class="tabs" role="group" aria-label="Measure"><button class="small" data-m="prac" aria-pressed="${S.cmpM!=="test"}">Proficient now</button><button class="small" data-m="test" aria-pressed="${S.cmpM==="test"}">Right on the test</button></div></div>
@@ -406,11 +445,13 @@ function tTeachers(){
   const account=`<div class="card"><h2>My account</h2><form class="grid" id="me-f"><label class="f">My name (what students see)<input id="me-name" value="${esc(me.name)}" required maxlength="60"></label>
     <label class="f">New teacher code (leave blank to keep)<input id="me-code" inputmode="numeric" pattern="[0-9]{4,6}"></label><button type="submit">Save</button></form><p class="muted" id="me-msg" role="status"></p>
     <h3 style="margin:.8rem 0 .2rem">Sign in with Google</h3>${me.googleEmail?`<p>Connected: <b>${esc(me.googleEmail)}</b>. You can sign in with Google instead of your code.</p><div class="row"><button class="ghost small" id="g-unlink">Disconnect Google</button></div>`
-      :`<p class="muted small">Connect your school Google account once, and you can sign in with Google instead of typing your code.</p>${googleBox("g-link","Connect Google")}`}<p class="muted small" id="g-msg" role="status"></p></div>`;
+      :`<p class="muted small">Connect your school Google account once, and you can sign in with Google instead of typing your code.</p>${googleBox("g-link","Connect Google")}`}<p class="muted small" id="g-msg" role="status"></p>
+    ${me.cleverName?`<h3 style="margin:.8rem 0 .2rem">Log in with Clever</h3><p>Connected: <b>${esc(me.cleverName)}</b>. You can sign in with Clever instead of your code.</p><div class="row"><button class="ghost small" id="c-unlink">Disconnect Clever</button></div>`
+      :typeof CLEVER!=="undefined"&&CLEVER&&CLEVER.on?`<h3 style="margin:.8rem 0 .2rem">Log in with Clever</h3><p class="muted small">Sign out, tap <b>Log in with Clever</b>, then type your teacher code once. After that, Clever signs you in.</p>`:""}</div>`;
   if(!isAdmin())return account;
   const count=id=>TB.classes.filter(c=>c.teacherId===id).length;
   return `${licenseCard()}<div class="card"><div class="top"><h2>Teachers</h2><span class="pill">${TB.teachers.length}</span></div>
-   <div class="tablewrap"><table class="roster"><thead><tr><th>Teacher</th><th>Classes</th><th>Role</th><th></th></tr></thead><tbody>
+   <div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Teacher</th><th>Classes</th><th>Role</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
    ${TB.teachers.map(t=>`<tr><td><b>${esc(t.name)}</b>${t.id===me.id?' <span class="muted">(you)</span>':""}</td><td>${count(t.id)}</td><td>${t.admin?'<span class="pill purple">Admin</span>':"Teacher"}</td><td>${t.id===me.id?"":`<button class="ghost small" data-et="${t.id}">Edit</button>`}</td></tr>`).join("")}</tbody></table></div>
    <p class="muted" style="font-size:.85rem">Admins can see and compare every class and add teachers. Teachers see only their own classes.</p></div>
   ${S.et?(()=>{const t=TB.teachers.find(x=>x.id===S.et);return `<div class="card"><h2>Edit ${esc(t.name)}</h2><form class="grid" id="et-f"><label class="f">Name<input id="et-name" value="${esc(t.name)}" required maxlength="60"></label>
@@ -420,13 +461,14 @@ function tTeachers(){
    <form class="grid" id="nt"><label class="f">Name (what students see)<input id="nt-name" required maxlength="60" placeholder="Ms. Rivera"></label><label class="f">Teacher code (4 to 6 digits)<input id="nt-code" inputmode="numeric" pattern="[0-9]{4,6}" required></label>
     <label class="f chk"><span><input type="checkbox" id="nt-admin"> School admin</span></label><button type="submit">Add teacher</button></form><p class="err" id="nt-err" role="alert"></p></div>
   <div class="card"><h2>Assign classes</h2><p class="muted">Pick the teacher for each class.</p>
-   ${TB.classes.length?`<div class="tablewrap"><table class="roster"><thead><tr><th>Class</th><th>Test</th><th>Teacher</th></tr></thead><tbody>${TB.classes.map(c=>`<tr><td><b>${esc(c.name)}</b></td><td>${esc(testName(c.testId))}</td><td><select data-asg="${c.id}" aria-label="Teacher for ${esc(c.name)}">${TB.teachers.map(t=>`<option value="${t.id}" ${t.id===c.teacherId?"selected":""}>${esc(t.name)}</option>`).join("")}</select></td></tr>`).join("")}</tbody></table></div><p class="muted" id="asg-msg" role="status"></p>`:`<p class="muted">No classes yet.</p>`}</div>
-  ${backupCard()}${account}`;
+   ${TB.classes.length?`<div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Class</th><th>Test</th><th>Teacher</th></tr></thead><tbody>${TB.classes.map(c=>`<tr><td><b>${esc(c.name)}</b></td><td>${esc(testName(c.testId))}</td><td><select data-asg="${c.id}" aria-label="Teacher for ${esc(c.name)}">${TB.teachers.map(t=>`<option value="${t.id}" ${t.id===c.teacherId?"selected":""}>${esc(t.name)}</option>`).join("")}</select></td></tr>`).join("")}</tbody></table></div><p class="muted" id="asg-msg" role="status"></p>`:`<p class="muted">No classes yet.</p>`}</div>
+  ${backupCard()}${yearCard()}${account}`;
 }
 function wireTeachers(){
   wireGoogle("g-link",async cred=>{try{TB={...TB,...(await api("googleLink",{credential:cred}))};flash("g-msg","Google connected. Next time, tap Sign in with Google.");render()}catch(e){const m=document.getElementById("g-msg");if(m)m.textContent=e.message}},"continue_with");
+  const cu=document.getElementById("c-unlink");if(cu)cu.onclick=async()=>{if(!confirm("Disconnect Clever? You'll sign in with your teacher code."))return;try{TB={...TB,...(await api("cleverUnlink",{}))};render()}catch(e){document.getElementById("g-msg").textContent=e.message}};
   const gu=document.getElementById("g-unlink");if(gu)gu.onclick=async()=>{if(!confirm("Disconnect Google? You'll sign in with your teacher code."))return;try{TB={...TB,...(await api("googleUnlink",{}))};render()}catch(e){document.getElementById("g-msg").textContent=e.message}};
-  wireBackups();
+  wireBackups();wireYear();
   document.getElementById("me-f").onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Saving…");
     try{Object.assign(TB,await api("teacherSave",{id:TB.me.id,name:document.getElementById("me-name").value,code:document.getElementById("me-code").value.trim()}));TEACHER=TB.me.name;flash("me-msg","Saved.");render()}
     catch(er){document.getElementById("me-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save"}};
@@ -454,7 +496,7 @@ function tTests(){
    <p class="muted">Pick standards and how many questions each gets, preview and swap questions, then assign it to a class or group. Pick the class:</p>
    <div class="row">${mineT.map(c=>`<button class="ghost" data-tbopen="${esc(c.id)}">＋ ${esc(c.name)}</button>`).join("")}</div></div>`:"";
   return build+`<div class="card"><h2>Tests</h2><p class="muted">Each class practices one test. Import a new test, then pick it in a class’s settings.</p>
-   ${(()=>{const gr=t=>+t.id.slice(3),std=TB.tests.filter(t=>isStdT(t.id));return [["Math",std.filter(t=>!isSci(gr(t))&&!isELA(gr(t)))],["Science",std.filter(t=>isSci(gr(t)))],["Reading & language",std.filter(t=>isELA(gr(t)))],["Benchmark tests (enter missed question numbers)",TB.tests.filter(t=>!isStdT(t.id))]].filter(g=>g[1].length)})().map(([g,ts])=>{const nUse=ts.filter(t=>TB.classes.some(c=>c.testId===t.id)).length;return `<details class="tgrp" ${nUse?"open":""}><summary><b>${esc(g)}</b> <span class="muted">${ts.length} test${ts.length===1?"":"s"}${nUse?` · ${nUse} in use`:""}</span></summary><div class="tablewrap"><table class="roster"><thead><tr><th>Test</th><th>Questions</th><th>Standards</th><th>Used by</th><th></th></tr></thead><tbody>
+   ${(()=>{const gr=t=>+t.id.slice(3),std=TB.tests.filter(t=>isStdT(t.id));return [["Math",std.filter(t=>!isSci(gr(t))&&!isELA(gr(t)))],["Science",std.filter(t=>isSci(gr(t)))],["Reading & language",std.filter(t=>isELA(gr(t)))],["Benchmark tests (enter missed question numbers)",TB.tests.filter(t=>!isStdT(t.id))]].filter(g=>g[1].length)})().map(([g,ts])=>{const nUse=ts.filter(t=>TB.classes.some(c=>c.testId===t.id)).length;return `<details class="tgrp" ${nUse?"open":""}><summary><b>${esc(g)}</b> <span class="muted">${ts.length} test${ts.length===1?"":"s"}${nUse?` · ${nUse} in use`:""}</span></summary><div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Test</th><th>Questions</th><th>Standards</th><th>Used by</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
    ${ts.map(t=>`<tr><td><b>${esc(t.name)}</b>${t.ownerId?`<br><span class="muted">by ${esc(tName(t.ownerId))}</span>`:""}</td><td>${t.nq}</td><td>${t.skills}</td><td>${used(t.id).map(c=>esc(c.name)).join(", ")||'<span class="muted">—</span>'}</td>
      <td>${t.builtIn?"":`<div class="row">${TB.ai?`<button class="ghost small" data-more="${t.id}">More practice</button>`:""}${(isAdmin()||t.ownerId===TB.me.id)?`<button class="ghost small" data-edt="${t.id}">Edit</button><button class="ghost small" data-delt="${t.id}">Delete</button>`:""}</div>`}</td></tr>`).join("")}</tbody></table></div></details>`}).join("")}
    <p class="err" id="t-err" role="alert">${esc(S.terr||"")}</p></div>
@@ -726,7 +768,7 @@ function tPace(){const g=gradeOf();
    <p class="muted">The weeks left before the state test, with standards grouped the way they are best taught. It moves standards your class has already mastered to a quick review at the end, using your class’s real practice data. “Major work” marks the big ideas of the course in the Mississippi College- and Career-Readiness Standards. Check your district’s pacing calendar and MDE’s MAAP blueprint for exact point weights.</p>
    <div class="row"><label class="f">Start week<input type="date" id="pc-start" value="${cfg.start}"></label><label class="f">State test date<input type="date" id="pc-test" value="${cfg.test}"></label><label class="f">Weeks off (breaks, testing)<input type="number" id="pc-off" min="0" max="20" value="${cfg.off}" style="width:90px"></label><button class="ghost small" id="pc-print">🖨 Print</button></div>
    <p style="margin:.4rem 0 0"><b>${P.avail} teaching weeks</b> left (${P.weeks} weeks minus ${cfg.off} off). The plan needs about <b>${Math.round(P.need*2)/2} weeks</b>.${P.scale<1?` <span class="pill gold">Tight: each unit is shortened to fit. Consider folding graphs into other units and keeping measurement lessons short.</span>`:P.avail-P.need>=2?` <span class="pill go">You have about ${Math.round((P.avail-P.need)*2)/2} extra weeks for review and test practice.</span>`:""}</p></div>
-   <div class="card"><div class="tablewrap"><table class="roster"><thead><tr><th>Weeks</th><th>Unit</th><th>Standards</th><th>How</th><th>Class mastery</th></tr></thead><tbody>
+   <div class="card"><div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Weeks</th><th>Unit</th><th>Standards</th><th>How</th><th>Class mastery</th></tr></thead><tbody>
    ${P.rows.map(r=>`<tr><td style="white-space:nowrap"><b>${wd(r.from)}–${wd(r.to,1)}</b><br><span class="muted small">${r.len} wk</span></td>
      <td><b>${esc(r.name)}</b> <span class="pill ${r.wt==="major"?"purple":""}">${PACE_WT[r.wt]}</span>${r.done?` <span class="pill go">Mostly mastered: quick review</span>`:""}<br><span class="muted small">${esc(r.why)}</span></td>
      <td>${r.stds.join(", ")}</td><td>${PACE_HOW[r.how]}</td><td>${pct(r.m)} ${bar(r.m)}</td></tr>`).join("")}
@@ -808,7 +850,7 @@ function tFamily(){const F=S.fam||(S.fam={lang:{},std:{},txt:{}}),wk=famWk(),H=H
      return `<div class="card fam" data-sid="${s.id}"><div class="top"><h3 style="margin:0">${esc(s.name)}</h3><div class="row" style="gap:6px">${hm[s.id]?`<span class="pill go">Sent ✓</span>`:""}${done?`<span class="pill gold">🏠 Did the home mission!</span>`:""}</div></div>
       <div class="row"><label class="f" style="flex:2;min-width:200px">Home activity skill<select data-fstd="${s.id}"><option value="">No activity (progress only)</option>${codes.map(c=>`<option value="${c}" ${c===std?"selected":""}>${esc(c)} · ${esc(H[c].en.n)}${pk&&pk.std===c?(pk.why==="practice"?" (needs practice)":" (up next)"):""}</option>`).join("")}</select></label>
        <label class="f" style="flex:1;min-width:120px">Language<select data-flang="${s.id}"><option value="en" ${lang==="en"?"selected":""}>English</option><option value="es" ${lang==="es"?"selected":""}>Español</option></select></label></div>
-      <textarea data-ftxt="${s.id}|${std}|${lang}" rows="5" style="width:100%;font:inherit;padding:10px;border-radius:12px;border:2px solid var(--rule)">${esc(txt)}</textarea>
+      <textarea data-ftxt="${s.id}|${std}|${lang}" aria-label="Message for ${esc(s.name)}" rows="5" style="width:100%;font:inherit;padding:10px;border-radius:12px;border:2px solid var(--rule)">${esc(txt)}</textarea>
       <div class="row"><a class="btn small" data-fsend="${s.id}" data-how="text" href="sms:?&body=${encodeURIComponent(txt)}">📱 Text</a><button class="ghost small" data-fsend="${s.id}" data-how="copy">📋 Copy</button><span class="muted" style="font-size:.85rem">${txt.length} characters</span></div></div>`}).join(""):`<div class="card"><p class="muted">Add students first.</p></div>`}`}
 function wireFamily(){const F=S.fam||(S.fam={lang:{},std:{},txt:{}}),keep=fn=>()=>{const y=scrollY;fn();render();scrollTo(0,y)};
   if(!Object.keys(HACT()).length){setTimeout(()=>{if(S.tab==="home")render()},400);return}
@@ -884,7 +926,7 @@ function assignCard(){
    </div>
    <div class="row"><button id="as-go" ${A.s.size&&A.c.size?"":"disabled"}>Assign ${A.c.size||""} standard${A.c.size===1?"":"s"} to ${A.s.size||""} student${A.s.size===1?"":"s"}</button><button class="ghost" id="as-rm" ${A.s.size&&A.c.size?"":"disabled"}>Remove from them</button></div>
    <p class="muted" id="as-msg" role="status"></p>
-   ${list.some(s=>(s.assigned||[]).length)?`<h3>Assigned now</h3><div class="tablewrap"><table class="roster"><tbody>${list.filter(s=>(s.assigned||[]).length).map(s=>`<tr><td><b>${esc(s.name)}</b></td><td><div class="row" style="gap:6px">${s.assigned.map(c=>`<span class="pill purple">${esc(c)} <button class="link small" data-unasg="${s.id}|${esc(c)}" aria-label="Remove ${esc(c)} from ${esc(s.name)}">×</button></span>`).join("")}</div></td></tr>`).join("")}</tbody></table></div>`:""}`
+   ${list.some(s=>(s.assigned||[]).length)?`<h3>Assigned now</h3><div class="tablewrap" tabindex="0"><table class="roster"><tbody>${list.filter(s=>(s.assigned||[]).length).map(s=>`<tr><td><b>${esc(s.name)}</b></td><td><div class="row" style="gap:6px">${s.assigned.map(c=>`<span class="pill purple">${esc(c)} <button class="link small" data-unasg="${s.id}|${esc(c)}" aria-label="Remove ${esc(c)} from ${esc(s.name)}">×</button></span>`).join("")}</div></td></tr>`).join("")}</tbody></table></div>`:""}`
    :`<p class="muted">Add students first.</p>`}</div>`;
 }
 function wireAssign(){
@@ -993,7 +1035,7 @@ function stdView(k){const real=realStudents(),rows=real.map(s=>stuStd(s,k)).filt
     :`<p class="muted">No one needs reteaching on ${esc(k.std)} right now.${c.few||c.none?` ${(c.few||0)+(c.none||0)} student${(c.few||0)+(c.none||0)===1?" hasn’t":"s haven’t"} practiced enough to judge yet.`:""}</p>`}</div>
   <div class="card"><h2>🤔 Why they’re missing it</h2>${mis.length?`<ol class="miss">${mis.slice(0,4).map((x,i)=>`<li><div class="mhead"><b>${x.who.size} student${x.who.size===1?"":"s"}</b><span class="muted">${x.n} time${x.n===1?"":"s"}</span></div><p class="mex">“${fmt(x.ex)}”</p><p class="small">${namesOf(real.filter(s=>x.who.has(s.name)),10)}</p></li>`).join("")}</ol>`:`<p class="muted">No wrong answers on ${esc(k.std)} yet.</p>`}</div>
   <div class="card"><div class="top"><h2>👥 Every student on ${esc(k.std)}</h2><input id="sv-q" type="search" placeholder="Search a name" value="${esc(S.sq||"")}" style="max-width:200px" aria-label="Search students"></div>
-   <div class="tablewrap"><table class="roster"><thead><tr><th>Student</th><th>Status</th><th>Accuracy</th><th>Recent tries</th><th>Last practiced</th></tr></thead><tbody>
+   <div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Student</th><th>Status</th><th>Accuracy</th><th>Recent tries</th><th>Last practiced</th></tr></thead><tbody>
    ${shown.map(x=>`<tr><td><b>${nameLink(x.s)}</b></td><td><span class="pill ${ST_LBL[x.st][0]}" style="white-space:nowrap">${stLbl(x)}</span></td><td>${x.acc==null?"—":`${x.acc}% <span class="muted small">on ${x.n} answer${x.n===1?"":"s"}</span>`}</td><td>${x.racc==null?"—":`${x.racc}% <span class="muted small">last ${x.rn}</span>`}</td><td>${agoDay(x.last)}</td></tr>`).join("")||`<tr><td colspan="5" class="muted">No students match.</td></tr>`}</tbody></table></div>
    <p class="muted small">“Not enough data yet” means fewer than 5 answers, so we don’t judge yet. Accuracy counts every practice answer on this standard, including early tries before mastery; recent tries are the last 10. “Mastered on the test” means they got every test question on it right, so the trail skipped it.</p></div>`}
 
@@ -1010,7 +1052,7 @@ function stuView(s){const raw=CUR.raw.find(r=>r.id===s.id)||s,p=s.prog,R=readine
    <div class="sv-ready">${R.r==null?`<span class="pill">Readiness: not enough data yet</span>`:`<span class="pill ${b.c}">Readiness: ${b.t} · ${R.r}%</span>`} <span class="muted small">based on ${R.ev} of ${R.tot} standards with enough evidence</span></div></div></div>
    <div class="kpis small">${tile(n,"Questions answered",`${days} day${days===1?"":"s"} of practice`)}${tile(n?Math.round(ok/n*100)+"%":"—","Accuracy",n?`${ok} of ${n} right`:"")}${tile(minsOf(p),"Minutes practiced")}${tile(rows.filter(x=>x.st==="mastered").length,"Standards mastered",`of ${rows.length} on their trail`)}${tile(h.stuck?Math.round(h.self/h.stuck*100)+"%":"—","Solved it on their own",h.stuck?`after getting stuck ${h.stuck} time${h.stuck===1?"":"s"}`:"hasn’t used 3 Before Me")}${tile((p.tutor&&p.tutor.total)||0,"Questions to Scout")}</div>
    <div class="row"><button class="ghost small" id="sv-mtss">Intervention report (MTSS)</button><button class="ghost small" data-tab="home">Family update</button><button class="ghost small" data-tab="setup">Assign standards</button></div></div>
-  <div class="card"><h2>Standards</h2><div class="tablewrap"><table class="roster"><thead><tr><th>Standard</th><th>Status</th><th>Accuracy</th><th>Recent tries</th><th>Last practiced</th></tr></thead><tbody>
+  <div class="card"><h2>Standards</h2><div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Standard</th><th>Status</th><th>Accuracy</th><th>Recent tries</th><th>Last practiced</th></tr></thead><tbody>
    ${rows.map(x=>`<tr><td><b>${stdLink(x.k)}</b><br><span class="muted small">${esc(x.k.name)}</span></td><td><span class="pill ${ST_LBL[x.st][0]}" style="white-space:nowrap">${stLbl(x)}</span></td><td>${x.acc==null?"—":`${x.acc}% <span class="muted small">on ${x.n}</span>`}</td><td>${x.racc==null?"—":`${x.racc}% <span class="muted small">last ${x.rn}</span>`}</td><td>${agoDay(x.last)}</td></tr>`).join("")}</tbody></table></div></div>
   <div class="card"><h2>Recent mistakes</h2>${miss.length?`<ul class="sh-list">${miss.map(m=>{const q=getQ(m.q),k=SKILLS.find(x=>x.id===m.k),w=missWhy(m),txt=q?(q.parts||[]).filter(x=>typeof x==="string").join(" ").slice(0,140):"";
      return `<li>${k?stdLink(k):""} <span class="muted small">${new Date(m.t).toLocaleDateString()}</span><br>${esc(txt)}${m.p!=null?` <span class="muted small">· picked ${esc(String(m.p))}</span>`:""}${w?`<br><span class="small">Why: ${fmt(w)}</span>`:""}</li>`}).join("")}</ul>`:`<p class="muted">No wrong answers yet.</p>`}</div>
@@ -1035,7 +1077,7 @@ function practiceItems(){const real=realStudents();
   const rows=SKILLS.map(k=>{let n=0,ok=0,who=0,miss=[];real.forEach(s=>{const x=stuStd(s,k);if(!x||!x.n)return;n+=x.n;ok+=x.ok;who++});
     const g=typeof missGroups==="function"?missGroups(real,k.id)[0]:null;return {k,n,ok,who,pct:n?Math.round(ok/n*100):null,g}}).filter(r=>r.n>=5).sort((a,b)=>a.pct-b.pct);
   return `<div class="card"><h2>Item analysis</h2><p class="muted">${esc(TEST_NAME)} has no saved questions, so this shows practice instead: how often students got each standard right in the app, lowest first. Tap a standard to see who and why. To see results question by question, import your own test on the Tests page.</p>
-   ${rows.length?`<div class="tablewrap"><table class="roster"><thead><tr><th>Standard</th><th>Right in practice</th><th>Students</th><th>Most common mistake</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${stdLink(r.k)}</b><br><span class="muted small">${esc(r.k.name)}</span></td><td><span class="bar"><span style="width:${r.pct}%;background:${heat(r.pct)}"></span></span> ${r.pct}% <span class="muted small">of ${r.n}</span></td><td>${r.who}</td><td class="small">${r.g?`“${esc(r.g.ex)}” <span class="muted">(${r.g.who.size} students)</span>`:"—"}</td></tr>`).join("")}</tbody></table></div>`:`<p class="fb info">Once students practice, each standard shows up here with how often they got it right.</p>`}</div>`}
+   ${rows.length?`<div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Standard</th><th>Right in practice</th><th>Students</th><th>Most common mistake</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${stdLink(r.k)}</b><br><span class="muted small">${esc(r.k.name)}</span></td><td><span class="bar"><span style="width:${r.pct}%;background:${heat(r.pct)}"></span></span> ${r.pct}% <span class="muted small">of ${r.n}</span></td><td>${r.who}</td><td class="small">${r.g?`“${esc(r.g.ex)}” <span class="muted">(${r.g.who.size} students)</span>`:"—"}</td></tr>`).join("")}</tbody></table></div>`:`<p class="fb info">Once students practice, each standard shows up here with how often they got it right.</p>`}</div>`}
 
 /* sample school only: one small-group loop told start to finish, from the sample data */
 function storyCard(){const st=DEMO_T&&TB&&TB.story;if(!st||!CUR||CUR.cls.id!==st.classId)return "";const k=SKILLS.find(x=>x.id===st.k);if(!k)return "";

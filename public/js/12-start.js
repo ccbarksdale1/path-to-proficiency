@@ -2,6 +2,7 @@
    Loaded in order by index.html as plain scripts that share one global scope. */
 /* ---------- start ---------- */
 (async()=>{
+  if(location.pathname==="/clever"){await cleverCfg();await cleverReturn();return} /* back from Clever: this sign-in replaces any old one */
   const sess=ls.get(SKEY,sessionStorage);
   if(sess&&sess.token){TOKEN=sess.token;
     try{if(sess.role==="teacher"){startTeacher({token:TOKEN,...await api("boot")});return}
