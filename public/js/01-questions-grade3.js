@@ -1,5 +1,28 @@
 /* Path to Proficiency · Grade 3 math question makers, picture and read-aloud helpers.
    Loaded in order by index.html as plain scripts that share one global scope. */
+/* ================= Believable wrong answers (grades 4 and up) =================
+   A wrong choice that is wildly off (6+ times too big or small) lets students guess without doing the math.
+   Choices from real mistakes stay first; far-off ones are used only as a last resort, and if a question
+   is short on close choices, near misses are made from the correct answer. Decimal slips (×10, ×100)
+   and flipped fractions are real mistakes, so they count as close. */
+const MCFIX=(()=>{
+  const PN=/^(−|-)?(\$)?(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?(%|°|π| ?[a-zA-Z][a-zA-Z ²³]{0,20})?$/;
+  function parse(t){if(typeof t!=="string")return null;const s=t.trim();let m=s.match(/^(−)?\[(\d+)\/(\d+)\]$/);if(m)return {v:(m[1]?-1:1)*m[2]/m[3],frac:true};
+    m=s.match(/^(−)?(\d+) \[(\d+)\/(\d+)\]$/);if(m)return {v:(m[1]?-1:1)*(+m[2]+m[3]/m[4]),frac:true};
+    m=s.match(PN);if(!m)return null;const dec=m[4]?m[4].length-1:0;return {v:(m[1]?-1:1)*parseFloat(m[3].replace(/,/g,"")+(m[4]||"")),neg:!!m[1],dollar:!!m[2],comma:/,/.test(m[3]),dec,suf:m[5]||""}}
+  function far(c,w){if(!c||!w||!c.v||!w.v)return false;const r=Math.abs(w.v)/Math.abs(c.v);if(r<=6&&r>=1/6)return false;
+    const l=Math.log10(r);if(Math.abs(l-Math.round(l))<0.002)return false;const p=w.v*c.v;if(Math.abs(Math.abs(p)-1)<1e-6)return false;return true}
+  function fmt(c,v){const neg=v<0;let a=Math.abs(v);let body=c.dec?a.toFixed(c.dec):String(Math.round(a));if(c.comma||a>=10000)body=Number(body).toLocaleString("en-US",{minimumFractionDigits:c.dec,maximumFractionDigits:c.dec});
+    return (neg?"−":"")+(c.dollar?"$":"")+body+c.suf}
+  function near(r,c,have,k){const out=[],v=c.v,a=Math.abs(v),unit=c.dec?Math.pow(10,-c.dec):1,big=a>=20||(c.dec&&a>=2)?Math.max(unit,Math.round(a*0.1/unit)*unit):unit;
+    const cands=[v+big,v-big,v+2*big,v-2*big,v+unit,v-unit,v+3*big,v-3*big].filter(x=>(v>0?x>0:true)&&Math.abs(x-v)>1e-9);
+    for(const x of cands){if(out.length>=k)break;const t=fmt(c,+x.toFixed(c.dec||0));if(have.has(JSON.stringify(t)))continue;have.add(JSON.stringify(t));out.push({c:t,why:"Close, but not quite. Check each step of your work again."})}return out}
+  /* order the wrong answers: close ones first; add near misses if needed */
+  function order(r,correct,wrongs,n){const c=parse(correct);if(!c||!c.v)return wrongs;
+    const close=[],off=[];for(const x of wrongs){const w=parse(x.c);(w&&far(c,w)?off:close).push(x)}
+    if(close.length<n-1&&!c.frac){const have=new Set([JSON.stringify(correct),...wrongs.map(x=>JSON.stringify(x.c))]);close.push(...near(r,c,have,n-1-close.length))}
+    return [...close,...off]}
+  return {parse,far,order}})();
 /* Declared up front so code that runs at load can check them before the science and ELA files fill them in (as one big script, var did this on its own). */
 var SCI_CODE, ELA_CODE;
 const IMG = {};
@@ -996,7 +1019,7 @@ const gcd=(a,b)=>b?gcd(b,a%b):Math.abs(a),F=(a,b)=>`[${a}/${b}]`,MX=(a,b)=>{cons
 const simp=(a,b)=>{const g=gcd(a,b)||1;return [a/g,b/g]},FS=(a,b)=>{const [x,y]=simp(a,b);return y===1?String(x):F(x,y)};
 const C=n=>n.toLocaleString("en-US"),D=(x,p=2)=>String(+x.toFixed(p));
 function mc(r,o){const seen=new Set([JSON.stringify(o.correct)]),w=[],n=o.n||4;
-  for(const x of o.wrongs){const k=JSON.stringify(x.c);if(x.c==null||x.c===""||seen.has(k))continue;seen.add(k);w.push(x);if(w.length===n-1)break}
+  for(const x of MCFIX.order(r,o.correct,o.wrongs,n)){const k=JSON.stringify(x.c);if(x.c==null||x.c===""||seen.has(k))continue;seen.add(k);w.push(x);if(w.length===n-1)break}
   need(w.length===n-1);const all=shuf(r,[{c:o.correct,ok:true},...w]),why={};let ans;all.forEach((x,i)=>{if(x.ok)ans=LET[i];else why[LET[i]]=x.why});
   return {type:"mc",parts:o.parts,keys:o.keys,choices:all.map(x=>x.c),ans,why,steps:o.steps}}
 const cmp3=(o,a,b,va,vb,whyEq,whyNe)=>{const s=va<vb?"<":va>vb?">":"=";return {type:"mc",fixed:true,parts:o.parts,keys:o.keys,choices:["<","=",">"].map(x=>`${a} ${x} ${b}`),ans:LET[["<","=",">"].indexOf(s)],
@@ -1225,7 +1248,18 @@ G.g5nf5a=[r=>{const n=ri(r,12,60),[a,b]=pick(r,[[1,2],[3,4],[2,3],[5,4],[3,2],[7
    steps:[say(`Compare ${F(a,b)} to 1.`),say(a<b?`${F(a,b)} < 1, so the product is smaller than ${n}.`:`${F(a,b)} > 1, so the product is bigger than ${n}.`)]})}];
 G.g5nf5b=[r=>mc(r,{parts:["Which statement is true?"],keys:["statement","true"],correct:"Multiplying a number by a fraction less than 1 gives a product smaller than the number.",
   wrongs:[{c:"Multiplying always makes a number bigger.",why:"Try [1/2] × 10 = 5."},{c:"Multiplying by a fraction greater than 1 makes the number smaller.",why:"Try [3/2] × 10 = 15."},{c:"Multiplying by [4/4] doubles the number.",why:"[4/4] = 1, so the number stays the same."}],
-  steps:[say("A fraction less than 1 means part of the number: smaller."),say("A fraction greater than 1 means more than the number: bigger."),say("A fraction equal to 1 keeps it the same.")]})];
+  steps:[say("A fraction less than 1 means part of the number: smaller."),say("A fraction greater than 1 means more than the number: bigger."),say("A fraction equal to 1 keeps it the same.")]}),
+ /* compare a product to one factor without multiplying */
+ r=>{const n=pick(r,[12,18,24,36,40,45,60,75,90]),kind=pick(r,["lt","gt","eq"]),b=pick(r,[3,4,5,6,8]),a=kind==="lt"?ri(r,1,b-1):kind==="gt"?ri(r,b+1,2*b-1):b,cmp={lt:"less than",gt:"greater than",eq:"equal to"};
+  return mc(r,{n:3,parts:[`Without multiplying, how does ${F(a,b)} × ${n} compare to ${n}?`],keys:["multiplying","compare",String(n)],correct:`It is ${cmp[kind]} ${n}.`,
+   wrongs:Object.keys(cmp).filter(k=>k!==kind).map(k=>({c:`It is ${cmp[k]} ${n}.`,why:`${F(a,b)} is ${kind==="lt"?"less than":kind==="gt"?"greater than":"equal to"} 1, so the product is ${cmp[kind]} ${n}.`})),
+   steps:[say(`Compare the fraction to 1: ${F(a,b)} is ${kind==="lt"?"less than":kind==="gt"?"greater than":"equal to"} 1.`),say(kind==="lt"?`Taking part of ${n} gives less than ${n}.`:kind==="gt"?`Taking more than all of ${n} gives more than ${n}.`:`${F(a,b)} = 1, so the product stays ${n}.`)]})},
+ /* which product is greater (or less) than the number */
+ r=>{const n=pick(r,[20,24,30,36,48,60]),big=r()<.5,fr=[[1,2],[3,4],[2,3],[5,6],[4,5]],gt=[[3,2],[5,4],[4,3],[7,6],[6,5]];
+  const pickF=L=>pick(r,L),c=big?pickF(gt):pickF(fr),others=shuf(r,big?fr:gt).slice(0,2);
+  return mc(r,{parts:[`Which product is ${big?"greater":"less"} than ${n}?`],keys:["product",big?"greater":"less",String(n)],correct:`${F(c[0],c[1])} × ${n}`,
+   wrongs:[...others.map(x=>({c:`${F(x[0],x[1])} × ${n}`,why:`${F(x[0],x[1])} is ${big?"less":"greater"} than 1, so this product is ${big?"less":"greater"} than ${n}.`})),{c:`${F(4,4)} × ${n}`,why:`${F(4,4)} = 1, so the product equals ${n}.`}],
+   steps:[say(`A product is ${big?"greater":"less"} than ${n} when the fraction is ${big?"greater":"less"} than 1.`),say(`${F(c[0],c[1])} is ${big?"greater":"less"} than 1.`)]})}];
 G.g5nf6=[r=>{const n=name(r),w=ri(r,2,5),[a,b]=pick(r,[[1,2],[1,4],[3,4]]),k=pick(r,[2,4,6,8]);need(k%b===0);const tot=(w*b+a)*k/b;
   return mc(r,{parts:[`${n} runs ${MX(w*b+a,b)} miles each day for ${k} days.`,"How many miles does "+n+" run in all?"],keys:["runs",MX(w*b+a,b),"miles","each","day",String(k),"days","all"],correct:(Number.isInteger(tot)?String(tot):MX(tot*b,b))+" miles",
    wrongs:[{c:`${w*k} miles`,why:`Don’t forget the ${F(a,b)} mile each day.`},{c:`${w*k} ${F(a,b)} miles`,why:`The ${F(a,b)} is run every day too: ${k} × ${F(a,b)}.`},{c:`${w+k} miles`,why:"Multiply the daily miles by the days."}],
@@ -1248,7 +1282,17 @@ G.g5md2=[r=>{const xs=[2,3,4,5,6].map(i=>i*2),data={};xs.forEach(x=>data[x]=ri(r
   return mc(r,{parts:["The line plot shows the amount of water in some beakers. Each X is one beaker.",{viz:v},"How much water is there in all the beakers together?"],keys:["line","plot","amount","water","beakers","each","x","all","together"],correct:MX(tot,4).replace(/\[2\/4\]/,"[1/2]")+" liters",
    wrongs:[{c:`${cnt} liters`,why:"That counts the beakers. Add the amounts."},{c:MX(tot+2,4).replace(/\[2\/4\]/,"[1/2]")+" liters",why:"Add each X’s amount carefully."},{c:MX(Math.max(2,tot-4),4).replace(/\[2\/4\]/,"[1/2]")+" liters",why:"Add each X’s amount carefully."}],
    steps:[say("Multiply each amount by its number of X’s.",{viz:v}),say(`Add them: ${MX(tot,4).replace(/\[2\/4\]/,"[1/2]")} liters.`)]})}];
-G.g5md3a=[r=>mc(r,{parts:["A cube has edges that are each 1 unit long. What is its volume?"],keys:["cube","edges","1","unit","long","volume"],correct:"1 cubic unit",wrongs:[{c:"1 square unit",why:"Volume is measured in CUBIC units."},{c:"6 cubic units",why:"6 is the number of faces."},{c:"12 cubic units",why:"12 is the number of edges."}],steps:[say("A cube with 1-unit edges is a unit cube."),say("It has a volume of 1 cubic unit.",{viz:{prism:{l:1,w:1,h:1}}})]})];
+G.g5md3a=[r=>mc(r,{parts:["A cube has edges that are each 1 unit long. What is its volume?"],keys:["cube","edges","1","unit","long","volume"],correct:"1 cubic unit",wrongs:[{c:"1 square unit",why:"Volume is measured in CUBIC units."},{c:"6 cubic units",why:"6 is the number of faces."},{c:"12 cubic units",why:"12 is the number of edges."}],steps:[say("A cube with 1-unit edges is a unit cube."),say("It has a volume of 1 cubic unit.")]}),
+ /* a solid built from unit cubes */
+ r=>{const n=ri(r,6,40),u=pick(r,["unit","centimeter","inch"]),U=u==="unit"?"cubic units":u==="inch"?"cubic inches":"cubic centimeters",S=u==="unit"?"square units":u==="inch"?"square inches":"square centimeters";
+  return mc(r,{parts:[`A solid is built from ${n} cubes that each measure 1 ${u} on every edge. There are no gaps or overlaps.`,"What is its volume?"],keys:["solid","built",String(n),"cubes","gaps","overlaps","volume"],correct:`${n} ${U}`,
+   wrongs:[{c:`${n} ${S}`,why:"Volume is measured in CUBIC units."},{c:`${n*6} ${U}`,why:"Count the cubes, not their faces."},{c:`${n*12} ${U}`,why:"Count the cubes, not their edges."}],
+   steps:[say(`Each cube is 1 cubic ${u==="unit"?"unit":u}.`),say(`${n} cubes fill ${n} ${U}.`)]})},
+ /* choosing the right unit */
+ r=>{const u=pick(r,[["inches","cubic inches","square inches"],["feet","cubic feet","square feet"],["centimeters","cubic centimeters","square centimeters"],["meters","cubic meters","square meters"]]),obj=pick(r,["a fish tank","a shipping box","a sandbox","a toy chest"]);
+  return mc(r,{parts:[`The edges of ${obj} are measured in ${u[0]}.`,"Which unit should be used for its volume?"],keys:["edges",u[0],"unit","volume"],correct:u[1],
+   wrongs:[{c:u[2],why:"Square units measure area (a flat surface). Volume fills space, so it uses cubic units."},{c:u[0],why:"That measures length. Volume uses cubic units."},{c:"pounds",why:"Pounds measure weight, not volume."}],
+   steps:[say("Volume measures how much space something fills."),say(`Space is filled with cubes, so use ${u[1]}.`)]})}];
 G.g5md3b=[r=>{const l=ri(r,2,4),w=ri(r,2,3),h=ri(r,1,3);
   return mc(r,{parts:["The solid is packed with unit cubes with no gaps or overlaps.",{viz:{prism:{l,w,h},alt:`a box ${l} by ${w} by ${h} unit cubes`}},"What is its volume?"],keys:["solid","packed","unit","cubes","gaps","overlaps","volume"],correct:`${l*w*h} cubic units`,
    wrongs:[{c:`${l*w*h} square units`,why:"Volume uses cubic units."},{c:`${l+w+h} cubic units`,why:"Count all the cubes: multiply."},{c:`${l*w} cubic units`,why:`That is one layer. There are ${h} layers.`}].filter(x=>x.c!==`${l*w*h} cubic units`),
@@ -1338,7 +1382,7 @@ const lin=(m,b,v="x")=>{let s=term(m,v,true);if(b){s+=s?(b<0?` − ${D(-b)}`:` +
 const quad=(a,b,c,v="x")=>{let s=term(a,v+"²",true);s+=term(b,v,!s);if(c)s+=s?(c<0?` − ${D(-c)}`:` + ${D(c)}`):N(c);return s||"0"};
 const sup=n=>String(n).split("").map(d=>"⁰¹²³⁴⁵⁶⁷⁸⁹"["0123456789".indexOf(d)]||(d==="-"?"⁻":d)).join("");
 function mc(r,o){const seen=new Set([JSON.stringify(o.correct)]),w=[],n=o.n||4;
-  for(const x of o.wrongs){const k=JSON.stringify(x.c);if(x.c==null||x.c===""||seen.has(k))continue;seen.add(k);w.push(x);if(w.length===n-1)break}
+  for(const x of MCFIX.order(r,o.correct,o.wrongs,n)){const k=JSON.stringify(x.c);if(x.c==null||x.c===""||seen.has(k))continue;seen.add(k);w.push(x);if(w.length===n-1)break}
   need(w.length===n-1);const all=shuf(r,[{c:o.correct,ok:true},...w]),why={};let ans;all.forEach((x,i)=>{if(x.ok)ans=LET[i];else why[LET[i]]=x.why});
   return {type:"mc",parts:o.parts,keys:o.keys,choices:all.map(x=>x.c),ans,why,steps:o.steps,...(o.fixed?{fixed:true}:{})}}
 const W=(c,why)=>({c,why});
@@ -1670,8 +1714,15 @@ G.g7g6=[r=>{const l=ri(r,2,9),w=ri(r,2,9),h=ri(r,2,9);
   return inp({parts:[`What is the volume of a box that is ${l} in × ${w} in × ${h} in?`],keys:["volume","box"],ans:l*w*h,whyIn:{[2*(l*w+l*h+w*h)]:"That’s the surface area."},whyElse:"V = l × w × h.",steps:[say(`${l} × ${w} × ${h}.`),say(`= ${l*w*h} cubic inches.`)]})},
  r=>{const b=ri(r,3,10),h=ri(r,2,8),L=ri(r,3,10);need((b*h)%2===0);
   return inp({parts:[`A triangular prism has a triangle base with base ${b} cm and height ${h} cm. The prism is ${L} cm long.`,"What is its volume in cubic cm?"],keys:["triangular","prism","base","height","long","volume"],ans:b*h/2*L,whyIn:{[b*h*L]:"The base is a triangle: take half."},whyElse:"V = (area of base) × length.",steps:[say(`Base area = ½ × ${b} × ${h} = ${b*h/2}.`),say(`${b*h/2} × ${L} = ${b*h/2*L} cubic cm.`)]})}];
-G.g7sp1=[r=>{const it=pick(r,[["To learn what all 7th graders think about lunch, ask 40 students picked at random from the 7th-grade list.","Ask only the students on the basketball team.","Ask your 5 best friends.","Ask the first 40 people in the lunch line on pizza day."]]);
-  return mc(r,{parts:["Which sample best represents all 7th graders?"],keys:["sample","represents","7th","graders"],correct:it[0].replace(/^To learn.*?, /,"").replace(/^./,c=>c.toUpperCase()),wrongs:it.slice(1).map(x=>W(x,"This group isn’t chosen at random, so it may be biased.")),steps:[say("A random sample gives everyone the same chance."),say("That makes it represent the population.")]})}];
+G.g7sp1=[r=>{const it=pick(r,[
+   ["all 7th graders at the school","Ask 40 students picked at random from the 7th-grade list.","Ask only the students on the basketball team.","Ask your 5 best friends.","Ask the first 40 people in the lunch line on pizza day."],
+   ["all voters in a town","Survey 100 voters picked at random from the town’s voter list.","Survey people at the park on Saturday.","Survey the mayor’s office staff.","Post an online poll that anyone can answer."],
+   ["all students at the school","Pick 50 students at random from the whole school roster.","Ask the first-period gym class.","Ask the students at early-morning tutoring.","Ask students who volunteer to answer."],
+   ["all of a store’s customers","Survey customers picked at random at checkout on different days and times all week.","Survey only customers who leave a complaint.","Survey shoppers on Saturday morning only.","Survey the store’s employees."],
+   ["all the trees in a forest","Measure 30 trees chosen at random spots across the whole forest.","Measure the trees along the main trail.","Measure the 30 tallest trees.","Measure the trees next to the parking lot."],
+   ["all the households in a county","Call 200 households picked at random from every part of the county.","Call households on one street.","Ask people at one grocery store.","Ask families at one school’s open house."]]);
+  return mc(r,{parts:[`Which sample best represents ${it[0]}?`],keys:["sample","represents"],correct:it[1],wrongs:it.slice(2).map(x=>W(x,"This group isn’t chosen at random from the whole population, so it may be biased.")),
+   steps:[say("A random sample gives every member of the population the same chance to be picked."),say("That makes the sample represent the whole population.")]})}];
 G.g7sp2=[r=>{const n=pick(r,[20,25,40,50]),k=ri(r,2,n/2),pop=pick(r,[400,500,600,800,1000]);const ans=k/n*pop;need(Number.isInteger(ans));
   return inp({parts:[`In a random sample of ${n} students, ${k} walk to school.`,`About how many of the school’s ${pop} students walk?`],keys:["random","sample",String(n),String(k),"walk",String(pop)],ans,whyIn:{[k]:"Scale up from the sample to the whole school."},whyElse:"Use the same fraction for the whole population.",steps:[say(`${k} out of ${n} = ${F(k,n)}.`),say(`${F(k,n)} × ${pop} = ${ans} students.`)]})}];
 G.g7sp3=[r=>{const m1=ri(r,60,70),m2=m1+ri(r,6,15),mad=pick(r,[2,3,4,5]);const k=(m2-m1)/mad;
@@ -1691,11 +1742,13 @@ G.g7sp8a=[r=>{const k=ri(r,1,6);
   return mc(r,{parts:[`A coin is flipped and a number cube (1–6) is rolled.`,`What is P(heads and a ${k})?`],keys:["coin","flipped","number","cube","heads"],correct:F(1,12),wrongs:[W(F(1,6),"There are 12 equally likely outcomes."),W(F(2,8),"Count all coin-and-cube pairs."),W(F(1,2),"Both things must happen.")],steps:[say("2 coin outcomes × 6 cube outcomes = 12."),say(`Only (H, ${k}) works: ${F(1,12)}.`)]})}];
 G.g7sp8b=[r=>{const s=ri(r,2,4),p=ri(r,2,4);
   return inp({parts:[`A lunch is 1 sandwich (${s} choices) and 1 drink (${p} choices).`,"How many different lunches are in the sample space?"],keys:["sandwich",String(s),"drink",String(p),"sample","space"],ans:s*p,whyIn:{[s+p]:"Each sandwich pairs with each drink: multiply."},whyElse:"Use a tree diagram or table.",steps:[say(`Each of ${s} sandwiches goes with ${p} drinks.`),say(`${s} × ${p} = ${s*p} lunches.`)]})}];
-G.g7sp8c=[r=>{
-  return mc(r,{parts:["About 1 in 5 cereal boxes has a prize. Which simulation could estimate the chance of a prize in 2 boxes in a row?"],keys:["simulation","prize","boxes"],correct:"Roll a 10-sided number cube twice; 1–2 means a prize. Repeat many times.",wrongs:[W("Flip a coin twice.","A coin is 1 in 2, not 1 in 5."),W("Buy 2 boxes once.","One try isn’t enough to estimate."),W("Roll a 6-sided cube; 1 means a prize.","That’s 1 in 6, not 1 in 5.")],steps:[say("The tool must match 1 in 5: 2 out of 10 works."),say("Run it many times and count the results.")]})}];
-
-/* ======================= GRADE 8 ======================= */
-const SQ=[4,9,16,25,36,49,64,81,100,121,144];
+G.g7sp8c=[r=>{const T=[["1 in 2",[1,2],"Flip a coin; heads means"],["1 in 4",[1,4],"Spin a spinner with 4 equal parts; 1 part means"],["1 in 5",[1,5],"Roll a 10-sided number cube; 1–2 means"],["1 in 6",[1,6],"Roll a 6-sided number cube; 1 means"],["3 in 10",[3,10],"Pick a random digit 0–9; 0–2 means"],["1 in 10",[1,10],"Pick a random digit 0–9; 0 means"]];
+  const t=pick(r,T),k=pick(r,[2,3]),ctx=pick(r,[["cereal boxes","box has a prize","a prize","boxes"],["free throws","shot goes in","a made shot","shots"],["days","day is rainy","rain","days"],["calls","call is answered","an answer","calls"]]);
+  const wrongTool=pick(r,T.filter(x=>x!==t));const word=k===2?"two":"three";
+  return mc(r,{parts:[`About ${t[0]} ${ctx[0]}: each ${ctx[1]}.`,`Which simulation could estimate the chance of ${ctx[2]} on ${word} ${ctx[3]} in a row?`],keys:["simulation","chance",word,"row"],
+   correct:`${t[2]} ${ctx[2]}. Do it ${word} times for one trial, and repeat many trials.`,
+   wrongs:[W(`${wrongTool[2]} ${ctx[2]}. Do it ${word} times for one trial, and repeat many trials.`,`That tool gives ${wrongTool[0]}, not ${t[0]}.`),W(`${t[2]} ${ctx[2]}. Do it ${word} times just once.`,"One trial isn’t enough. Repeat many trials to estimate the chance."),W(`${t[2]} ${ctx[2]}. Do it once for each trial, and repeat many trials.`,`Each trial needs ${word} results in a row, so do it ${word} times per trial.`)],
+   steps:[say(`Match the chance: ${t[0]}. ${t[2]} ${ctx[2]}.`),say(`One trial = ${word} results in a row.`),say("Repeat many trials, then find the fraction of trials that were all successes.")]})}];
 G.g8ns1=[r=>{const it=pick(r,[["√2","irrational"],["π","irrational"],["√16","rational"],["0.75","rational"],["0.333…","rational"],["√7","irrational"],["−5","rational"],[F(2,3),"rational"],["√50","irrational"],["√49","rational"]]);
   return yes(r,{parts:[`Is ${it[0]} rational or irrational?`],keys:["rational","irrational",it[0]],choices:["Rational","Irrational"],correct:it[1][0].toUpperCase()+it[1].slice(1),why:"Rational numbers can be written as a fraction; their decimals end or repeat.",
    steps:[say("Rational: can be a fraction a/b; decimal ends or repeats."),say(`${it[0]} is ${it[1]}.`)]})},
@@ -1763,9 +1816,22 @@ G.g8g1a=[r=>{const L=ri(r,2,12),t=pick(r,["rotated 90°","reflected across the y
   return mc(r,{parts:[`A segment ${L} cm long is ${t}. How long is the image?`],keys:["segment",String(L),t.split(" ")[0],"image"],correct:`${L} cm`,wrongs:[W(`${2*L} cm`,"Rigid motions don’t change length."),W(`${L+4} cm`,"Sliding doesn’t stretch it."),W(`${L/2} cm`,"Rigid motions keep the same size.")],steps:[say("Rotations, reflections, and translations keep lengths the same."),say(`${L} cm.`)]})}];
 G.g8g1b=[r=>{const a=ri(r,25,155);
   return inp({parts:[`An angle of ${a}° is reflected across a line. What is the measure of the image angle?`],keys:["angle",`${a}°`,"reflected"],ans:a,whyIn:{[180-a]:"Reflections keep angle measures the same."},whyElse:"Rigid motions keep angles the same.",steps:[say("Reflections keep angle measures."),say(`${a}°.`)]})}];
-G.g8g1c=[r=>yes(r,{parts:["Two parallel lines are rotated 90° around a point. Are the images parallel?"],keys:["parallel","lines","rotated","images"],choices:["Yes, always","No, never","Only sometimes"],correct:"Yes, always",why:"Rotations, reflections, and translations keep parallel lines parallel.",steps:[say("Rigid motions keep parallel lines parallel."),say("Yes, always.")]})];
+G.g8g1c=[r=>{const PR=[["Two parallel lines are","Are the images parallel?","par"],["A segment 6 cm long is","Is the image 6 cm long?","len"],["A 40° angle is","Does the image measure 40°?","ang"]];
+  /* about half the time: a dilation and a length (the answer is No), so "Yes" isn't always right */
+  const tricky=r()<.3,mv=tricky?pick(r,[["dilated by a scale factor of 3",false],["dilated by a scale factor of ½",false],["dilated by a scale factor of 2",false]]):pick(r,[["rotated 90° around a point",true],["reflected across a line",true],["translated 5 units to the right",true],["rotated 180° around a point",true],["dilated by a scale factor of 3",false]]);
+  const pr=tricky?PR[1]:pick(r,PR);
+  const yesAns=mv[1]||pr[2]!=="len";
+  return yes(r,{parts:[`${pr[0]} ${mv[0]}. ${pr[1]}`],keys:[mv[0].split(" ")[0],"image","images"],choices:["Yes, always","No, never","Only sometimes"],correct:yesAns?"Yes, always":"No, never",
+   why:mv[1]?"Rotations, reflections, and translations keep lengths, angles, and parallel lines the same.":"A dilation keeps angles and parallel lines, but it changes lengths.",
+   steps:[say(mv[1]?"This is a rigid motion: it keeps lengths, angle measures, and parallel lines.":"A dilation is not a rigid motion: it keeps angles and parallel lines but changes lengths."),say(yesAns?"Yes, always.":"No, the length changes.")]})}];
 G.g8g2=[r=>{
-  return mc(r,{parts:["Which sequence shows two figures are congruent?"],keys:["sequence","congruent"],correct:"A reflection followed by a translation maps one onto the other.",wrongs:[W("A dilation by 2 maps one onto the other.","Dilations change size, so that’s similar, not congruent."),W("They have the same number of sides.","Same sides count isn’t enough."),W("They have the same perimeter.","Different shapes can share a perimeter.")],steps:[say("Congruent = same size and shape."),say("Only rigid motions (no dilations) prove congruence.")]})}];
+  return mc(r,{parts:["Which sequence shows two figures are congruent?"],keys:["sequence","congruent"],correct:"A reflection followed by a translation maps one onto the other.",wrongs:[W("A dilation by 2 maps one onto the other.","Dilations change size, so that’s similar, not congruent."),W("They have the same number of sides.","Same sides count isn’t enough."),W("They have the same perimeter.","Different shapes can have the same perimeter.")],steps:[say("Congruent figures can be matched with rigid motions."),say("Rigid motions are rotations, reflections, and translations.")]})},
+ r=>{const M=["a reflection across the y-axis","a rotation of 90° about the origin","a translation 4 units up","a rotation of 180° about the origin","a reflection across the x-axis","a translation 3 units left"];
+  const a=pick(r,M),b=pick(r,M.filter(x=>x!==a)),dil=r()<.45,k=pick(r,["2","3","½"]),seq=dil?`${a} followed by a dilation by a scale factor of ${k}`:`${a} followed by ${b}`;
+  return yes(r,{parts:[`Figure A is mapped onto Figure B by ${seq}.`,"How are the figures related?"],keys:["figure","mapped"],choices:["Congruent","Similar but not congruent","Neither"],correct:dil?"Similar but not congruent":"Congruent",
+   why:dil?"A dilation changes the size, so the figures are similar but not congruent.":"Only rigid motions were used, so size and shape stay the same.",
+   steps:[say(dil?"A dilation changes size but keeps shape.":"Rotations, reflections, and translations keep size and shape."),say(dil?"So the figures are similar but not congruent.":"So the figures are congruent.")]})}];
+G.g8g2.push(G.g8g2[1]); /* the mapping question twice as often as the fixed one */
 G.g8g3=[r=>{const x=nz(r,-5,5),y=nz(r,-5,5),t=pick(r,[["reflected across the x-axis",[x,-y]],["reflected across the y-axis",[-x,y]],["rotated 180° about the origin",[-x,-y]],["translated 3 left and 2 up",[x-3,y+2]],["dilated by a scale factor of 2 from the origin",[2*x,2*y]],["rotated 90° counterclockwise about the origin",[-y,x]]]);
   return mc(r,{parts:[`Point A(${N(x)}, ${N(y)}) is ${t[0]}. Where is A′?`],keys:["point",...t[0].split(" ").filter(w=>w.length>3)],correct:`(${N(t[1][0])}, ${N(t[1][1])})`,wrongs:[[x,-y],[-x,y],[-x,-y],[y,x],[-y,x],[y,-x],[x+3,y-2]].filter(p=>p[0]!==t[1][0]||p[1]!==t[1][1]).map(p=>W(`(${N(p[0])}, ${N(p[1])})`,"Apply the rule for this transformation.")),
    steps:[say(`Rule for “${t[0]}”.`),say(`(${N(x)}, ${N(y)}) → (${N(t[1][0])}, ${N(t[1][1])}).`)]})}];
@@ -1805,8 +1871,17 @@ G.a1nrn3=[r=>{const it=pick(r,[["3 + √2","Irrational","A rational number plus 
   return yes(r,{parts:[`Is ${it[0]} rational or irrational?`],keys:["rational","irrational"],choices:["Rational","Irrational"],correct:it[1],why:it[2],steps:[say(it[2]),say(`So ${it[0]} is ${it[1].toLowerCase()}.`)]})}];
 G.a1nq1=[r=>{const s=ri(r,40,70),t=ri(r,2,5);
   return mc(r,{parts:[`A car goes ${s} miles per hour for ${t} hours.`,"Which units should the answer for distance have?"],keys:["miles","hour","hours","units","distance"],correct:`miles (because miles/hour × hours = miles)`,wrongs:[W("hours","Hours cancel out when you multiply."),W("miles per hour","That’s the speed."),W("hours per mile","That’s the reciprocal of speed.")],steps:[say("(miles ÷ hour) × hours."),say("Hours cancel, leaving miles: "+s*t+" miles.")]})}];
-G.a1nq2=[r=>{
-  return mc(r,{parts:["You want to model how a phone plan’s cost grows over time. Which quantities make the most sense to define?"],keys:["model","phone","plan","cost","time"],correct:"Months of service and total cost in dollars",wrongs:[W("The color of the phone and its weight","Those don’t affect cost over time."),W("The number of apps and the screen size","Not related to the plan cost."),W("The day of the week only","Cost grows over months.")],steps:[say("Pick the input (time) and the output (cost)."),say("Months and dollars.")]})}];
+G.a1nq2=[r=>{/* [situation, input, output, a tempting input that doesn't drive it, a tempting output that isn't the goal] */
+  const C=pick(r,[["how a phone plan’s cost grows over time","months of service","total cost in dollars","the phone’s storage in GB","minutes of talk per call"],
+   ["how a plant grows","days since planting","height in centimeters","the color of the pot","the number of leaves on day 1"],
+   ["how a savings account grows","years since opening","balance in dollars","the bank’s address","the account number"],
+   ["a car trip on the highway","hours driven","distance in miles","the car’s color","the number of passengers"],
+   ["filling a swimming pool","minutes of filling","gallons of water in the pool","the pool’s depth markings","the number of swimmers"],
+   ["a cup of coffee cooling","minutes since pouring","temperature in °F","the size of the mug","the price of the coffee"]]);
+  const cap=t=>t[0].toUpperCase()+t.slice(1);
+  return mc(r,{parts:[`You want to model ${C[0]}. Which pair of quantities makes the most sense to define?`],keys:["model","quantities","define"],correct:`${cap(C[1])} and ${C[2]}`,
+   wrongs:[W(`${cap(C[3])} and ${C[2]}`,`${cap(C[3])} doesn’t change over time, so it can’t explain how the ${C[2].split(" ")[0]} changes.`),W(`${cap(C[1])} and ${C[4]}`,`${cap(C[4])} isn’t the quantity you want to predict.`),W(`${cap(C[3])} and ${C[4]}`,"Neither of these describes how the situation changes.")],
+   steps:[say("A model needs an input that changes (often time) and the output you want to predict, with units."),say(`Here: ${C[1]} and ${C[2]}.`)]})}];
 G.a1nq3=[r=>{const l=ri(r,10,40)+ri(r,1,9)/10;
   return mc(r,{parts:[`A ruler marked in millimeters measures a pencil at ${D(l,1)} cm.`,"Which is the most appropriate way to report the length?"],keys:["ruler","millimeters","pencil","report"],correct:`${D(l,1)} cm`,wrongs:[W(`${D(l,1)}00 cm`,"You can’t be more precise than the ruler."),W(`${Math.round(l)} cm`,"You can be precise to the millimeter."),W(`${Math.round(l/10)*10} cm`,"Too rough for this ruler.")],steps:[say("Report to the ruler’s smallest mark: 0.1 cm (1 mm)."),say(`${D(l,1)} cm.`)]})}];
 G.a1asse1a=[r=>{const a=nz(r,-7,9),b=nz(r,-9,9),c=nz(r,-9,9);const ask=pick(r,[["leading coefficient",N(a)],["constant term",N(c)],["coefficient of x",N(b)]]);
@@ -1904,8 +1979,11 @@ G.a1fbf3=[r=>{const k=nz(r,-5,5),t=pick(r,["out","in"]);
    wrongs:[`Shifted ${Math.abs(k)} up`,`Shifted ${Math.abs(k)} down`,`Shifted ${Math.abs(k)} left`,`Shifted ${Math.abs(k)} right`,"Stretched taller"].map(x=>W(x,"Outside adds move up/down; inside adds move left/right, opposite the sign.")),steps:[say(t==="out"?"Adding outside moves the graph up or down.":"Adding inside moves it left or right, opposite the sign."),say(t==="out"?`${k>0?"Up":"Down"} ${Math.abs(k)}.`:`${k>0?"Left":"Right"} ${Math.abs(k)}.`)]})}];
 G.a1fle1a=[r=>{const lin1=r()<.5,a=ri(r,2,5),d=ri(r,2,6),xs=[0,1,2,3];const ys=xs.map(x=>lin1?a+d*x:a*2**x);
   return yes(r,{parts:["Is this table linear or exponential?",{table:[["x",...xs.map(String)],["y",...ys.map(String)]]}],keys:["table","linear","exponential"],choices:["Linear","Exponential"],correct:lin1?"Linear":"Exponential",why:"Linear: equal differences. Exponential: equal ratios.",steps:[say(lin1?`y goes up by ${d} each time: equal differences.`:"y doubles each time: equal ratios."),say(lin1?"Linear.":"Exponential.")]})}];
-G.a1fle1b=[r=>{const it=pick(r,[["A taxi charges $3 plus $2 per mile.",true],["A population grows 5% each year.",false],["A candle burns 1 inch every hour.",true],["A car loses 15% of its value each year.",false]]);
-  return yes(r,{parts:[it[0],"Does one quantity change at a constant rate (same amount each step)?"],keys:["constant","rate"],choices:["Yes","No"],correct:it[1]?"Yes":"No",why:"Same amount each step = constant rate; same percent = exponential.",steps:[say(it[1]?"It changes by the same amount each step.":"It changes by a percent, not the same amount."),say(it[1]?"Yes, linear.":"No, exponential.")]})}];
+G.a1fle1b=[r=>{const a=ri(r,2,9),b=ri(r,2,6),p=pick(r,[3,4,5,8,10,12,15,20]);
+  const it=pick(r,[[`A taxi charges $${a} plus $${b} per mile.`,true],[`A population grows ${p}% each year.`,false],[`A candle burns ${b} cm every hour.`,true],[`A car loses ${p}% of its value each year.`,false],
+   [`A gym charges a $${a*10} fee plus $${b*5} per month.`,true],[`A bacteria count doubles every ${b} hours.`,false],[`A pool drains ${a*10} gallons every minute.`,true],[`A medicine in the body drops by half every ${b} hours.`,false],
+   [`A savings account earns ${p}% interest each year.`,false],[`A plant grows ${b} cm each week.`,true],[`A ticket price goes up $${b} every year.`,true],[`A video’s views triple every day.`,false]]);
+  return yes(r,{parts:[it[0],"Does one quantity change at a constant rate (the same amount each step)?"],keys:["constant","rate"],choices:["Yes","No"],correct:it[1]?"Yes":"No",why:"Same amount each step = constant rate (linear). Same percent or same factor each step = exponential.",steps:[say(it[1]?"It changes by the same amount each step.":"It changes by a percent or a factor, not the same amount."),say(it[1]?"Yes: linear.":"No: exponential.")]})}];
 G.a1fle1c=[r=>{const p=pick(r,[3,4,5,8,10,15]),up=r()<.5;
   return mc(r,{parts:[`A quantity ${up?"grows":"decays"} by ${p}% each year. What is the growth factor?`],keys:["quantity",up?"grows":"decays",`${p}%`,"factor"],correct:D(up?1+p/100:1-p/100),wrongs:[W(D(p/100),"Add or subtract from 1."),W(D(up?1-p/100:1+p/100),up?"Growth is more than 1.":"Decay is less than 1."),W(String(p),"Write the percent as a decimal.")],steps:[say(`${p}% = ${D(p/100)}.`),say(`Factor = 1 ${up?"+":"−"} ${D(p/100)} = ${D(up?1+p/100:1-p/100)}.`)]})}];
 G.a1fle2=[r=>{const a=ri(r,2,6),b=pick(r,[2,3]);
@@ -1930,10 +2008,10 @@ G.a1sid7=[r=>{const m=ri(r,2,9),b=ri(r,20,60);
   return mc(r,{parts:[`A model for test score (y) vs. hours studied (x) is y = ${m}x + ${b}.`,"What does "+m+" mean?"],keys:["model","score","hours","studied","mean"],correct:`Each extra hour of study goes with about ${m} more points.`,wrongs:[W(`A student who studies 0 hours scores ${m}.`,`That’s ${b}, the y-intercept.`),W(`Every student scores ${m} points.`,"It’s a rate."),W(`Studying ${m} hours gives ${b} points.`,"Slope is the change per hour.")],steps:[say("Slope = change in y per 1 unit of x."),say(`+${m} points per hour.`)]})}];
 G.a1sid8=[r=>{const it=pick(r,[["0.92","strong positive"],["−0.88","strong negative"],["0.15","weak positive"],["−0.05","almost no"]]);
   return mc(r,{parts:[`A correlation coefficient is r = ${it[1]==="almost no"?it[0]:it[0]}. What does it show?`],keys:["correlation","coefficient"],correct:(it[1]==="almost no"?"Almost no":`A ${it[1]}`)+" linear relationship",wrongs:["strong positive","strong negative","weak positive","almost no"].filter(x=>x!==it[1]).map(x=>W((x==="almost no"?"Almost no":`A ${x}`)+" linear relationship","Close to 1 or −1 = strong; close to 0 = weak.")),steps:[say("The sign gives direction; closeness to 1 or −1 gives strength."),say(`${it[0]} → ${it[1]}.`)]})}];
-G.a1sid9=[r=>{
-  return mc(r,{parts:["Ice cream sales and sunburns are strongly correlated. Which is the best conclusion?"],keys:["ice","cream","sunburns","correlated","conclusion"],correct:"Both probably increase because of hot, sunny weather; one doesn’t cause the other.",wrongs:[W("Eating ice cream causes sunburns.","Correlation doesn’t prove causation."),W("Sunburns cause people to buy ice cream.","A third factor is likely."),W("There is no relationship.","They are correlated.")],steps:[say("Correlation ≠ causation."),say("A lurking variable (hot weather) explains both.")]})}];
-
-/* 2025 MS CCRS 7.G.6 adds pyramids (surface area by decomposing into the base and triangles) */
+G.a1sid9=[r=>{const C=pick(r,[["Ice cream sales","sunburns","hot, sunny weather"],["Kids’ shoe sizes","reading levels","age (older kids have bigger feet and read better)"],["Firefighters sent to fires","damage costs","the size of the fire (bigger fires need more firefighters and cause more damage)"],["Umbrella sales","car accidents","rainy weather"],["Hot chocolate sales","heating bills","cold weather"],["Swimming pool visits","lemonade sales","hot weather"]]);
+  return mc(r,{parts:[`${C[0]} and ${C[1]} are strongly correlated.`,"Which is the best conclusion?"],keys:["correlated","conclusion"],correct:`Both probably increase because of ${C[2]}; one doesn’t cause the other.`,
+   wrongs:[W(`${C[0]} cause ${C[1]}.`,"Correlation doesn’t prove causation."),W(`${C[1][0].toUpperCase()+C[1].slice(1)} cause ${C[0].toLowerCase()}.`,"A third factor is more likely."),W("There is no relationship between them.","They are correlated, so they are related; the question is why.")],
+   steps:[say("Correlation means two things change together."),say(`A third factor, ${C[2]}, likely drives both.`),say("Correlation alone doesn’t prove that one causes the other.")]})}];
 G.g7g6.push(r=>{const s=ri(r,3,10),h=ri(r,4,12);need(h>s/2);const sa=s*s+2*s*h;
   return inp({parts:[`A square pyramid has a base that is ${s} in on each side. Each triangle face has a height of ${h} in.`,"What is its total surface area in square inches?"],keys:["square","pyramid","base","triangle","surface","area"],ans:sa,
    whyIn:{[2*s*h]:"Add the square base too.",[s*s+4*s*h]:"Each face is a triangle: take half of base × height.",[s*s+s*h/2]:"There are 4 triangle faces."},whyElse:"Surface area = base + 4 triangles.",
@@ -2258,7 +2336,7 @@ const lin=(m,b,v="x")=>{let s=term(m,v,true);if(b){s+=s?(b<0?` − ${D(-b)}`:` +
 const quad=(a,b,c,v="x")=>{let s=term(a,v+"²",true);s+=term(b,v,!s);if(c)s+=s?(c<0?` − ${D(-c)}`:` + ${D(c)}`):N(c);return s||"0"};
 const sup=n=>String(n).split("").map(d=>"⁰¹²³⁴⁵⁶⁷⁸⁹"["0123456789".indexOf(d)]||(d==="-"?"⁻":d)).join("");
 function mc(r,o){const seen=new Set([JSON.stringify(o.correct)]),w=[],n=o.n||4;
-  for(const x of o.wrongs){const k=JSON.stringify(x.c);if(x.c==null||x.c===""||seen.has(k))continue;seen.add(k);w.push(x);if(w.length===n-1)break}
+  for(const x of MCFIX.order(r,o.correct,o.wrongs,n)){const k=JSON.stringify(x.c);if(x.c==null||x.c===""||seen.has(k))continue;seen.add(k);w.push(x);if(w.length===n-1)break}
   need(w.length===n-1);const all=shuf(r,[{c:o.correct,ok:true},...w]),why={};let ans;all.forEach((x,i)=>{if(x.ok)ans=LET[i];else why[LET[i]]=x.why});
   return {type:"mc",parts:o.parts,keys:o.keys,choices:all.map(x=>x.c),ans,why,steps:o.steps,...(o.fixed?{fixed:true}:{})}}
 const W=(c,why)=>({c,why});
@@ -2289,7 +2367,9 @@ const W$=(v,why)=>W(M(v),why);
 const U=x=>Math.abs(x*100-Math.round(x*100))<1e-9?M(x):"$"+x.toFixed(3);
 /* mixed number from a computed value: 1.5 → 1 ½ */
 const MQ=v=>{if(Number.isInteger(v))return N(v);for(let d=2;d<=64;d++){const n=Math.round(v*d);if(Math.abs(n/d-v)<1e-9)return MX(n,d)}return D(v,2)};
-const TRIPS=[[3,4,5],[5,12,13],[8,15,17],[7,24,25],[6,8,10],[9,12,15],[20,21,29],[9,40,41]];
+const TRIPS=[[3,4,5],[5,12,13],[8,15,17],[7,24,25],[6,8,10],[9,12,15],[20,21,29],[9,40,41],[12,16,20],[15,20,25],[10,24,26],[12,35,37]];
+/* a right-triangle side set: any Pythagorean triple, sometimes scaled up, legs in either order (so 3-4-5 isn't the answer every time) */
+const trip=(r,max=60)=>{let [a,b,c]=pick(r,TRIPS);const k=pick(r,[1,1,2,3]);if(c*k<=max){a*=k;b*=k;c*=k}return r()<.5?[b,a,c]:[a,b,c]};
 const rtri=o=>({viz:{rtri:o,alt:`a right triangle with legs ${o.a} and ${o.b} and hypotenuse ${o.c}${o.ang?`, angle ${o.ang} marked`:""}`}});
 
 /* ======================= ACT: NUMBER AND QUANTITY ======================= */
@@ -2348,7 +2428,7 @@ G.actnq4=[
   return mcNs(r,{parts:["Matrices A and B are shown.","Matrix A:",{table:A.map(x=>x.map(N))},"Matrix B:",{table:B.map(x=>x.map(N))},`What is the entry in the ${RC[i]} row, ${RC[j]} column of ${k}A + B?`],keys:["row","column",`${k}A`,"B","entry"],ans,
    wrongs:[[A[i][j]+B[i][j],`Multiply every entry of A by ${k} first.`],[k*(A[i][j]+B[i][j]),`Only A is multiplied by ${k}.`],[k*A[j][i]+B[j][i],"Rows go across and columns go down."],[k*A[i][j]-B[i][j],"Add the B entry."]],
    steps:[say(`The ${RC[i]} row, ${RC[j]} column entry of A is ${N(A[i][j])}, and of B is ${N(B[i][j])}.`),say(`${k} × ${P(A[i][j])} + ${P(B[i][j])} = ${N(ans)}.`)]})},
- r=>{const [a,b,c]=pick(r,TRIPS.slice(0,6)),sa=pick(r,[1,-1]),sb=pick(r,[1,-1]);
+ r=>{const [a,b,c]=trip(r),sa=pick(r,[1,-1]),sb=pick(r,[1,-1]);
   return mcNs(r,{parts:[`What is the magnitude of the vector ⟨${N(sa*a)}, ${N(sb*b)}⟩?`],keys:["magnitude","vector"],ans:c,
    wrongs:[[a+b,"Magnitude uses the Pythagorean theorem, not addition."],[a*a+b*b,"Take the square root of the sum of squares."],[Math.abs(sa*a+sb*b),"Square each component before adding."]],
    steps:[say("Magnitude = √(x² + y²)."),say(`√(${a*a} + ${b*b}) = √${c*c} = ${c}.`)]})}];
@@ -2545,12 +2625,12 @@ G.actfun7=[
   return mc(r,{parts:[`What is ${d}° in radians?`],keys:[`${d}°`,"radians"],correct:PIR(d,180),
    wrongs:[W(PIR(180,d),"Multiply by π/180, not 180/π."),W(PIR(d,360),"π radians = 180°, not 360°."),W(PIR(2*d,180),"π radians = 180°, so divide by 180.")],
    steps:[say("π radians = 180°, so multiply degrees by π/180."),say(`${d} × π/180 = ${PIR(d,180)}.`)]})},
- r=>{const [a,b,c]=pick(r,TRIPS.slice(0,5)),quad2=pick(r,["II","IV"]);
+ r=>{const [a,b,c]=trip(r),quad2=pick(r,["II","IV"]);
   const ans=quad2==="II"?"−"+FS(b,c):FS(b,c);
   return mc(r,{parts:[`If sin θ = ${quad2==="II"?FS(a,c):"−"+FS(a,c)} and θ is in Quadrant ${quad2}, what is cos θ?`],keys:["sin","Quadrant",quad2,"cos"],correct:ans,
    wrongs:[W(quad2==="II"?FS(b,c):"−"+FS(b,c),`In Quadrant ${quad2}, cosine is ${quad2==="II"?"negative":"positive"}.`),W(quad2==="II"?"−"+FS(a,c):FS(a,c),`Use sin²θ + cos²θ = 1 to find the other side: √(${c*c} − ${a*a}) = ${b}.`),W(quad2==="II"?"−"+FS(c,b):FS(c,b),"Cosine is adjacent ÷ hypotenuse, which is always 1 or less in size.")],
    steps:[say(`sin²θ + cos²θ = 1: cos²θ = 1 − ${FS(a*a,c*c)} = ${FS(b*b,c*c)}.`),say(`cos θ = ±${FS(b,c)}.`),say(`In Quadrant ${quad2}, cosine is ${quad2==="II"?"negative":"positive"}, so cos θ = ${ans}.`)]})},
- r=>{const [a,b,c]=pick(r,TRIPS.slice(0,6));
+ r=>{const [a,b,c]=trip(r);
   return mc(r,{parts:[`For an angle θ, sin θ = ${FS(a,c)} and cos θ = ${FS(b,c)}. What is tan θ?`],keys:["sin","cos","tan"],correct:FS(a,b),
    wrongs:[W(FS(b,a),"tan θ = sin θ ÷ cos θ, not cos ÷ sin."),W(FS(a*b,c*c),"Divide sin by cos; don’t multiply."),W(FS(a+b,c),"tan θ = sin θ ÷ cos θ.")],
    steps:[say("tan θ = sin θ ÷ cos θ."),say(`${FS(a,c)} ÷ ${FS(b,c)} = ${FS(a,c)} × ${FS(c,b)} = ${FS(a,b)}.`)]})}];
@@ -2579,7 +2659,7 @@ G.actgeo1=[
    wrongs:[[rel[1]===a?180-a:a,rel[0]==="same-side interior"?"Same-side interior angles add to 180°.":`${rel[0][0].toUpperCase()+rel[0].slice(1)} angles are equal.`],[Math.abs(90-a),"These angles aren’t complementary."],[360-a,"A straight line makes 180°, not 360°."]],
    steps:[say(rel[0]==="same-side interior"?"Same-side interior angles are supplementary: they add to 180°.":`${rel[0][0].toUpperCase()+rel[0].slice(1)} angles have equal measures.`),say(`So the angle is ${rel[1]}°.`)]})}];
 G.actgeo2=[
- r=>{const [a,b,c]=pick(r,TRIPS),find=pick(r,["c","b"]);
+ r=>{const [a,b,c]=trip(r),find=pick(r,["c","b"]);
   if(find==="c")return mcNs(r,{parts:[`A right triangle has legs of length ${a} and ${b}. What is the length of the hypotenuse?`,rtri({a:String(a),b:String(b),c:"?"})],keys:["right","triangle","legs",String(a),String(b),"hypotenuse"],ans:c,
     wrongs:[[a+b,"Square the legs, add, then take the square root."],[a*a+b*b,"Take the square root at the end."],[Math.abs(b-a)||1,"The hypotenuse is the longest side."]],
     steps:[say("a² + b² = c²."),say(`${a}² + ${b}² = ${a*a} + ${b*b} = ${c*c}.`),say(`c = √${c*c} = ${c}.`)]});
@@ -2594,7 +2674,7 @@ G.actgeo2=[
   return mc(r,{parts:[`In a 30°-60°-90° triangle, the shorter leg is ${x} units long. How long is the longer leg?`],keys:["30°-60°-90°","shorter",String(x),"longer"],correct:`${x}√3`,
    wrongs:[W(`${x}√2`,"√2 is for 45-45-90 triangles."),W(String(2*x),"That is the hypotenuse."),W(`${2*x}√3`,"The longer leg is the shorter leg × √3.")],steps:[say("30-60-90 sides: x, x√3, 2x."),say(`Longer leg = ${x}√3.`)]})}];
 G.actgeo3=[
- r=>{const [a,b,c]=pick(r,TRIPS.slice(0,6)),fn=pick(r,["sin","cos","tan"]);const v={sin:FS(a,c),cos:FS(b,c),tan:FS(a,b)};
+ r=>{const [a,b,c]=trip(r),fn=pick(r,["sin","cos","tan"]);const v={sin:FS(a,c),cos:FS(b,c),tan:FS(a,b)};
   return mc(r,{parts:[`In right triangle ABC, angle C is the right angle. The side opposite angle A is ${a}, the side adjacent to angle A is ${b}, and the hypotenuse is ${c}.`,rtri({a:String(a),b:String(b),c:String(c),ang:"A"}),`What is ${fn} A?`],keys:["opposite","adjacent","hypotenuse",`${fn}`,"A"],correct:v[fn],
    wrongs:[...Object.entries(v).filter(([k])=>k!==fn).map(([k,x])=>W(x,`That is ${k} A. ${fn==="sin"?"Sine = opposite ÷ hypotenuse.":fn==="cos"?"Cosine = adjacent ÷ hypotenuse.":"Tangent = opposite ÷ adjacent."}`)),W(fn==="tan"?FS(b,a):fn==="sin"?FS(c,a):FS(c,b),"Flip it: the hypotenuse goes on the bottom for sine and cosine.")],
    steps:[say("SOH CAH TOA."),say(fn==="sin"?`sin A = opposite ÷ hypotenuse = ${a}/${c}.`:fn==="cos"?`cos A = adjacent ÷ hypotenuse = ${b}/${c}.`:`tan A = opposite ÷ adjacent = ${a}/${b}.`)]})},
@@ -2654,7 +2734,7 @@ G.actgeo7=[
   return mc(r,{parts:[`What is the midpoint of the segment with endpoints (${N(x1)}, ${N(y1)}) and (${N(x2)}, ${N(y2)})?`],keys:["midpoint","segment","endpoints"],correct:`(${N((x1+x2)/2)}, ${N((y1+y2)/2)})`,
    wrongs:[W(`(${N((x2-x1)/2)}, ${N((y2-y1)/2)})`,"The midpoint averages the coordinates: add, then divide by 2."),W(`(${N(x1+x2)}, ${N(y1+y2)})`,"Divide each sum by 2."),W(`(${N((y1+y2)/2)}, ${N((x1+x2)/2)})`,"Keep x first.")],
    steps:[say(`x: (${N(x1)} + ${P(x2)}) ÷ 2 = ${N((x1+x2)/2)}.`),say(`y: (${N(y1)} + ${P(y2)}) ÷ 2 = ${N((y1+y2)/2)}.`)]})},
- r=>{const [a,b,c]=pick(r,TRIPS.slice(0,5)),x1=ri(r,-6,6),y1=ri(r,-6,6),sx=pick(r,[1,-1]),sy=pick(r,[1,-1]),x2=x1+sx*a,y2=y1+sy*b;
+ r=>{const [a,b,c]=trip(r),x1=ri(r,-6,6),y1=ri(r,-6,6),sx=pick(r,[1,-1]),sy=pick(r,[1,-1]),x2=x1+sx*a,y2=y1+sy*b;
   return mcNs(r,{parts:[`What is the distance between the points (${N(x1)}, ${N(y1)}) and (${N(x2)}, ${N(y2)})?`],keys:["distance","points"],ans:c,
    wrongs:[[a+b,"Use the distance formula, not the sum of the changes."],[a*a+b*b,"Take the square root."],[Math.abs(a-b)||c+1,"Square each change, add, then take the square root."]],
    steps:[say(`Change in x: ${a}. Change in y: ${b}.`),say(`√(${a}² + ${b}²) = √${c*c} = ${c}.`)]})},
@@ -2687,10 +2767,13 @@ G.actsp1=[
   return mc(r,{parts:["What is the median of the data set below?",{eq:shown.join(", ")}],keys:["median","data"],correct:N(med),
    wrongs:[W(N(xs[n/2-1]),"With an even number of values, the median is the average of the two middle values."),W(D(mean,2),"That is the mean. The median is the middle of the ordered list."),W(N((shown[n/2-1]+shown[n/2])/2),"Put the numbers in order first.")],
    steps:[say(`Order the data: ${xs.join(", ")}.`),say(`The two middle values are ${xs[n/2-1]} and ${xs[n/2]}.`),say(`Median = (${xs[n/2-1]} + ${xs[n/2]}) ÷ 2 = ${N(med)}.`)]})},
- r=>{const big=r()<.5;
-  return mc(r,{parts:[`In a data set of 20 home prices, one home is ${big?"far more expensive":"far cheaper"} than all the others. If that home is removed from the data set, what is most likely to happen?`],keys:["20",big?"expensive":"cheaper","removed","likely"],correct:`The mean ${big?"decreases":"increases"} more than the median ${big?"decreases":"increases"}.`,
-   wrongs:[W(`The median ${big?"decreases":"increases"} more than the mean ${big?"decreases":"increases"}.`,"Outliers pull the mean much more than the median."),W(`The mean ${big?"increases":"decreases"}.`,big?"Removing a very high value lowers the mean.":"Removing a very low value raises the mean."),W("Neither the mean nor the median changes.","Removing a value changes the total, so the mean changes.")],
-   steps:[say("The mean uses every value, so an outlier pulls it strongly."),say("The median only depends on the middle position, so it barely moves.")]})}];
+ r=>{const big=r()<.5,add=r()<.5,C=pick(r,[["home prices","home",big?"far more expensive":"far cheaper"],["salaries at a small company","salary",big?"far higher":"far lower"],["commute times for a class","commute",big?"far longer":"far shorter"],["test scores in a class","score",big?"far higher":"far lower"],["ages of people at a family reunion","age",big?"far older":"far younger"]]),n=pick(r,[12,15,20,25]);
+  /* adding a high outlier raises the mean; removing it lowers the mean (and the reverse for a low one) */
+  const up=add?big:!big,mv=up?"increases":"decreases",other=up?"decreases":"increases";
+  return mc(r,{parts:[add?`A data set has ${n} ${C[0]}. A new ${C[1]} is added that is ${C[2]} than all the others.`:`A data set has ${n} ${C[0]}. One ${C[1]} is ${C[2]} than all the others, and it is removed.`,"What is most likely to happen to the mean and the median?"],keys:[String(n),C[1],add?"added":"removed","mean","median"],
+   correct:`The mean ${mv} a lot; the median changes very little.`,
+   wrongs:[W(`The median ${mv} a lot; the mean changes very little.`,"Outliers pull the mean much more than the median."),W(`The mean ${other} a lot; the median changes very little.`,up?"A very high value pulls the mean up.":"A very low value pulls the mean down."),W("The mean and the median both stay exactly the same.","The mean uses every value, so an outlier changes it.")],
+   steps:[say("The mean uses every value, so one extreme value pulls it strongly."),say("The median only depends on the middle position, so it barely moves."),say(`So the mean ${mv} a lot and the median changes very little.`)]})}];
 G.actsp2=[
  r=>{const R=ri(r,3,8),B=ri(r,2,8),Gg=ri(r,1,6),T=R+B+Gg,col=pick(r,["red","blue"]),k=col==="red"?R:B;
   return mc(r,{parts:[`A bag has ${R} red, ${B} blue, and ${Gg} green marbles. Two marbles are drawn at random, without replacement.`,`What is the probability that both are ${col}?`],keys:[String(R),"red",String(B),"blue",String(Gg),"green","without","replacement","both",col],correct:FS(k*(k-1),T*(T-1)),
