@@ -398,6 +398,20 @@ test("platform log: owner and district admin actions, plus each school's log", a
   await rejects(m.call("ownerLogAll", { code: "wrong" }), /did not match/);
 });
 
+test("owner can rename a district and move a school between districts without touching its data", async () => {
+  const { m, A } = await twoDistricts();
+  const school = (await m.call("ownerDistricts", { code: "owner-secret-1" })).districts.find(d => d.id === "alpha").schools[0].id;
+  await m.call("ownerDistrictRename", { code: "owner-secret-1", id: "alpha", name: "Alpha County SD" });
+  await m.call("ownerSchoolMove", { code: "owner-secret-1", id: school, district: "beta" });
+  await rejects(m.call("ownerSchoolMove", { code: "owner-secret-1", id: school, district: "nowhere" }), /not found/);
+  const D = (await m.call("ownerDistricts", { code: "owner-secret-1" })).districts;
+  assert.equal(D.find(d => d.id === "alpha").name, "Alpha County SD"); assert.equal(D.find(d => d.id === "alpha").schools.length, 0);
+  assert.equal(D.find(d => d.id === "beta").schools.length, 2);
+  assert.ok((await m.call("boot", { token: A.T })).school); // teachers keep working
+  await m.call("ownerDistrictDelete", { code: "owner-secret-1", id: "alpha" });
+  await rejects(m.call("ownerSchoolMove", { code: "wrong", id: school, district: "beta" }), /did not match/);
+});
+
 /* ---------- stage 4: moving today's one-school site into its own school store ---------- */
 test("move: dry run writes nothing; the copy is exact; re-running syncs; the switch keeps everyone's work; switching back undoes it", async () => {
   const stores = new Map(), getStore = n => { if (!stores.has(n)) stores.set(n, memoryStore()); return stores.get(n) };

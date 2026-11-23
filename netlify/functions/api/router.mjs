@@ -16,7 +16,7 @@ const str = (v, max = 200) => String(v ?? "").trim().slice(0, max);
 const rid = (n = 10) => crypto.randomBytes(16).toString("base64url").replace(/[^A-Za-z0-9]/g, "").slice(0, n);
 /* public forms with no school (tutor applications, demo requests) land in the home school, where the site admin reviews them today */
 const HOME_ACTIONS = new Set(["tutorApply", "tutorFile", "leadAdd"]);
-const OWNER_ACTIONS = new Set(["ownerDistricts", "ownerDistrictCreate", "ownerDistrictDelete", "ownerDistrictAdmin", "ownerSchoolCreate", "ownerSchoolDelete", "ownerResearchAll", "ownerInsightsAll", "ownerLogAll"]);
+const OWNER_ACTIONS = new Set(["ownerDistricts", "ownerDistrictCreate", "ownerDistrictDelete", "ownerDistrictAdmin", "ownerSchoolCreate", "ownerSchoolDelete", "ownerResearchAll", "ownerInsightsAll", "ownerLogAll", "ownerSchoolMove", "ownerDistrictRename"]);
 const DISTRICT_ACTIONS = new Set(["districtLogin", "districtOverview"]);
 
 export const schoolStoreName = id => "ptp-d-" + id;
@@ -82,7 +82,7 @@ export function makeRouter({ getStore, env }) {
       if (w && w.modified !== false) return;
     }
   }
-  const LOG_TEXT = { ownerDistrictCreate: b => ["District added", str(b.name, 100) + " (" + str(b.id, 24) + ")"], ownerDistrictDelete: b => ["District deleted", str(b.id, 24)], ownerDistrictAdmin: b => ["District admin saved", str(b.name, 60) + " in " + str(b.district, 24)], ownerSchoolCreate: b => ["School added", str(b.name, 100) + " (" + str(b.id, 24) + ")"], ownerSchoolDelete: b => ["School deleted", str(b.id, 24)], ownerResearchAll: () => ["Research export downloaded", "all schools, names removed"] };
+  const LOG_TEXT = { ownerDistrictCreate: b => ["District added", str(b.name, 100) + " (" + str(b.id, 24) + ")"], ownerDistrictDelete: b => ["District deleted", str(b.id, 24)], ownerDistrictAdmin: b => ["District admin saved", str(b.name, 60) + " in " + str(b.district, 24)], ownerSchoolCreate: b => ["School added", str(b.name, 100) + " (" + str(b.id, 24) + ")"], ownerSchoolDelete: b => ["School deleted", str(b.id, 24)], ownerResearchAll: () => ["Research export downloaded", "all schools, names removed"], ownerSchoolMove: b => ["School moved to another district", str(b.id, 24) + " → " + str(b.district, 24)], ownerDistrictRename: b => ["District renamed", str(b.id, 24) + " → " + str(b.name, 100)] };
 
   /* ---------- the platform owner's tools (owner code, with lockout) ---------- */
   async function ownerCheck(b, ip) {
@@ -117,6 +117,13 @@ export function makeRouter({ getStore, env }) {
       await R().delete("district/" + id);
       return { ok: true };
     },
+    async ownerDistrictRename(b) {
+      const id = str(b.id, 24), name = str(b.name, 100), d = await getR("district/" + id);
+      if (!d) no(404, "That district was not found.");
+      if (!name) no(400, "Type the district's name.");
+      await setR("district/" + id, { ...d, name });
+      return { ok: true };
+    },
     async ownerDistrictAdmin(b) { // add a district admin, or reset one's code (matched by name)
       const id = str(b.district, 24), d = await getR("district/" + id), name = str(b.name, 60), code = str(b.adminCode, 12);
       if (!d) no(404, "That district was not found.");
@@ -137,6 +144,14 @@ export function makeRouter({ getStore, env }) {
       const r = await setR("school/" + id, { id, name, district, created: Date.now(), setupHash: sha("setup" + setupKey) }, { onlyIfNew: true });
       if (r && r.modified === false) no(409, "That school code is already used.");
       return { ok: true, id, setupKey };
+    },
+    async ownerSchoolMove(b) { // put a school in a different district; its teachers, students and data don't change
+      const id = str(b.id, 24), to = str(b.district, 24).toLowerCase(), rec = await schoolRec(id);
+      if (!rec) no(404, "That school was not found.");
+      if (!(await getR("district/" + to))) no(404, "That district was not found. Add it first.");
+      if (rec.district === to) return { ok: true };
+      await setR("school/" + id, { ...rec, district: to });
+      return { ok: true, from: rec.district };
     },
     async ownerSchoolDelete(b) {
       const id = str(b.id, 24);
