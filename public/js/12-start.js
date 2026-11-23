@@ -8,6 +8,7 @@
       else{startStudent({...await api("studentBoot"),token:TOKEN});return}}catch(e){const c=ls.get(BOOTKEY,sessionStorage);if(sess.role!=="teacher"&&c&&/reach the school server/.test(e.message)){startStudent({...c,token:TOKEN});return}TOKEN=null;ls.set(SKEY,null,sessionStorage)}}
   if(location.hash==="#tutor"){S.screen="tutorApply"}
   if(location.hash==="#owner"){S.screen="owner"}
+  if(location.hash==="#privacy")S.screen="privacy";if(location.hash==="#terms")S.screen="terms"; /* public links for Google sign-in and districts */
   if(location.hash==="#mississippi")S.screen="mississippi";if(location.hash==="#founding")S.screen="founding";if(location.hash==="#demo-request"){S.screen="lead";S.leadType="demo"}
   if(location.hash==="#tour"){render();startDemoSchool(true);return}
   render();
