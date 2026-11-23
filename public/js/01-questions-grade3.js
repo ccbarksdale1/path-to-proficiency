@@ -368,7 +368,7 @@ const UNKNOWN=[
   let d2;do{d2=ri(2,9)}while(d2===a);
   return mc(r,{parts:["An equation with a missing number is shown.",{eq:`${P} ÷ ${a} = ___`},"Which equation has the same missing number?"],keys:[String(P),"÷",String(a),"same","missing","number"],
    correct:`${d2*q} ÷ ${d2} = ___`,wrongs:facts,
-   steps:[say(`First solve the one shown. ${P} ÷ ${a}: think ${a} × what = ${P}? ${a} × ${q} = ${P}. The missing number is ${q}.`),say(`Now find the choice that also equals ${q}.`),
+   steps:[say(`First solve the one shown. ${P} ÷ ${a}: think ${a} × what = ${P}? ${a} × ${q} = ${P}. The missing number is ${q}.`),say(`Now find the choice that also equals ${q}.`,{chain:[`${P} ÷ ${a}`,String(q)]}),
     say(`${d2*q} ÷ ${d2} = ${q}, because ${d2} × ${q} = ${d2*q}. That is the answer.`)]})},
  r=>{const[a,q]=fac2(r),P=a*q;
   return mc(r,{parts:["Study the equation.",{eq:`${P} ÷ ∎ = ${q}`},"Which number makes the equation true?"],keys:[String(P),"÷","∎",String(q),"true"],
@@ -426,7 +426,7 @@ const QUAD=[
  r=>{const Q=["square","rectangle","rhombus","trapezoid"],N=["triangle","pentagon","hexagon","octagon","circle"];
   const [q1,q2]=shuf(r,Q),wr=shuf(r,N).slice(0,4).map((n,i)=>{const q=Q[i%4];return{c:i%2?`${n} and ${q}`:`${q} and ${n}`,why:`A${/^[aeiou]/.test(n)?"n":""} ${n} has ${sideWords(SIDES[n])}. Both shapes must have 4.`}});
   return mc(r,{parts:["Which shapes are both quadrilaterals?"],keys:["shapes","both","quadrilaterals"],correct:`${q1} and ${q2}`,wrongs:wr,
-   steps:[say("Both shapes must have 4 sides."),say("Square, rectangle, rhombus, and trapezoid have 4 sides. Triangle 3, pentagon 5, hexagon 6, octagon 8. A circle has no straight sides."),
+   steps:[say("Both shapes must have 4 sides.",{two:[{shape:q1,cap:`${q1}: 4 sides`},{shape:q2,cap:`${q2}: 4 sides`}]}),say("Square, rectangle, rhombus, and trapezoid have 4 sides. Triangle 3, pentagon 5, hexagon 6, octagon 8. A circle has no straight sides."),
     say(`${q1[0].toUpperCase()+q1.slice(1)} and ${q2} both have 4 sides. That is the answer.`)]})},
  r=>{const P=pick(r,[["square","Which shape always has 4 equal sides and 4 right angles?","A square has 4 equal sides AND 4 right angles."],
    ["rhombus","Which shape always has 4 equal sides, but does not need right angles?","A rhombus has 4 equal sides. It can be tilted, with no right angles."],
@@ -560,10 +560,11 @@ function nlHTML([lo,hi,step,marks,mid,every]){
   (marks||[]).forEach((v,i)=>{s+=`<circle cx="${x(v)}" cy="60" r="6" fill="#2B59C3"/><text x="${x(v)}" y="${i%2?44:24}" text-anchor="middle" font-size="13" font-weight="700" fill="#2B59C3">${v}</text>`});
   return `<svg viewBox="0 0 ${W} 96" style="overflow:visible" width="${W}" role="img" aria-label="Number line from ${lo} to ${hi}">${s}</svg>`;
 }
+function tensHTML([g,t]){return `<div class="grps">${Array.from({length:g},()=>`<div class="grp tens">${'<b class="rod" aria-hidden="true"></b>'.repeat(t)}</div>`).join("")}</div><p class="small muted" style="margin:.3rem 0 0;text-align:center">${g} ${g===1?"group":"groups"} of ${t} tens (each bar is 10)</p>`}
 function groupsHTML([g,n]){return `<div class="grps">${Array.from({length:g},()=>`<div class="grp">${'<i></i>'.repeat(n)}</div>`).join("")}</div>`}
 function skipHTML([by,times]){const a=Array.from({length:times},(_,i)=>(i+1)*by);return `<div class="chain">${a.map((v,i)=>`<span>${v}</span>${i<a.length-1?'<em>→</em>':''}`).join("")}</div>`}
 function chainHTML(a){return `<div class="chain">${a.map(t=>t.startsWith("−")?`<em>${esc(t)}</em>`:`<span>${esc(t)}</span>`).join("")}</div>`}
-function showHTML(s){if(!s)return"";if(s.img)return img(s.img);if(s.work)return workHTML(s.work);if(s.nl)return nlHTML(s.nl);if(s.groups)return groupsHTML(s.groups);
+function showHTML(s){if(!s)return"";if(s.img)return img(s.img);if(s.work)return workHTML(s.work);if(s.nl)return nlHTML(s.nl);if(s.groups)return groupsHTML(s.groups);if(s.tens)return tensHTML(s.tens);if(s.two)return `<div style="display:flex;gap:22px;align-items:flex-end;justify-content:center;flex-wrap:wrap">${s.two.map(x=>`<div style="text-align:center">${showHTML(x)}${x.cap?`<p class="small" style="margin:.2rem 0 0">${esc(x.cap)}</p>`:""}</div>`).join("")}</div>`;
   if(s.viz)return vizHTML(s.viz);if(s.skip)return skipHTML(s.skip);if(s.chain)return chainHTML(s.chain);if(s.arr)return arrHTML(...s.arr);if(s.table)return tableHTML({table:s.table});if(s.shape)return shapeSVG(s.shape);if(s.poly)return shapeSVG(s.poly);if(s.svg)return partsSVG(s.svg);return""}
 function choiceInner(c){
   if(typeof c==="string")return `<span>${fmt(c)}</span>`;
@@ -681,16 +682,16 @@ const PROPS=[
    correct:`(${a} × ${b1}) + (${a} × ${b2})`,wrongs:[{c:`(${a} × ${b1}) + ${b2}`,why:`The ${b2} also has to be multiplied by ${a}.`},
     {c:`(${a} + ${b1}) × (${a} + ${b2})`,why:"That adds where it should multiply."},{c:`(${a} × ${b1}) × (${a} × ${b2})`,why:"The two parts are added together, not multiplied."},
     {c:`(${a} + ${b1}) + ${b2}`,why:"That only adds the numbers."}],
-   steps:[say(`${a} × ${b} means ${a} groups of ${b}. Split each ${b} into ${b1} and ${b2}.`),say(`${a} × ${b1} = ${a*b1} and ${a} × ${b2} = ${a*b2}.`),say(`Add the parts: ${a*b1} + ${a*b2} = ${a*b}. This is the distributive property.`)]})},
+   steps:[say(`${a} × ${b} means ${a} groups of ${b}. Split each ${b} into ${b1} and ${b2}.`,{viz:{rect:{w:b,h:a,tiles:true,split:b1}}}),say(`${a} × ${b1} = ${a*b1} and ${a} × ${b2} = ${a*b2}.`),say(`Add the parts: ${a*b1} + ${a*b2} = ${a*b}. This is the distributive property.`)]})},
  r=>{const a=ri(r,2,5),b=ri(r,2,5),c=pick(r,[2,5,10]),p=a*b*c;need(p<=100);
   return mc(r,{parts:[`Which expression is equal to (${a} × ${b}) × ${c}?`],keys:["equal",String(a),String(b),String(c)],
    correct:`${a} × (${b} × ${c})`,wrongs:[{c:`${a} + (${b} × ${c})`,why:`${a} + ${b*c} = ${a+b*c}. The ${a} should be multiplied.`},{c:`(${a} + ${b}) × ${c}`,why:`(${a} + ${b}) × ${c} = ${(a+b)*c}. That adds ${a} and ${b}.`},
     {c:`(${a} × ${b}) + ${c}`,why:`${a*b} + ${c} = ${a*b+c}. The ${c} should be multiplied.`}],
-   steps:[say("When you multiply three numbers, you can group them any way. This is the associative property."),say(`(${a} × ${b}) × ${c} = ${a*b} × ${c} = ${p}.`),say(`${a} × (${b} × ${c}) = ${a} × ${b*c} = ${p}. Same product.`)]})},
+   steps:[say("When you multiply three numbers, you can group them any way. This is the associative property."),say(`(${a} × ${b}) × ${c} = ${a*b} × ${c} = ${p}.`,{chain:[`(${a} × ${b}) × ${c}`,`${a*b} × ${c}`,String(p)]}),say(`${a} × (${b} × ${c}) = ${a} × ${b*c} = ${p}. Same product.`,{chain:[`${a} × (${b} × ${c})`,`${a} × ${b*c}`,String(p)]})]})},
  r=>{const n=ri(r,12,99),z=r()<.5;
   return inp({parts:[z?`What is ${n} × 0?`:`What is ${n} × 1?`],keys:[String(n),z?"0":"1"],ans:z?0:n,whyIn:z?{[n]:`Multiplying by 0 means 0 groups, so the product is 0.`,1:"Any number times 0 is 0, not 1."}:{1:`${n} groups of 1 is ${n}, not 1.`,0:"Times 1 keeps the number the same. Times 0 makes 0."},
    whyElse:z?"Any number times 0 is 0.":"Any number times 1 is that same number.",
-   steps:z?[say(`${n} × 0 means ${n} groups of 0.`),say("Groups with nothing in them add up to nothing."),say(`${n} × 0 = 0.`)]:[say(`${n} × 1 means ${n} groups of 1.`),say("Times 1 keeps the number the same. This is the identity property."),say(`${n} × 1 = ${n}.`)]})},
+   steps:z?[say(`${n} × 0 means ${n} groups of 0.`,{two:[{groups:[4,0],cap:"groups with 0 in each"},{chain:[`${n} groups`,"0 in each","0 in all"]}]}),say("Groups with nothing in them add up to nothing."),say(`${n} × 0 = 0.`)]:[say(`${n} × 1 means ${n} groups of 1.`,{two:[{groups:[4,1],cap:"groups with 1 in each"},{chain:[`${n} groups`,"1 in each",`${n} in all`]}]}),say("Times 1 keeps the number the same. This is the identity property."),say(`${n} × 1 = ${n}.`)]})},
 ];
 /* ---------- 3.OA.6 division as an unknown factor ---------- */
 const DIVFACT=[
@@ -726,11 +727,11 @@ const TWOSTEP=[
  r=>{const n=name(r),g=ri(r,3,8),k=ri(r,3,9),tot=g*k,give=ri(r,2,tot-3);
   return inp({parts:[`${n} has ${g} boxes with ${k} crayons in each box. ${n} gives away ${give} crayons.`,"How many crayons are left?"],keys:[String(g),"boxes",String(k),"each",String(give),"gives","away","left"],ans:tot-give,
    whyIn:{[tot]:`That is how many crayons before giving any away. Subtract ${give}.`,[g+k-give]:"That adds the boxes and crayons. Multiply to find the total first.",[tot+give]:"Giving away means subtract, not add."},whyElse:"Step 1: multiply to find the total. Step 2: subtract what was given away.",
-   steps:[say(`Step 1: ${g} boxes of ${k} is ${g} × ${k} = ${tot} crayons.`),say(`Step 2: ${tot} − ${give} = ${tot-give}.`),say(`Check: ${tot-give} is less than ${tot}, which makes sense.`)]})},
+   steps:[say(`Step 1: ${g} boxes of ${k} is ${g} × ${k} = ${tot} crayons.`,{groups:[g,k]}),say(`Step 2: ${tot} − ${give} = ${tot-give}.`,{chain:[String(tot),`− ${give}`,String(tot-give)]}),say(`Check: ${tot-give} is less than ${tot}, which makes sense.`)]})},
  r=>{const n=name(r),p=ri(r,3,9),c=ri(r,3,6),m=ri(r,5,30);
   return mc(r,{parts:[`${n} buys ${c} books for $${p} each and has $${m} left.`,"Which equation can be used to find the amount of money, m, that "+n+" had at first?"],keys:[String(c),"books",String(p),"each",String(m),"left","equation","first"],
    correct:`m = ${c} × ${p} + ${m}`,wrongs:[{c:`m = ${c} + ${p} + ${m}`,why:`${c} books for $${p} each is ${c} × ${p}, not ${c} + ${p}.`},{c:`m = ${c} × ${p} − ${m}`,why:`${n} had the money spent PLUS the money left, so add ${m}.`},{c:`m = ${c} × ${m} + ${p}`,why:`The books cost $${p} each, so multiply ${c} × ${p}.`}],
-   steps:[say(`Money spent: ${c} books × $${p} = $${c*p}.`),say(`Money at first = money spent + money left = ${c*p} + ${m}.`),say(`So m = ${c} × ${p} + ${m} = ${c*p+m}.`)]})},
+   steps:[say(`Money spent: ${c} books × $${p} = $${c*p}.`,{chain:[`${c} × $${p}`,`$${c*p}`,`+ $${m}`,`$${c*p+m}`]}),say(`Money at first = money spent + money left = ${c*p} + ${m}.`),say(`So m = ${c} × ${p} + ${m} = ${c*p+m}.`)]})},
 ];
 /* ---------- 3.OA.9 patterns ---------- */
 const PATTERNS=[
@@ -741,24 +742,24 @@ const PATTERNS=[
   return mc(r,{parts:[`Look at the products of ${k}: ${Array.from({length:5},(_,i)=>k*(i+1)).join(", ")}.`,"Which statement explains the pattern?"],keys:["products",String(k),"statement","explains","pattern"],
    correct:`${k} times any number is always even, because ${k} can be split into two equal groups.`,
    wrongs:[{c:`${k} times any number is always odd.`,why:`Every product listed is even.`},{c:`${k} times a number is even only if the number is even.`,why:`${k} × 3 = ${k*3}, which is even too.`},{c:`The products go up by 1 each time.`,why:`They go up by ${k} each time.`}],
-   steps:[say(`Look at the ones digits: they are all even.`),say(`${k} is an even number: it is 2 groups of ${k/2}.`),say(`So ${k} times any number is 2 equal groups, which is always even.`)]})},
+   steps:[say(`Look at the ones digits: they are all even.`,{skip:[k,6]}),say(`${k} is an even number: it is 2 groups of ${k/2}.`),say(`So ${k} times any number is 2 equal groups, which is always even.`)]})},
  r=>{const o=pick(r,[["even","even","even"],["odd","odd","even"],["even","odd","odd"]]),a=o[0]==="even"?2*ri(r,2,20):2*ri(r,2,20)+1,b=o[1]==="even"?2*ri(r,2,20):2*ri(r,2,20)+1;
   return mc(r,{parts:[`${a} + ${b} = ${a+b}.`,`When you add an ${o[0]} number and an ${o[1]} number, what is the sum?`],keys:[String(a),String(b),"add",o[0],o[1],"sum"],
    correct:`always ${o[2]}`,wrongs:[{c:`always ${o[2]==="even"?"odd":"even"}`,why:`Look at ${a+b}: it is ${o[2]}.`},{c:"sometimes even and sometimes odd",why:`It works the same way every time. Try a few more.`},{c:"always 10 or more",why:"The question is about even and odd, not size."}],
-   steps:[say(`${a} + ${b} = ${a+b}, which is ${o[2]}.`),say(`Try more: ${o[0]==="even"?2:3} + ${o[1]==="even"?4:5} = ${(o[0]==="even"?2:3)+(o[1]==="even"?4:5)}.`),say(`An ${o[0]} plus an ${o[1]} is always ${o[2]}.`)]})},
+   steps:[say(`${a} + ${b} = ${a+b}, which is ${o[2]}.`,{chain:[`${a} (${o[0]})`,`+ ${b} (${o[1]})`,`${a+b} (${o[2]})`]}),say(`Try more: ${o[0]==="even"?2:3} + ${o[1]==="even"?4:5} = ${(o[0]==="even"?2:3)+(o[1]==="even"?4:5)}.`),say(`An ${o[0]} plus an ${o[1]} is always ${o[2]}.`)]})},
 ];
 /* ---------- 3.NBT.3 multiply by multiples of 10 ---------- */
 const TENS=[
  r=>{const a=ri(r,2,9),t=ri(r,2,9),p=a*t*10;
   return inp({parts:[`${a} × ${t*10} = ∎`],keys:[String(a),String(t*10)],ans:p,whyIn:{[a*t]:`${a} × ${t} tens is ${a*t} TENS, which is ${p}.`,[a*t*100]:"Too many zeros. It is tens, not hundreds.",[a+t*10]:"That adds instead of multiplies."},
-   whyElse:`Think: ${a} × ${t} tens.`,steps:[say(`${t*10} is ${t} tens.`),say(`${a} × ${t} tens = ${a*t} tens.`),say(`${a*t} tens = ${p}.`)]})},
+   whyElse:`Think: ${a} × ${t} tens.`,steps:[say(`${t*10} is ${t} tens.`),say(`${a} × ${t} tens = ${a*t} tens.`,{tens:[a,t]}),say(`${a*t} tens = ${p}.`)]})},
  r=>{const a=ri(r,3,9),t=ri(r,3,9),p=a*t*10;
   return mc(r,{parts:[`Which is equal to ${a} × ${t*10}?`],keys:["equal",String(a),String(t*10)],correct:String(p),
    wrongs:[{c:String(a*t),why:`${a} × ${t} tens is ${a*t} tens, which is ${p}. Don’t forget the tens.`},{c:String(p*10),why:"That is ten times too big."},{c:String(a+t*10),why:"That adds instead of multiplies."},{c:String(a*(t+1)*10),why:`That is ${a} × ${(t+1)*10}.`}],
-   steps:[say(`${t*10} = ${t} tens.`),say(`${a} × ${t} = ${a*t}, so ${a} × ${t} tens = ${a*t} tens.`),say(`${a*t} tens = ${p}.`)]})},
+   steps:[say(`${t*10} = ${t} tens.`),say(`${a} × ${t} = ${a*t}, so ${a} × ${t} tens = ${a*t} tens.`,{tens:[a,t]}),say(`${a*t} tens = ${p}.`)]})},
  r=>{const n=name(r),g=ri(r,2,9),t=pick(r,[20,30,40,50,60,70,80,90]);
   return inp({parts:[`${n} has ${g} boxes. Each box has ${t} pencils.`,"How many pencils are there in all?"],keys:[String(g),"boxes","each",String(t),"how","many","all"],ans:g*t,
-   whyIn:{[g*t/10]:`${g} × ${t/10} tens is ${g*t/10} tens = ${g*t}.`,[g+t]:"Equal groups means multiply."},whyElse:`${g} × ${t/10} tens.`,steps:[say(`${g} boxes of ${t} is ${g} × ${t}.`),say(`${g} × ${t/10} tens = ${g*t/10} tens.`),say(`${g*t/10} tens = ${g*t} pencils.`)]})},
+   whyIn:{[g*t/10]:`${g} × ${t/10} tens is ${g*t/10} tens = ${g*t}.`,[g+t]:"Equal groups means multiply."},whyElse:`${g} × ${t/10} tens.`,steps:[say(`${g} boxes of ${t} is ${g} × ${t}.`),say(`${g} × ${t/10} tens = ${g*t/10} tens.`,{tens:[g,t/10]}),say(`${g*t/10} tens = ${g*t} pencils.`)]})},
 ];
 /* ---------- 3.NF fractions ---------- */
 const fw=(a,b)=>FW[b]?(a===1?FW[b][0]:FW[b][1]):`${b}ths`;
@@ -799,7 +800,7 @@ const NF3A=[
    steps:[say("Compare the shaded parts. Both bars are the same size (the same whole).",{viz:{fbar:{d:b,shade:a}}}),say(`The shaded length of ${F(a*k,b*k)} is exactly the same as ${F(a,b)}.`,{viz:{fbar:{d:b*k,shade:a*k}}}),say(`Same size means equivalent: ${F(a,b)} = ${F(a*k,b*k)}.`)]})},
  r=>{return mc(r,{parts:[`${name(r)} ate ${F(1,2)} of a small pizza. A friend ate ${F(1,2)} of a large pizza.`,"Which statement is true?"],keys:[F(1,2),"small","pizza","large","statement","true"],
    correct:"They did not eat the same amount, because the pizzas are different sizes.",wrongs:[{c:"They ate the same amount, because both ate one half.",why:"Fractions can only be compared when the wholes are the same size."},{c:"The friend ate less.",why:"Half of a LARGE pizza is more than half of a small pizza."},{c:`They ate ${F(2,2)} together, which is one whole pizza.`,why:"The two halves come from different pizzas, so they don’t make one whole."}],
-   steps:[say("Both ate one half, but of different wholes."),say("Half of a large pizza is bigger than half of a small pizza."),say("Fractions can only be compared when they are parts of the same whole.")]})},
+   steps:[say("Both ate one half, but of different wholes.",{two:[{viz:{fcirc:{d:2,shade:1,size:150}},cap:"½ of a large pizza"},{viz:{fcirc:{d:2,shade:1,size:80}},cap:"½ of a small pizza"}]}),say("Half of a large pizza is bigger than half of a small pizza."),say("Fractions can only be compared when they are parts of the same whole.")]})},
 ];
 const NF3B=[
  r=>{const [a,b]=pick(r,[[1,2],[1,3],[2,3],[1,4],[3,4]]),k=pick(r,[2,2,3,4].filter(x=>b*x<=8));need(k);const c=a*k,d=b*k;
@@ -815,7 +816,7 @@ const NF3C=[
  r=>{const n=ri(r,2,8);
   return mc(r,{parts:[`Which fraction is equal to the whole number ${n}?`],keys:["fraction","equal","whole","number",String(n)],correct:F(n,1),
    wrongs:[{c:F(1,n),why:`${F(1,n)} is one piece of a whole cut into ${n} parts, less than 1.`},{c:F(n,n),why:`${F(n,n)} is 1 whole, not ${n}.`},{c:F(n,2*n),why:`${F(n,2*n)} is one half.`}],
-   steps:[say(`${n} wholes, with each whole as 1 part.`),say(`That is ${n} parts of size 1: ${F(n,1)}.`),say(`${F(n,1)} = ${n}.`)]})},
+   steps:[say(`${n} wholes, with each whole as 1 part.`,{groups:[n,1]}),say(`That is ${n} parts of size 1: ${F(n,1)}.`),say(`${F(n,1)} = ${n}.`)]})},
  r=>{const d=pick(r,DEN);
   return mc(r,{parts:[{viz:{fbar:{d,shade:d},alt:`a bar with all ${d} parts shaded`}},"Which fraction tells how much of the bar is shaded?"],keys:["fraction","bar","shaded"],correct:`${F(d,d)}, which is 1 whole`,
    wrongs:[{c:`${F(1,d)}, which is 1 whole`,why:`${F(1,d)} is one part. All ${d} parts are shaded.`},{c:`${F(d,1)}, which is 1 whole`,why:`${F(d,1)} means ${d} wholes.`},{c:`${F(d,d)}, which is ${d} wholes`,why:`${F(d,d)} is all the parts of ONE whole.`}],
@@ -846,7 +847,7 @@ const TIME=[
  r=>{const h=ri(r,1,10),m=pick(r,[0,5,10,15,20,30]),k=ri(r,12,50);const [H,M]=addMin(h,m,k);
   return inp({parts:[`A movie starts at ${tstr(h,m)} and ends at ${tstr(H,M)}.`,"How many minutes long is the movie?"],keys:["starts",tstr(h,m),"ends",tstr(H,M),"how","many","minutes"],ans:k,
    whyIn:{[Math.abs((H*100+M)-(h*100+m))]:"Times are not regular numbers. Count the minutes from start to end."},whyElse:`Count on from ${tstr(h,m)} to ${tstr(H,M)}.`,
-   steps:[say(`Start at ${tstr(h,m)} and count on.`),say(M>=m&&H===h?`${tstr(h,m)} to ${tstr(H,M)} is ${M-m} minutes.`:`${tstr(h,m)} to ${tstr(h%12+1,0)} is ${60-m} minutes, then ${M} more minutes.`),say(`The movie is ${k} minutes long.`)]})},
+   steps:[say(`Start at ${tstr(h,m)} and count on.`,{viz:{clock:{h,m}}}),say(M>=m&&H===h?`${tstr(h,m)} to ${tstr(H,M)} is ${M-m} minutes.`:`${tstr(h,m)} to ${tstr(h%12+1,0)} is ${60-m} minutes, then ${M} more minutes.`),say(`The movie is ${k} minutes long.`)]})},
 ];
 /* ---------- 3.MD.2 liquid volume and mass ---------- */
 const VOLMASS=[
@@ -856,12 +857,12 @@ const VOLMASS=[
    steps:[say("Find the top of the water.",{viz:{beaker:{max,val:v}}}),say(`It lines up with the ${v} mark.`),say(`There are ${v} liters.`)]})},
  r=>{const it=pick(r,[["an apple","150 grams",["150 kilograms","15 kilograms","1 gram"]],["a bicycle","12 kilograms",["12 grams","120 kilograms","1 gram"]],["a paper clip","1 gram",["1 kilogram","10 kilograms","100 grams"]],["a bag of rice","5 kilograms",["5 grams","50 grams","500 kilograms"]],["a dog","20 kilograms",["20 grams","2 grams","200 kilograms"]]]);
   return mc(r,{parts:[`What is the best estimate for the mass of ${it[0]}?`],keys:["best","estimate","mass"],correct:it[1],wrongs:it[2].map(c=>({c,why:`A gram is about the mass of a paper clip. A kilogram is 1,000 grams, about a big book. ${c} doesn’t fit ${it[0]}.`})),
-   steps:[say("A gram is very light, like a paper clip."),say("A kilogram is 1,000 grams, like a big dictionary."),say(`${it[0][0].toUpperCase()+it[0].slice(1)} is about ${it[1]}.`)]})},
+   steps:[say("A gram is very light, like a paper clip.",{two:[{chain:["📎","about 1 gram"]},{chain:["📕","about 1 kilogram"]}]}),say("A kilogram is 1,000 grams, like a big dictionary."),say(`${it[0][0].toUpperCase()+it[0].slice(1)} is about ${it[1]}.`)]})},
  r=>{const a=ri(r,2,9),b=ri(r,2,9),k=pick(r,["kilograms","grams","liters"]),u=k==="liters"?"of juice":"";const what=k==="liters"?["A pitcher has","liters of juice. Another pitcher has","more liters"]:["A box has a mass of",k+". A bag has a mass of","more "+k];
   const add=r()<.5;
   return inp({parts:add?[`${what[0]} ${a} ${k==="liters"?"liters of juice":k}. A second one has ${b} ${what[2]} than the first.`,`How many ${k} does the second one have?`]:[`A bucket holds ${a+b} liters of water. ${name(r)} pours out ${b} liters.`,"How many liters are left?"],
    keys:add?[String(a),k,String(b),"more","how","many"]:[String(a+b),"liters",String(b),"pours","out","left"],ans:add?a+b:a,whyIn:add?{[Math.abs(a-b)]:"“More than” means add.",[a*b]:"Add the two amounts."}:{[a+2*b]:"Pouring out means subtract."},whyElse:add?"Add the two amounts.":"Subtract the amount poured out.",
-   steps:add?[say(`The second one has ${b} more than ${a}.`),say(`${a} + ${b} = ${a+b} ${k}.`)]:[say(`Start with ${a+b} liters and take away ${b}.`),say(`${a+b} − ${b} = ${a} liters.`)]})},
+   steps:add?[say(`The second one has ${b} more than ${a}.`,{chain:[String(a),`+ ${b}`,String(a+b)]}),say(`${a} + ${b} = ${a+b} ${k}.`)]:[say(`Start with ${a+b} liters and take away ${b}.`,{two:[{viz:{beaker:{max:20,val:a+b}},cap:`${a+b} liters`},{viz:{beaker:{max:20,val:a}},cap:`${a} liters left`}]}),say(`${a+b} − ${b} = ${a} liters.`)]})},
 ];
 /* ---------- 3.MD.3 graphs ---------- */
 const CATS=[["Fruit",["Apples","Bananas","Grapes","Oranges"]],["Pets",["Dogs","Cats","Fish","Birds"]],["Colors",["Red","Blue","Green","Yellow"]],["Sports",["Soccer","Football","Basketball","Baseball"]]];
@@ -903,10 +904,10 @@ function blob(r,n){const cells=[[0,0]];const has=(a,b)=>cells.some(c=>c[0]===a&&
 const MD5A=[
  r=>mc(r,{parts:["A square has sides that are each 1 unit long.",{viz:{sqgrid:{cells:[[0,0]],lab:"1 unit"},alt:"one small square with sides of 1 unit"}},"What is its area?"],keys:["square","sides","1","unit","long","area"],correct:"1 square unit",
   wrongs:[{c:"4 square units",why:"4 is how many sides it has. It covers just 1 square unit."},{c:"1 unit",why:"Area is measured in SQUARE units."},{c:"4 units",why:"4 units is the distance around it (perimeter), not the area."}],
-  steps:[say("A square with sides of 1 unit is called a unit square."),say("A unit square covers 1 square unit of space."),say("Its area is 1 square unit.")]}),
+  steps:[say("A square with sides of 1 unit is called a unit square.",{viz:{sqgrid:{cells:[[0,0]],lab:"1 unit"}}}),say("A unit square covers 1 square unit of space."),say("Its area is 1 square unit.")]}),
  r=>mc(r,{parts:["What is a unit square?"],keys:["unit","square"],correct:"A square with sides 1 unit long, used to measure area",
   wrongs:[{c:"Any shape with 4 sides",why:"A unit square must be a square with sides of 1 unit."},{c:"A line that is 1 unit long",why:"A line has length, not area."},{c:"A square with sides of any length",why:"Each side must be exactly 1 unit."}],
-  steps:[say("A unit square is a square with sides 1 unit long."),say("We cover shapes with unit squares to measure area.")]}),
+  steps:[say("A unit square is a square with sides 1 unit long.",{viz:{sqgrid:{cells:[[0,0]],lab:"1 unit"}}}),say("We cover shapes with unit squares to measure area.",{viz:{sqgrid:{cells:[[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]],num:true}}})]}),
 ];
 const MD5B=[
  r=>{const n=ri(r,5,12),cells=blob(r,n);
@@ -955,11 +956,11 @@ const PERIM=[
  r=>{const w=ri(r,3,12),h=ri(r,2,9),p=2*(w+h);
   return inp({parts:[`A rectangle has a perimeter of ${p} inches. One side is ${w} inches long.`,"How long is the side next to it, in inches?"],keys:["rectangle","perimeter",String(p),"inches","side",String(w),"long","next"],ans:h,
    whyIn:{[p-w]:`Opposite sides are equal, so take away ${w} twice.`,[p-2*w]:`That is two sides together. Split it in half.`},whyElse:"Opposite sides of a rectangle are equal.",
-   steps:[say(`Two sides are ${w} inches: ${w} + ${w} = ${2*w}.`),say(`${p} − ${2*w} = ${p-2*w} for the other two sides.`),say(`Each of those is ${p-2*w} ÷ 2 = ${h} inches.`)]})},
+   steps:[say(`Two sides are ${w} inches: ${w} + ${w} = ${2*w}.`),say(`${p} − ${2*w} = ${p-2*w} for the other two sides.`),say(`Each of those is ${p-2*w} ÷ 2 = ${h} inches.`,{viz:{rect:{w,h,unit:"in"}}})]})},
  r=>{const [w,h]=pick(r,[[4,6],[3,7],[2,8],[5,5],[6,2],[3,5]]),P=2*(w+h),opts=[];for(let a=1;a<P/2;a++){const b=P/2-a;if(a<=b&&!(a===Math.min(w,h)))opts.push([a,b])}need(opts.length);const [x,y]=pick(r,opts);need(x*y!==w*h);
   return mc(r,{parts:[`A garden is a rectangle ${w} feet by ${h} feet.`,"Which rectangle has the SAME perimeter but a DIFFERENT area?"],keys:["garden","rectangle",String(w),"feet",String(h),"same","perimeter","different","area"],correct:`${x} feet by ${y} feet`,
    wrongs:[{c:`${h} feet by ${w} feet`,why:"That is the same rectangle turned. Its area is the same."},{c:`${w+1} feet by ${h+1} feet`,why:`Its perimeter is ${2*(w+h+2)}, not ${P}.`},{c:`${w*2} feet by ${h} feet`,why:`Its perimeter is ${2*(2*w+h)}, not ${P}.`},{c:`${Math.max(1,w-1)} feet by ${h} feet`,why:"Its perimeter is smaller."}].filter(c=>c.c!==`${x} feet by ${y} feet`),
-   steps:[say(`The garden’s perimeter: ${w} + ${h} + ${w} + ${h} = ${P}. Area: ${w} × ${h} = ${w*h}.`),say(`${x} by ${y}: perimeter ${x} + ${y} + ${x} + ${y} = ${P}. Area ${x} × ${y} = ${x*y}.`),say("Same perimeter, different area.")]})},
+   steps:[say(`The garden’s perimeter: ${w} + ${h} + ${w} + ${h} = ${P}. Area: ${w} × ${h} = ${w*h}.`,{viz:{rect:{w,h,tiles:true}}}),say(`${x} by ${y}: perimeter ${x} + ${y} + ${x} + ${y} = ${P}. Area ${x} × ${y} = ${x*y}.`,{viz:{rect:{w:x,h:y,tiles:true}}}),say("Same perimeter, different area.")]})},
 ];
 
 const T={props:PROPS,divfact:DIVFACT,fluency:FLUENCY,twostep:TWOSTEP,patterns:PATTERNS,tens:TENS,nf1:NF1,nf2a:NF2A,nf2b:NF2B,nf3a:NF3A,nf3b:NF3B,nf3c:NF3C,nf3d:NF3D,
@@ -3059,7 +3060,7 @@ function vizHTML(v){
     return svgw(W+8,H+8,s,`a bar cut into ${d} equal parts, ${shade} shaded`)}
   if(v.fcirc){const {d,shade}=v.fcirc,c=50,r=44;let s="";for(let i=0;i<d;i++){const a0=-Math.PI/2+i*2*Math.PI/d,a1=a0+2*Math.PI/d;
       s+=`<path d="M${c},${c} L${(c+r*Math.cos(a0)).toFixed(1)},${(c+r*Math.sin(a0)).toFixed(1)} A${r},${r} 0 0 1 ${(c+r*Math.cos(a1)).toFixed(1)},${(c+r*Math.sin(a1)).toFixed(1)} Z" fill="${i<shade?VS:"#fff"}" stroke="${VK}" stroke-width="2"/>`}
-    return svgw(100,100,s,`a circle cut into ${d} equal parts, ${shade} shaded`,130)}
+    return svgw(100,100,s,`a circle cut into ${d} equal parts, ${shade} shaded`,v.fcirc.size||130)}
   if(v.fnl){const {d,max=1,dot,lab,all,two}=v.fnl,W=520,x0=30,x1=W-30,line=(y,den,labels,dotAt,dotLab)=>{let s=`<line x1="${x0-10}" y1="${y}" x2="${x1+10}" y2="${y}" stroke="${VK}" stroke-width="2.5"/>`;
       const n=den*max;for(let k=0;k<=n;k++){const x=x0+(x1-x0)*k/n,whole=k%den===0;s+=`<line x1="${x}" y1="${y-(whole?12:8)}" x2="${x}" y2="${y+(whole?12:8)}" stroke="${VK}" stroke-width="${whole?2.5:1.8}"/>`;
         if(whole)s+=tx(x,y+32,k/den,{s:16,w:700});else if(labels)s+=fracTx(x,y+34,k,den,12)}

@@ -20,7 +20,7 @@ function home(){
      <div class="top"><h2>${t(isELA(gradeOf())?"Today’s Reading Mission":isSci(gradeOf())?"Today’s Science Mission":"Today’s Math Mission")}</h2><span class="stars" aria-label="${p.stars} stars">★ ${p.stars}</span></div>
      <div class="skill">${ico(cur.id)}<div><b style="font-size:1.15rem">${esc(cur.name)}</b><br><span class="muted">${esc(cur.std)}</span></div></div>
      <div class="row"><span class="flags" aria-label="${sk.streak} of ${MASTERY} stars">${Array.from({length:MASTERY},(_,i)=>`<i class="${i<sk.streak?'on':''}">${i<sk.streak?'★':i+1}</i>`).join("")}</span><span class="muted">Earn ${MASTERY} ★ to reach the checkpoint</span></div>
-     ${scout(msg)}
+     ${carriedNote(p)}${scout(msg)}
      <div class="row"><button id="go">${t(sk.streak||Object.keys(p.log).length?"Keep climbing":"Start my mission")}</button>${db.videos[cur.id]?`<a class="btnlink" href="${esc(db.videos[cur.id])}" target="_blank" rel="noopener">▶ Watch the lesson</a>`:""}</div>
    </div>`:`<div class="card mission" style="align-items:flex-start">${HERO_ART}${scout(msg)}</div>`;
   app.innerHTML=header(`${langToggle()}<button class="ghost" id="out">${t("Sign out")}</button>`)+tbadgeNotice()+creditNotice(p)+cbCard(s)+mission+xtHomeCard(s)+evHomeCard(s)+chalCard(s)+psetCard(s)+hsHomeCard(s)+goFurtherCard(s)+(hsOn()||subjOf(gradeOf())!=="math"?"":fluCard())+gameCard()+`
@@ -192,8 +192,107 @@ SCREENS.practice=practice;
 
 /* ---------- 3 Before Me: a help ladder before the teacher (watch it solved → hint → Scout → teacher) ---------- */
 const LE=(en,es)=>S.lang==="es"?es:en;
+/* when a class moves to a new trail, show students that their earlier mastered skills still count */
+function carriedNote(p){if(!p||!p.carried)return"";const n=Object.values(p.skills||{}).filter(x=>x&&x.carried&&(x.status==="done"||x.status==="skip")).length;if(!n)return"";
+  return `<p class="small" style="margin:.4rem 0;background:var(--hl);color:var(--hl-ink);border-radius:10px;padding:6px 10px">⭐ ${LE(`${n} ${n===1?"skill already counts":"skills already count"} from your earlier trail. Nice work!`,`${n} ${n===1?"destreza ya cuenta":"destrezas ya cuentan"} de tu camino anterior. ¡Buen trabajo!`)}</p>`}
 function wtSibling(){const sk=S.student.prog.skills[S.k];if(!sk)return null;topUp(sk,S.k);
-  const id=(sk.queue||[]).find(x=>x!==S.qid&&x[0]!=="!"&&getQ(x)&&getQ(x).steps&&getQ(x).steps.length>1);return id?viewQ(getQ(id)):null}
+  const id=(sk.queue||[]).find(x=>x!==S.qid&&x[0]!=="!"&&getQ(x)&&getQ(x).steps&&getQ(x).steps.length>1);return id?wtFrame(viewQ(getQ(id))):null}
+
+/* ---------- Watch it solved: think-aloud bookends ----------
+   Every walkthrough starts with "What is it asking? What's my plan?" and ends with "Check it" and "Your turn",
+   so kids hear the same problem-solving routine every time. The question's own steps stay in the middle. */
+const WT_PLAN={
+ "3.OA.1":["I see equal groups, so I think: how many groups, and how many in each group?","Veo grupos iguales. Pienso: ¿cuántos grupos hay y cuántos hay en cada grupo?"],
+ "3.OA.2":["Something is being shared or split equally, so this is division.","Algo se reparte en partes iguales, así que es división."],
+ "3.OA.3":["I find what I know and what I need. Then I decide: equal groups means multiply or divide.","Busco lo que sé y lo que necesito. Grupos iguales: multiplico o divido."],
+ "3.OA.4":["There is a missing number. I think: what number makes the equation true?","Falta un número. Pienso: ¿qué número hace que la igualdad sea verdadera?"],
+ "3.OA.5":["I look for a property that makes this easier, like switching the order or breaking a number apart.","Busco una propiedad que lo haga más fácil, como cambiar el orden o separar un número."],
+ "3.OA.6":["Division is a multiplication fact with a missing factor. I think of the times fact.","La división es una multiplicación con un factor que falta. Pienso en la tabla."],
+ "3.OA.7":["I use a fact I know, skip count, or use the opposite operation.","Uso una tabla que sé, cuento de tanto en tanto o uso la operación opuesta."],
+ "3.OA.8":["This takes two steps. I solve the first part, then use that answer for the second part.","Esto tiene dos pasos. Resuelvo la primera parte y uso esa respuesta para la segunda."],
+ "3.OA.9":["I look at how the numbers change each time to find the rule.","Miro cómo cambian los números cada vez para encontrar la regla."],
+ "3.NBT.1":["I find the two tens or hundreds the number is between, then see which one is closer.","Busco las dos decenas o centenas entre las que está el número y veo cuál está más cerca."],
+ "3.NBT.2":["I line up the places: ones under ones, tens under tens, hundreds under hundreds.","Alineo los valores: unidades con unidades, decenas con decenas, centenas con centenas."],
+ "3.NBT.3":["I think of the multiple of 10 as tens, like 40 is 4 tens.","Pienso en el múltiplo de 10 como decenas: 40 son 4 decenas."],
+ "3.NF.1":["The bottom number is how many equal parts. The top number is how many parts I'm counting.","El número de abajo dice cuántas partes iguales hay. El de arriba, cuántas cuento."],
+ "3.NF.2a":["I count the equal spaces from 0 to 1. That tells me the size of each jump.","Cuento los espacios iguales de 0 a 1. Eso me dice el tamaño de cada salto."],
+ "3.NF.2b":["I count the equal spaces from 0 to 1, then count the jumps to the point.","Cuento los espacios iguales de 0 a 1 y luego cuento los saltos hasta el punto."],
+ "3.NF.3a":["Equivalent fractions cover the same amount of the same whole. I compare the shaded parts.","Las fracciones equivalentes cubren la misma cantidad del mismo entero. Comparo las partes sombreadas."],
+ "3.NF.3b":["I can cut each part into smaller equal pieces. The amount stays the same.","Puedo cortar cada parte en pedazos iguales más pequeños. La cantidad no cambia."],
+ "3.NF.3c":["A whole number can be written as a fraction. I think: how many parts make the wholes?","Un número entero se puede escribir como fracción. Pienso: ¿cuántas partes forman los enteros?"],
+ "3.NF.3d":["I check: are the wholes the same? Then I compare the tops or the bottoms.","Reviso: ¿los enteros son iguales? Luego comparo los números de arriba o de abajo."],
+ "3.MD.1":["I read the hour hand first, then count the minutes by 5s and 1s.","Leo primero la manecilla de la hora y luego cuento los minutos de 5 en 5 y de 1 en 1."],
+ "3.MD.2":["I think about how heavy it is or how much it holds, and read any scale carefully.","Pienso en cuánto pesa o cuánto le cabe, y leo con cuidado cualquier escala."],
+ "3.MD.3":["I find what each line or picture on the graph is worth before I read it.","Busco cuánto vale cada línea o dibujo de la gráfica antes de leerla."],
+ "3.MD.4":["I line the object up at 0 and count the marks carefully.","Alineo el objeto con el 0 y cuento las marcas con cuidado."],
+ "3.MD.5a":["Area is how many unit squares cover a shape.","El área es cuántos cuadrados de unidad cubren una figura."],
+ "3.MD.5b":["I count the unit squares that cover the shape, with no gaps or overlaps.","Cuento los cuadrados de unidad que cubren la figura, sin huecos ni encimados."],
+ "3.MD.6":["I count each square unit one time.","Cuento cada unidad cuadrada una sola vez."],
+ "3.MD.7a":["Tiles in rows and columns make an array, so I can multiply instead of counting each one.","Las fichas en filas y columnas forman un arreglo, así que puedo multiplicar en vez de contar."],
+ "3.MD.7b":["Area of a rectangle is length times width.","El área de un rectángulo es largo por ancho."],
+ "3.MD.7c":["I can break the rectangle into two smaller rectangles and add their areas.","Puedo partir el rectángulo en dos más pequeños y sumar sus áreas."],
+ "3.MD.7d":["I split the shape into rectangles, find each area, then add.","Divido la figura en rectángulos, busco cada área y luego sumo."],
+ "3.MD.8":["Perimeter is the distance all the way around, so I add every side.","El perímetro es la distancia alrededor, así que sumo todos los lados."],
+ "3.G.1":["I look at the sides and corners. How many? Are any equal or square?","Miro los lados y las esquinas. ¿Cuántos hay? ¿Hay iguales o rectos?"],
+ "3.G.2":["The parts must be equal. I count the equal parts to name each one.","Las partes deben ser iguales. Cuento las partes iguales para nombrar cada una."]};
+const WT_CHECK={
+ "3.OA.1":["I count the groups again and how many are in one group.","Cuento otra vez los grupos y cuántos hay en un grupo."],
+ "3.OA.2":["I multiply back. My answer times the number of groups should make the total.","Multiplico para comprobar. Mi respuesta por el número de grupos debe dar el total."],
+ "3.OA.3":["I reread the question. Does my answer make sense with the story?","Leo otra vez la pregunta. ¿Mi respuesta tiene sentido con la historia?"],
+ "3.OA.4":["I put my number in the box and read the equation. Is it true?","Pongo mi número en el cuadro y leo la igualdad. ¿Es verdadera?"],
+ "3.OA.5":["Both ways should give the same answer.","Las dos formas deben dar la misma respuesta."],
+ "3.OA.6":["I multiply my answer by the divisor. I should get the number I started with.","Multiplico mi respuesta por el divisor. Debo obtener el número del principio."],
+ "3.OA.7":["I check with the opposite operation.","Compruebo con la operación opuesta."],
+ "3.OA.8":["I estimate. Is my answer close to what I expected?","Estimo. ¿Mi respuesta está cerca de lo que esperaba?"],
+ "3.OA.9":["I test the rule on the numbers I already have.","Pruebo la regla con los números que ya tengo."],
+ "3.NBT.1":["The halfway number goes up. Is my number past halfway?","El número de la mitad sube. ¿Mi número pasó la mitad?"],
+ "3.NBT.2":["I estimate by rounding. Is my answer close?","Estimo redondeando. ¿Mi respuesta está cerca?"],
+ "3.NBT.3":["Counting tens, my answer should end in 0.","Si cuento decenas, mi respuesta debe terminar en 0."],
+ "3.NF.1":["The bottom number matches all the equal parts.","El número de abajo es igual a todas las partes iguales."],
+ "3.NF.2a":["Each jump is the same size.","Cada salto es del mismo tamaño."],
+ "3.NF.2b":["I count the jumps one more time.","Cuento los saltos una vez más."],
+ "3.NF.3a":["Same whole and same amount shaded means equivalent.","Mismo entero y misma cantidad sombreada: son equivalentes."],
+ "3.NF.3b":["More pieces, but the same amount.","Más pedazos, pero la misma cantidad."],
+ "3.NF.3c":["The top divided by the bottom gives the whole number.","Arriba entre abajo da el número entero."],
+ "3.NF.3d":["Bigger pieces or more pieces means a bigger fraction.","Pedazos más grandes o más pedazos: la fracción es mayor."],
+ "3.MD.1":["The hour hand should be just past the hour I said.","La manecilla de la hora debe estar un poco después de la hora que dije."],
+ "3.MD.2":["Does my answer make sense for the real object?","¿Mi respuesta tiene sentido para el objeto real?"],
+ "3.MD.3":["I check the scale and read the bar again.","Reviso la escala y leo la barra otra vez."],
+ "3.MD.4":["It started at 0, so I read the end again.","Empezó en 0, así que leo el final otra vez."],
+ "3.MD.5a":["Area is always in square units.","El área siempre es en unidades cuadradas."],
+ "3.MD.5b":["I count again and touch each square once.","Cuento otra vez y toco cada cuadrado una vez."],
+ "3.MD.6":["I count again in a different order.","Cuento otra vez en otro orden."],
+ "3.MD.7a":["Rows times columns should equal counting every tile.","Filas por columnas debe ser igual a contar cada ficha."],
+ "3.MD.7b":["Area is in square units, like square inches.","El área es en unidades cuadradas, como pulgadas cuadradas."],
+ "3.MD.7c":["The two parts together make the whole rectangle.","Las dos partes juntas forman todo el rectángulo."],
+ "3.MD.7d":["I made sure no part was counted twice.","Me aseguré de no contar ninguna parte dos veces."],
+ "3.MD.8":["I counted every side once, all the way around.","Conté cada lado una vez, todo alrededor."],
+ "3.G.1":["I count the sides again with my finger.","Cuento otra vez los lados con el dedo."],
+ "3.G.2":["Are all the parts the same size?","¿Todas las partes son del mismo tamaño?"]};
+/* grades 4 and up: one plan and one check per math area (standard-by-standard lines can come later) */
+const WT_DOM={OA:["I figure out what I know and what I need, then choose the operation.","Veo lo que sé y lo que necesito, y escojo la operación."],
+ NBT:["I think about place value. Each place is 10 times the place to its right.","Pienso en el valor posicional. Cada lugar vale 10 veces el de su derecha."],
+ NF:["I think about the whole and the equal parts. Do the fractions need the same denominator?","Pienso en el entero y en las partes iguales. ¿Necesitan las fracciones el mismo denominador?"],
+ MD:["I find what is being measured and the units, then pick the formula or strategy.","Busco qué se mide y en qué unidades, y escojo la fórmula o estrategia."],
+ G:["I look closely at the shape: sides, angles and any measurements. I can sketch it.","Miro bien la figura: lados, ángulos y medidas. Puedo dibujarla."],
+ RP:["I look for the two quantities being compared. A ratio table or unit rate can help.","Busco las dos cantidades que se comparan. Una tabla de razones o la tasa unitaria puede ayudar."],
+ NS:["I think about the signs and the number line, and which operation to use.","Pienso en los signos, la recta numérica y qué operación usar."],
+ EE:["I find the unknown, write it as a variable, and keep the equation balanced.","Busco la incógnita, la escribo como variable y mantengo la ecuación en equilibrio."],
+ F:["I look at how the output changes when the input changes.","Miro cómo cambia la salida cuando cambia la entrada."],
+ SP:["I read the data carefully and think about what the question asks: center, spread or chance?","Leo los datos con cuidado y pienso qué me pide: centro, dispersión o probabilidad."]};
+const WT_DCHECK={OA:["I check with the opposite operation.","Compruebo con la operación opuesta."],NBT:["I estimate. Is my answer close?","Estimo. ¿Mi respuesta está cerca?"],NF:["I estimate with benchmarks like 0, one half and 1. Does my answer make sense?","Estimo con 0, un medio y 1. ¿Tiene sentido mi respuesta?"],
+ MD:["I check the units and estimate. Is the size reasonable?","Reviso las unidades y estimo. ¿Es razonable el tamaño?"],G:["I check my answer against the picture. Does it fit?","Comparo mi respuesta con el dibujo. ¿Encaja?"],RP:["I check that both quantities were multiplied or divided by the same number.","Reviso que las dos cantidades se multiplicaron o dividieron por el mismo número."],
+ NS:["I check the sign. Should the answer be positive or negative?","Reviso el signo. ¿La respuesta debe ser positiva o negativa?"],EE:["I put my answer back into the equation. Is it true?","Pongo mi respuesta en la ecuación. ¿Es verdadera?"],F:["I test my answer with one input from the problem.","Pruebo mi respuesta con una entrada del problema."],SP:["I reread the question. Does my answer use the right data?","Leo otra vez la pregunta. ¿Mi respuesta usa los datos correctos?"]};
+function wtStd(q){let c=(SKILLS.find(k=>k.id===S.k)||{}).std||"";if(!/\./.test(c)){const L=LIB.find(x=>x.gen===(c||q.skill));c=L?L.code:c}return c}
+function wtPic(q){const p=(q.parts||[]).find(x=>x&&typeof x==="object"&&(x.viz||x.img||x.svg||x.shape||x.poly||x.work||x.nl||x.groups||x.arr||x.table));if(!p)return null;const {alt,...rest}=p;return rest}
+function wtFrame(q){if(!q||!q.steps)return q;const c=wtStd(q),T=a=>a?LE(a[0],a[1]):"",dom=(c.match(/^\d\.([A-Z]+)/)||[])[1];
+  const plan=T(WT_PLAN[c]||WT_DOM[dom]),chk=T(WT_CHECK[c]||WT_DCHECK[dom]),core=q.steps.map(x=>({...x})),hasPic=core.some(x=>x.show),pic=wtPic(q),out=[];
+  if(!/^(what do|read|key words|first)/i.test(core[0].say||""))out.push({say:LE("First I ask: what is it asking me to find? ","Primero me pregunto: ¿qué me pide encontrar? ")+plan,...(pic&&!core[0].show?{show:pic}:{})});
+  else if(!hasPic&&pic)core[0].show=pic;
+  out.push(...core);
+  if(chk&&!/check|comprueb/i.test(core[core.length-1].say||""))out.push({say:LE("Check it: ","Lo compruebo: ")+chk});
+  out.push({say:LE("Your turn! Use the same steps on your problem.","¡Te toca! Usa los mismos pasos en tu problema.")});
+  return {...q,steps:out}}
 function helpTried(){const p=S.student.prog,sk=p.skills[S.k];if(sk&&sk.redo===S.qid)return true;return (p.recent||[]).slice(-12).some(r=>r.k===S.k&&!r.ok)}
 function helpOK(){return S.role==="student"&&!S.result&&S.step>=1&&!(S.rev&&S.rvKind)&&(helpTried()||!!S.help)}
 function hlUnlock(lvl,ms){const qid=S.qid;setTimeout(()=>{if(S.help&&S.qid===qid&&S.help.lvl<lvl){S.help.lvl=lvl;if(S.screen==="practice"){const y=scrollY;render();scrollTo(0,y)}}},ms)}
@@ -204,9 +303,9 @@ function helpCard(q){if(!helpOK())return"";const H=S.help;
   if(scoutOK&&sentScout&&H.lvl<4)H.lvl=4;
   const step=(n,ico,title,body,on)=>`<li class="hl-step ${H.lvl>=n?"open":"locked"} ${done[n]?"used":""}"><div class="hl-h"><span class="hl-n" aria-hidden="true">${done[n]?"✓":n}</span><b>${ico} ${title}</b>${H.lvl<n?`<span class="muted small">🔒 ${LE("unlocks soon","se abre pronto")}</span>`:""}</div>${H.lvl>=n&&on?`<div class="hl-b">${body}</div>`:""}</li>`;
   let w="";
-  if(W&&W.q){const st=W.q.steps;let show="";for(let i=W.r;i>=0;i--){if(st[i].show){show=showHTML(st[i].show);break}}
-    w=`<p class="muted small" style="margin:0">${LE("A problem like yours:","Un problema como el tuyo:")}</p><p class="wt-q">${esc(qSpeech(W.q).replace(/([?!])\./g,"$1"))}</p>${show?`<div class="stage">${show}</div>`:""}<p class="say">${fmt(st[W.r].say)}</p>
-     <div class="row"><span class="muted small">${LE("Step","Paso")} ${W.r+1} / ${st.length}</span><button class="ghost small" id="wt-play">${W.playing?LE("Pause","Pausa"):W.r>=st.length-1?LE("↺ Watch again","↺ Ver otra vez"):LE("▶ Play","▶ Reproducir")}</button></div>`}
+  if(W&&W.q){const st=W.q.steps;let show="";W.picAt=-1;for(let i=W.r;i>=0;i--){if(st[i].show){show=showHTML(st[i].show);W.picAt=i;break}}
+    w=`<p class="muted small" style="margin:0">${LE("A problem like yours:","Un problema como el tuyo:")}</p><p class="wt-q">${esc(qSpeech(W.q).replace(/([?!.])\.+/g,"$1"))}</p>${show?`<div class="stage ${W.picAt===W.r?"wt-new":""}">${show}</div>`:""}<p class="say wt-say">${fmt(st[W.r].say)}</p>
+     <div class="row"><span class="wt-dots" aria-label="${LE("Step","Paso")} ${W.r+1} / ${st.length}">${st.map((_,i)=>`<i class="${i<W.r?"done":i===W.r?"on":""}"></i>`).join("")}</span><span class="muted small">${LE("Step","Paso")} ${W.r+1} / ${st.length}</span><button class="ghost small" id="wt-play">${W.playing?LE("Pause","Pausa"):W.r>=st.length-1?LE("↺ Watch again","↺ Ver otra vez"):LE("▶ Play","▶ Reproducir")}</button></div>`}
   else if(!W)w=`<button class="small" id="wt-go">🎬 ${LE("Watch it solved","Míralo resuelto")}</button>`;
   else w=`<p class="muted">${LE("No walkthrough for this one. Try the hint!","No hay video para esta. ¡Prueba la pista!")}</p>`;
   const hint=done[2]?`<p class="say">${fmt(helpHint(q))}</p>${sayBtn("hl-say","🔊 "+LE("Read it to me","Léemelo"))}`:`<button class="small" id="hl-hint">💡 ${LE("Show me a hint","Muéstrame una pista")}</button>`;
