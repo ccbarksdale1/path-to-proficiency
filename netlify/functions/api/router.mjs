@@ -1,3 +1,4 @@
+import { verifyGoogle, DEFAULT_GOOGLE_CLIENT_ID } from "./google.mjs";
 // Path to Proficiency: multi-district router.
 // With MULTI_DISTRICT unset (today's live site), every request goes to the one "p2p" store exactly as before.
 // With MULTI_DISTRICT=on:
@@ -29,9 +30,9 @@ export function tokenTenant(token) {
   try { const p = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString()); return typeof p.d === "string" && ID.test(p.d) ? p.d : null } catch { return null }
 }
 
-export function makeRouter({ getStore, env }) {
+export function makeRouter({ getStore, env, googleVerify = null }) {
   const multi = env.MULTI_DISTRICT === "on";
-  const single = () => makeApi({ store: getStore("p2p"), env });
+  const single = () => makeApi({ store: getStore("p2p"), env, ...(googleVerify ? { googleVerify } : {}) });
 
   let _reg = null; // opened only when needed, so a single-school site never touches the registry
   const R = () => (_reg ||= getStore("ptp-registry"));
@@ -49,8 +50,15 @@ export function makeRouter({ getStore, env }) {
       return true;
     },
     releaseJoin: async code => { const cur = await getR("join/" + code); if (cur && cur.d === id) await R().delete("join/" + code) },
+    /* a Google account signs in to exactly one teacher in one school; the registry keeps only a hash of Google's id */
+    claimGoogle: async (sub, tid) => {
+      const k = "gsub/" + sha("g" + sub).slice(0, 40), r = await setR(k, { d: id, t: tid, at: Date.now() }, { onlyIfNew: true });
+      if (r && r.modified === false) { const cur = await getR(k); if (!cur || cur.d !== id || cur.t !== tid) return false; }
+      return true;
+    },
+    releaseGoogle: async sub => { const k = "gsub/" + sha("g" + sub).slice(0, 40), cur = await getR(k); if (cur && cur.d === id) await R().delete(k) },
   });
-  const apiFor = id => makeApi({ store: schoolStore(id), env, tenant: id, hooks: hooksFor(id) });
+  const apiFor = (id, extra = {}) => makeApi({ store: schoolStore(id), env, tenant: id, hooks: { ...hooksFor(id), ...extra }, ...(googleVerify ? { googleVerify } : {}) });
 
   /* ---------- lockouts and tokens for the registry-level sign-ins ---------- */
   async function locked(scope, ip) {
@@ -161,6 +169,7 @@ export function makeRouter({ getStore, env }) {
       for (const k of ((await st.list()).blobs || []).map(x => x.key)) await st.delete(k);
       for (const k of await listR("join/")) { const j = await getR(k); if (j && j.d === id) await R().delete(k) }
       for (const k of await listR("host/")) { const h = await getR(k); if (h && h.d === id) await R().delete(k) }
+      for (const k of await listR("gsub/")) { const g = await getR(k); if (g && g.d === id) await R().delete(k) }
       await R().delete("school/" + id);
       return { ok: true };
     },
@@ -313,6 +322,13 @@ export function makeRouter({ getStore, env }) {
       if (!multi) return single()(req, ip);
       if (OWNER_ACTIONS.has(action)) { await ownerCheck(body, ip); const out = await OWNER[action](body, ip); if (LOG_TEXT[action]) await logR("Site owner", ...LOG_TEXT[action](body)); return J(200, out) }
       if (DISTRICT_ACTIONS.has(action)) return J(200, await DISTRICT[action](body, ip));
+      if (action === "googleLogin") { // Google decides the school: find which teacher this Google account is connected to
+        const p = await (googleVerify || verifyGoogle)(str(body.credential, 4000), env.GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID);
+        if (!p) no(401, "Google sign-in didn’t work. Please try again.");
+        const g = await getR("gsub/" + sha("g" + p.sub).slice(0, 40));
+        if (!g || !(await schoolRec(g.d))) no(404, "That Google account isn’t connected to a teacher yet. Sign in with your school code and teacher code once, then choose Connect Google in My account.");
+        return await apiFor(g.d, { preGoogle: p })(req, ip);
+      }
       const id = await resolve(action, body, req), rec = id && await schoolRec(id);
       if (!rec) {
         if (body.token) no(401, "Please sign in again.");

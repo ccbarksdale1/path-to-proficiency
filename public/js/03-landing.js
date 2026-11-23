@@ -220,6 +220,20 @@ function landing(){
 
 SCREENS.landing=landing;
 
+/* ---------- Sign in with Google (teachers). Google's script loads only after a teacher taps the button. ---------- */
+const GOOGLE_CLIENT_ID="230276755248-ols80n51ngf3hmqu8g9ccik9blgt1ehr.apps.googleusercontent.com";
+const GICON=`<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.8 2.3-8.5 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.8 6C6.6 42.6 14.6 48 24 48z"/></svg>`;
+let gisP=null;
+function loadGIS(){return gisP||(gisP=new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://accounts.google.com/gsi/client";s.async=true;s.onload=()=>ok();s.onerror=()=>{gisP=null;no(new Error("Couldn’t reach Google. Check the internet and try again."))};document.head.append(s)}))}
+function googleBox(id,label="Sign in with Google"){return `<div id="${id}" class="gbox" style="display:flex;flex-direction:column;align-items:center;gap:6px;margin:.4rem 0"><button class="ghost" id="${id}-go" type="button">${GICON}${esc(label)}</button></div>`}
+function wireGoogle(id,onCred,text="signin_with"){const go=document.getElementById(id+"-go");if(!go)return;const label=go.textContent;
+  go.onclick=async()=>{go.disabled=true;go.textContent="Opening Google…";
+    try{await loadGIS();google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:r=>onCred(r.credential),ux_mode:"popup",auto_select:false});
+      const box=document.getElementById(id);if(!box)return;box.innerHTML=`<p class="muted small" style="margin:0">Choose your school Google account:</p><div id="${id}-btn"></div>`;
+      google.accounts.id.renderButton(document.getElementById(id+"-btn"),{theme:"outline",size:"large",text,shape:"pill"})}
+    catch(e){go.disabled=false;go.innerHTML=GICON+esc(label);const m=document.createElement("p");m.className="err small";m.textContent=e.message;go.after(m)}}}
+const googleSignin=async cred=>{try{const d=await api("googleLogin",{credential:cred});S.mode="teacher";startTeacher(d)}catch(e){S.err=e.message;render()}};
+
 /* teacher sign-in: on a multi-district site the teacher first types their school code (remembered on this device) */
 async function teacherEntry(){S.mode="teacher";S.code="";S.err="";
   try{const st=await api("status");S.multi=!!st.multi;S.siteInfo=st.multi?st:null;S.screen=st.ready?"signin":"setup"}
@@ -230,7 +244,9 @@ function schoolcode(){
    <h2>Type your school code</h2><p class="muted">Your school admin or Path to Proficiency gave it to you, like <b>rh-bearden</b>. This device will remember it.</p>
    <form id="scf" class="row" style="justify-content:center"><input id="scc" style="width:240px;text-align:center" maxlength="24" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="School code" value="${esc(ls.get(SITEKEY)||"")}"><button>Next</button></form>
    <p class="err" role="alert">${esc(S.err)}</p>
+   <p class="muted small" style="margin:.2rem 0">or, if you connected Google before:</p>${googleBox("g-sc")}
    <p class="muted" style="font-size:.85rem">District leader? <button class="link" id="to-da">Sign in to your district</button></p></div>`;
+  wireGoogle("g-sc",googleSignin);
   document.getElementById("back").onclick=()=>{S.screen="landing";S.err="";render()};
   document.getElementById("to-da").onclick=()=>{S.screen="districtSignin";S.err="";render()};
   const i=document.getElementById("scc");i.focus();
@@ -259,11 +275,12 @@ function signin(){
    <div class="pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-n="${n}">${n}</button>`).join("")}<button data-n="back" aria-label="Delete">⌫</button><button data-n="0">0</button><button data-n="go">Go</button></div>
    <p class="err" role="alert">${esc(S.err)}</p>
    ${teacherMode&&S.siteInfo?`<p class="muted" style="font-size:.85rem">${esc(S.siteInfo.school.name)}${S.siteInfo.district?" · "+esc(S.siteInfo.district):""} · <button class="link" id="chg-school">Change school</button></p>`:""}
-   ${teacherMode?`<p class="muted" style="font-size:.85rem">Forgot your code? <button class="link" id="forgot">Reset it</button></p>`:`<p class="muted" style="font-size:.85rem">Not your class? <button class="link" id="chg">Change class</button></p>`}</div>`;
+   ${teacherMode?`<p class="muted small" style="margin:.2rem 0">or</p>${googleBox("g-si")}<p class="muted" style="font-size:.85rem">Forgot your code? <button class="link" id="forgot">Reset it</button></p>`:`<p class="muted" style="font-size:.85rem">Not your class? <button class="link" id="chg">Change class</button></p>`}</div>`;
   document.getElementById("back").onclick=()=>{S.screen="landing";S.err="";render()};
   const chg=document.getElementById("chg");if(chg)chg.onclick=()=>{S.screen="joinclass";S.join="";S.err="";render()};
   const fg=document.getElementById("forgot");if(fg)fg.onclick=()=>{S.screen="recover";S.err="";render()};
   const cs=document.getElementById("chg-school");if(cs)cs.onclick=()=>{S.screen="schoolcode";S.err="";render()};
+  if(teacherMode)wireGoogle("g-si",googleSignin);
   app.querySelectorAll(".pad button").forEach(b=>b.onclick=async()=>{const n=b.dataset.n;S.err="";
     if(n==="back")S.code=S.code.slice(0,-1);
     else if(n==="go"){const code=S.code;S.code="";

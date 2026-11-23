@@ -1,3 +1,4 @@
+import { verifyGoogle, DEFAULT_GOOGLE_CLIENT_ID } from "./google.mjs";
 // Path to Proficiency: school server.
 // Data lives in Netlify Blobs. Everything goes through POST /api/<action> with a JSON body.
 import crypto from "node:crypto";
@@ -18,7 +19,7 @@ const str = (v, max = 200) => String(v ?? "").trim().slice(0, max);
 
 /* tenant + hooks are set only when the multi-district router runs this code for one school's own store (see router.mjs).
    With them unset, everything works exactly as the single-school site always has. */
-export function makeApi({ store, env, tenant = null, hooks = null }) {
+export function makeApi({ store, env, tenant = null, hooks = null, googleVerify = verifyGoogle }) {
   const getJ = async k => (await store.get(k, { type: "json" })) ?? null;
   const setJ = (k, v) => store.setJSON(k, v);
   const del = k => store.delete(k);
@@ -87,7 +88,7 @@ export function makeApi({ store, env, tenant = null, hooks = null }) {
 
   /* ---------- helpers ---------- */
   const codeHash = (school, code) => sha(school.salt + ":" + code);
-  const pubTeacher = t => ({ id: t.id, name: t.name, admin: !!t.admin });
+  const pubTeacher = t => ({ id: t.id, name: t.name, admin: !!t.admin, google: !!t.google });
   const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false, music: c.music !== false, chal: c.chal !== false, choose: c.choose !== false, gofur: c.gofur !== false, dokmix: c.dokmix !== false, buddy: c.buddy !== false, handCool: c.handCool || 0, pace: c.pace || null, home: c.home || null, kw: ["on", "optional", "off"].includes(c.kw) ? c.kw : "auto",
     flu: { on: c.flu?.on !== false, secs: c.flu?.secs || 180, pass: c.flu?.pass || 28, n: c.flu?.n || 30 },
     games: { on: c.games?.on !== false, mins: c.games?.mins || 3 },
@@ -134,7 +135,7 @@ export function makeApi({ store, env, tenant = null, hooks = null }) {
   function boot(ctx) {
     const { school, me, admin } = ctx;
     return {
-      me: pubTeacher(me), school: { name: school.name },
+      me: { ...pubTeacher(me), ...(me.google ? { googleEmail: me.google.email } : {}) }, school: { name: school.name },
       teachers: school.teachers.map(pubTeacher),
       classes: school.classes.filter(c => admin || c.teacherId === me.id).map(pubClass),
       allClassCount: school.classes.length,
@@ -260,6 +261,40 @@ How you teach:
     return { token: sign(school, { r: "t", id: t.id }), ...boot({ school, me: t, admin: !!t.admin }) };
   };
 
+  /* ---------- Sign in with Google (teachers): connect once while signed in with a code, then sign in with Google ---------- */
+  const gVerify = async cred => {
+    if (hooks && hooks.preGoogle) return hooks.preGoogle; // the multi-district router already checked this token
+    const p = await googleVerify(str(cred, 4000), env.GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID);
+    if (!p) bad("Google sign-in didn’t work. Please try again.", 401);
+    return p;
+  };
+  A.googleLink = async b => {
+    const ctx = await teacherCtx(b.token), { school, me } = ctx, p = await gVerify(b.credential);
+    if (school.teachers.some(t => t !== me && t.google && t.google.sub === p.sub)) bad("That Google account is already connected to another teacher here.", 409);
+    if (hooks && hooks.claimGoogle && !(await hooks.claimGoogle(p.sub, me.id))) bad("That Google account is already connected to another Path to Proficiency account.", 409);
+    const old = me.google;
+    me.google = { sub: p.sub, email: p.email, at: Date.now() };
+    await saveSchool(school);
+    if (old && old.sub !== p.sub && hooks && hooks.releaseGoogle) await hooks.releaseGoogle(old.sub);
+    await logAct(tName(ctx), "Google account connected", p.email);
+    return boot(ctx);
+  };
+  A.googleUnlink = async b => {
+    const ctx = await teacherCtx(b.token), { school, me } = ctx, was = me.google;
+    if (!was) return boot(ctx);
+    delete me.google;
+    await saveSchool(school);
+    if (hooks && hooks.releaseGoogle) await hooks.releaseGoogle(was.sub);
+    await logAct(tName(ctx), "Google account disconnected", was.email);
+    return boot(ctx);
+  };
+  A.googleLogin = async b => {
+    const school = await loadSchool(); if (!school) bad("This school is not set up yet.");
+    const p = await gVerify(b.credential), t = school.teachers.find(x => x.google && x.google.sub === p.sub);
+    if (!t) bad("That Google account isn’t connected to a teacher yet. Sign in with your code once, then choose Connect Google in My account.", 404);
+    await seenTeacher(t.id);
+    return { token: sign(school, { r: "t", id: t.id }), ...boot({ school, me: t, admin: !!t.admin }) };
+  };
   A.boot = async b => { const ctx = await teacherCtx(b.token); await seenTeacher(ctx.me.id); return boot(ctx) };
 
   A.teacherSave = async b => {
@@ -299,6 +334,7 @@ How you teach:
     if (school.classes.some(c => c.teacherId === t.id)) bad(`Move ${t.name}'s classes to another teacher first.`);
     school.teachers = school.teachers.filter(x => x !== t);
     await saveSchool(school);
+    if (t.google && hooks && hooks.releaseGoogle) await hooks.releaseGoogle(t.google.sub);
     await logAct(tName(ctx), "Teacher removed", t.name);
     return boot(ctx);
   };

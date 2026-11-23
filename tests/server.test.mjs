@@ -22,8 +22,10 @@ function memoryStore() {
   };
 }
 
+/* a stand-in for Google's token check: "g:<sub>:<email>" is a valid Google sign-in, anything else is not */
+const FAKE_GOOGLE = async cred => { const m = /^g:([^:]+):(.+)$/.exec(cred || ""); return m ? { sub: m[1], email: m[2] } : null };
 function client(env = {}) {
-  const store = memoryStore(), api = makeApi({ store, env });
+  const store = memoryStore(), api = makeApi({ store, env, googleVerify: FAKE_GOOGLE });
   let ip = 1;
   const call = async (action, body, from) => {
     const r = await api(new Request("http://x/api/" + action, { method: "POST", body: JSON.stringify(body) }), from || "10.0.0." + (ip++ % 200));
@@ -124,7 +126,7 @@ test("owner research export: no names, codes or class names; new IDs each time",
 /* ---------- multi-district: the security tests from the plan ---------- */
 function multi(env = {}) {
   const stores = new Map(), getStore = n => { if (!stores.has(n)) stores.set(n, memoryStore()); return stores.get(n) };
-  const router = makeRouter({ getStore, env: { MULTI_DISTRICT: "on", OWNER_CODE: "owner-secret-1", ...env } });
+  const router = makeRouter({ getStore, env: { MULTI_DISTRICT: "on", OWNER_CODE: "owner-secret-1", ...env }, googleVerify: FAKE_GOOGLE });
   const call = async (action, body, from = "10.1.1.1") => {
     const r = await router.handle(new Request("http://x/api/" + action, { method: "POST", body: JSON.stringify(body) }), from);
     const j = await r.json();
@@ -420,6 +422,41 @@ test("high school 'choose your focus' is a class setting, on unless the teacher 
   assert.equal(off.choose, false);
   const again = (await s.call("classSave", { token: s.T, id: c.id, name: "ACT prep 2" })).cls;
   assert.equal(again.choose, false); // other edits keep the teacher's choice
+});
+
+test("Sign in with Google (one school): connect while signed in, then sign in; bad tokens and strangers are refused", async () => {
+  const s = await school();
+  await rejects(s.call("googleLogin", { credential: "g:111:t@school.org" }), /isn.t connected/);
+  await rejects(s.call("googleLink", { token: s.T, credential: "forged" }), /didn.t work/);
+  await rejects(s.call("googleLink", { credential: "g:111:t@school.org" }), /sign in/);
+  const b = await s.call("googleLink", { token: s.T, credential: "g:111:t@school.org" });
+  assert.equal(b.me.googleEmail, "t@school.org"); assert.equal(b.me.google, true);
+  const L = await s.call("googleLogin", { credential: "g:111:t@school.org" });
+  assert.ok(L.token); assert.equal(L.me.name, "Mr. Barksdale");
+  assert.ok(!JSON.stringify(L.teachers).includes("111"), "Google's id must not be sent to other teachers");
+  await s.call("teacherSave", { token: s.T, name: "Ms. Two", code: "5678" });
+  const t2 = (await s.call("login", { code: "5678" })).token;
+  await rejects(s.call("googleLink", { token: t2, credential: "g:111:other@school.org" }), /another teacher/);
+  await rejects(s.call("googleLogin", { credential: "forged" }), /didn.t work/);
+  await s.call("googleUnlink", { token: s.T });
+  await rejects(s.call("googleLogin", { credential: "g:111:t@school.org" }), /isn.t connected/);
+});
+
+test("Sign in with Google across districts: Google finds the right school, and one Google account can't be in two schools", async () => {
+  const { m, A, B } = await twoDistricts();
+  await m.call("googleLink", { token: A.T, credential: "g:aaa:alpha@d1.org" });
+  const L = await m.call("googleLogin", { credential: "g:aaa:alpha@d1.org" });
+  assert.equal(L.me.name, "Ms. Alpha"); assert.equal(L.school.name, A.schoolName || L.school.name);
+  assert.ok((await m.call("boot", { token: L.token })).classes.length >= 1);
+  await rejects(m.call("googleLink", { token: B.T, credential: "g:aaa:alpha@d1.org" }), /another Path to Proficiency account/);
+  await rejects(m.call("googleLogin", { credential: "g:zzz:nobody@x.org" }), /isn.t connected/);
+  await rejects(m.call("googleLogin", { credential: "nope", school: "anything" }), /didn.t work/);
+  // the registry keeps a hash, never Google's id or the email
+  const reg = JSON.stringify([...m.stores.get("ptp-registry").M.entries()]);
+  assert.ok(!reg.includes("alpha@d1.org") && !reg.includes('"aaa"'));
+  await m.call("googleUnlink", { token: A.T });
+  await m.call("googleLink", { token: B.T, credential: "g:aaa:alpha@d1.org" }); // free again once released
+  assert.equal((await m.call("googleLogin", { credential: "g:aaa:alpha@d1.org" })).me.name, "Mr. Beta");
 });
 
 /* ---------- stage 4: moving today's one-school site into its own school store ---------- */

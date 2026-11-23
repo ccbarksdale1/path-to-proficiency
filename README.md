@@ -41,3 +41,15 @@ Set `MULTI_DISTRICT=on` in Netlify to turn it on. Each school then gets its own 
 2. **Copy now**. Copies today's school into its own store (`rh-bearden`) and adds the district, school and class codes to the registry. The old store is only read. Re-run any time before the switch; the card must say "The copy matches exactly."
 3. On a weekend or break: run **Copy now** one last time, then set `MULTI_DISTRICT=on` and `HOME_SCHOOL=rh-bearden` in Netlify and redeploy. Teachers and students sign in once more (teachers type the school code once per device).
 4. Undo: remove `MULTI_DISTRICT` and redeploy. The old store was never changed, so the site is exactly as it was before the switch (minus any work done after it). Keep the old store for 30 days.
+
+### Sign in with Google (teachers)
+
+- Uses only the public Client ID (in `netlify/functions/api/google.mjs` and `public/js/03-landing.js`; `GOOGLE_CLIENT_ID` in Netlify overrides it on the server). No client secret is used or stored.
+- A teacher connects Google once from **Teachers → My account** while signed in with their code. After that, **Sign in with Google** on the sign-in screen finds their school and account.
+- Multi-district: the registry keeps `gsub/<hash>` → school and teacher, so one Google account belongs to one teacher in one school. Google's ID and email are stored only in that school's own store.
+- Google's script loads only after the teacher taps the button (no outside requests otherwise).
+- Students don't use Google sign-in yet; districts must allow the app for student accounts first.
+
+### Question quality audit
+
+`python3 tests/audit.py [--grade 10] [--n 60]` generates many questions per skill and flags repeats, one answer coming up too often, wrong choices that are way off, and duplicate choices.

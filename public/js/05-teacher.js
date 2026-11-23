@@ -391,7 +391,9 @@ function wireCompare(){
 function tTeachers(){
   const me=TB.me;
   const account=`<div class="card"><h2>My account</h2><form class="grid" id="me-f"><label class="f">My name (what students see)<input id="me-name" value="${esc(me.name)}" required maxlength="60"></label>
-    <label class="f">New teacher code (leave blank to keep)<input id="me-code" inputmode="numeric" pattern="[0-9]{4,6}"></label><button type="submit">Save</button></form><p class="muted" id="me-msg" role="status"></p></div>`;
+    <label class="f">New teacher code (leave blank to keep)<input id="me-code" inputmode="numeric" pattern="[0-9]{4,6}"></label><button type="submit">Save</button></form><p class="muted" id="me-msg" role="status"></p>
+    <h3 style="margin:.8rem 0 .2rem">Sign in with Google</h3>${me.googleEmail?`<p>Connected: <b>${esc(me.googleEmail)}</b>. You can sign in with Google instead of your code.</p><div class="row"><button class="ghost small" id="g-unlink">Disconnect Google</button></div>`
+      :`<p class="muted small">Connect your school Google account once, and you can sign in with Google instead of typing your code.</p>${googleBox("g-link","Connect Google")}`}<p class="muted small" id="g-msg" role="status"></p></div>`;
   if(!isAdmin())return account;
   const count=id=>TB.classes.filter(c=>c.teacherId===id).length;
   return `${licenseCard()}<div class="card"><div class="top"><h2>Teachers</h2><span class="pill">${TB.teachers.length}</span></div>
@@ -409,6 +411,8 @@ function tTeachers(){
   ${backupCard()}${account}`;
 }
 function wireTeachers(){
+  wireGoogle("g-link",async cred=>{try{TB={...TB,...(await api("googleLink",{credential:cred}))};flash("g-msg","Google connected. Next time, tap Sign in with Google.");render()}catch(e){const m=document.getElementById("g-msg");if(m)m.textContent=e.message}},"continue_with");
+  const gu=document.getElementById("g-unlink");if(gu)gu.onclick=async()=>{if(!confirm("Disconnect Google? You'll sign in with your teacher code."))return;try{TB={...TB,...(await api("googleUnlink",{}))};render()}catch(e){document.getElementById("g-msg").textContent=e.message}};
   wireBackups();
   document.getElementById("me-f").onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Saving…");
     try{Object.assign(TB,await api("teacherSave",{id:TB.me.id,name:document.getElementById("me-name").value,code:document.getElementById("me-code").value.trim()}));TEACHER=TB.me.name;flash("me-msg","Saved.");render()}
