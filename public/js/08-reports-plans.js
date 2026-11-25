@@ -43,6 +43,27 @@ function sdItem(q,i){let a="";
   else if(q.type==="input")a=`<p>Answer: ______________</p>`;
   else if(q.type==="matrix")a=`<table class="sd-mx"><tr><th><span class="sr-only">Actions</span></th>${q.cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr>${q.rows.map(r=>`<tr><td>${esc(r.n)}</td>${q.cols.map(()=>"<td>○</td>").join("")}</tr>`).join("")}</table>`;
   return `<div class="sd-q"><b class="sd-n">${i}.</b><div>${bodyHTML(q,null,"print")}${a}</div></div>`}
+/* take-home weekly packet: no device or internet needed. 4 problems a day for 5 days on each student's own next standards,
+   a note for the family (English or Spanish), and an answer key for the teacher */
+function wpQs(s,n){const tr=trailFor(s),todo=tr.filter(k=>["todo","reteach"].includes(s.prog.skills[k.id]?.status)||!s.prog.skills[k.id]),done=tr.filter(k=>s.prog.skills[k.id]?.status==="done");
+  const ks=[...todo.slice(0,2),...done.slice(-1)].filter(Boolean),plan=ks.length?ks:tr.slice(0,2),out=[];let i=0,tries=0;
+  while(out.length<n&&tries++<n*12&&plan.length){const k=plan[i++%plan.length],g=genOf(k),pool=[...k.twins,...k.qs.map(x=>"q"+x)];const id=g?`~${g}~${Math.floor(Math.random()*1e9)}`:pool[Math.floor(Math.random()*pool.length)];if(!id)continue;
+    let q=null;try{q=getQ(id)}catch(e){}if(!q||!q.parts||q._ea||q._bd||!["mc","multi","input","matrix"].includes(q.type))continue;
+    const sig=JSON.stringify([q.parts,q.choices]);if(out.some(x=>x.sig===sig))continue;out.push({k,q,sig})}return out}
+function weekPacket(){const list=realStudents();if(!list.length){alert("Add students first.");return}
+  const w=window.open("","_blank");if(!w){alert("Allow pop-ups to print.");return}
+  const css=pageCSS(),c=CUR.cls,me=TB.me.name,days=["Monday","Tuesday","Wednesday","Thursday","Friday"],dES=["Lunes","Martes","Miércoles","Jueves","Viernes"],wk=new Date().toLocaleDateString();
+  const packs=list.map(s=>({s,es:!!(s.acc&&s.acc.es),qs:wpQs(s,20)}));
+  const note=(s,es,ks)=>es?`<div class="wp-note"><b>Para la familia de ${esc(famFirst(s))}:</b> Este paquete es la práctica de matemáticas de esta semana, hecha para lo que ${esc(famFirst(s))} necesita: <b>${ks}</b>. Son 4 problemas por día, unos 10 minutos. No hace falta computadora ni internet. Por favor, ayude a que lo traiga de vuelta el viernes. ¡Gracias! · ${esc(me)}</div>`
+    :`<div class="wp-note"><b>For ${esc(famFirst(s))}’s family:</b> This is this week’s math practice, made for exactly what ${esc(famFirst(s))} is working on: <b>${ks}</b>. It’s 4 problems a day, about 10 minutes. No computer or internet needed. Please help ${esc(famFirst(s))} bring it back on Friday. Thank you! · ${esc(me)}</div>`;
+  const pk=packs.map(({s,es,qs})=>{const ks=[...new Set(qs.map(x=>x.k.name))].map(esc).join(es?" y ":" and ")||"review";
+    return `<section class="sd-page"><div class="sd-head"><b>${esc(s.name)}</b><span>${esc(c.name)} · ${es?"Semana del":"Week of"} ${wk}</span></div>${note(s,es,ks)}
+     ${days.map((d,i)=>{const part=qs.slice(i*4,i*4+4);return part.length?`<div class="wp-day"><h2>${es?dES[i]:d} <span class="wp-chk">☐ ${es?"Listo":"Done"}</span></h2>${part.map((x,j)=>sdItem(x.q,i*4+j+1)).join("")}</div>`:""}).join("")}
+     <p class="wp-end">${es?"¡Buen trabajo esta semana! ⭐ Firma de la familia:":"Great work this week! ⭐ Family signature:"} ______________________</p></section>`}).join("");
+  const key=`<section class="sd-page"><h1>Answer key (for the teacher)</h1><p class="muted">${esc(c.name)} · week of ${wk}</p>${packs.map(({s,qs})=>`<p><b>${esc(s.name)}</b>: ${qs.map((x,i)=>`${i+1}. ${esc(ansText(x.q))}`).join(" · ")||"no problems"}</p>`).join("")}</section>`;
+  w.document.write(`<!doctype html><html lang="en"><meta charset="utf-8"><title>Take-home packet · ${esc(c.name)}</title>${css}<style>body{background:#fff;color:#111;padding:0}.sd-page{padding:24px;break-after:page;page-break-after:always}.sd-page:last-child{break-after:auto}.sd-head{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:8px;font-size:1.1rem}
+   .wp-note{border:2px solid #1f7a4d;border-radius:12px;padding:10px 14px;margin:8px 0 12px;font-size:.95rem;line-height:1.4}.wp-day h2{font-size:1.2rem;margin:16px 0 4px;padding:6px 10px;background:#eef6f1;border-radius:8px;display:flex;justify-content:space-between;break-after:avoid}.wp-chk{font-size:.95rem;font-weight:600}
+   .wp-end{margin-top:20px;font-size:1.05rem}.sd-q{display:flex;gap:10px;break-inside:avoid;page-break-inside:avoid;margin:12px 0;padding-bottom:10px;border-bottom:1px dashed #bbb}.sd-n{font-size:1.1rem}.sd-ch div{margin:4px 0}.sd-mx{border-collapse:collapse;margin-top:10px}.sd-mx td,.sd-mx th{border:1px solid #999;padding:4px 10px;text-align:left}@media print{button{display:none}}</style>${pk}${key}<script>setTimeout(()=>print(),700)<\/script>`);w.document.close()}
 function subDay(){const list=realStudents();if(!list.length){alert("Add students first.");return}
   const w=window.open("","_blank");if(!w){alert("Allow pop-ups to print.");return}
   const css=pageCSS(),c=CUR.cls,day=new Date().toLocaleDateString(),url=location.origin+location.pathname;
@@ -231,7 +252,7 @@ const rpDays=(r,since)=>{const sd=dayKey(since),o={act:false,ms:0,n:0,ok:0};Obje
 const rpReal=e=>(e.students||[]).filter(r=>!r.sample);
 const rpTile=(v,l,sub)=>`<div class="kpi"><b>${v}</b><span>${l}</span>${sub?`<small>${sub}</small>`:""}</div>`;
 function ovReportsCard(){return `<div class="card"><h2>🖨 Reports for leaders</h2><p class="muted">One click, ready to print or save as PDF.</p>
-  <div class="row"><button class="small" id="rp-week">Weekly principal summary</button><button class="small ghost" id="rp-dm">Data meeting packet (by grade)</button><button class="small ghost" id="rp-year">Results report (this school year)</button></div></div>`}
+  <div class="row"><button class="small" id="rp-week">Weekly principal summary</button><button class="small ghost" id="rp-dm">Data meeting packet (by grade)</button><button class="small ghost" id="rp-year">Results report (this school year)</button><button class="small" id="rp-grow">📈 Growth report (for the board)</button></div></div>`}
 function rpWeek(){const X=S.ov.x,R=S.ov.raw||[],wk=Date.now()-7*864e5,P=X.plans;let act=0,N=0,n=0,ok=0,ms=0;
   const rows=R.map(e=>{const L0=rpReal(e);let a=0,m=0;L0.forEach(r=>{const d=rpDays(r,wk);if(d.act)a++;m+=d.ms;n+=d.n;ok+=d.ok});act+=a;N+=L0.length;ms+=m;const c=X.classes.find(x=>x.c.id===e.cls.id)||{};
     return `<tr><td>${esc(e.cls.name)}</td><td>${L0.length}</td><td>${L0.length?Math.round(a/L0.length*100):0}%</td><td>${L0.length?Math.round(m/60000/L0.length):0} min</td><td>${c.on==null?"—":c.on+"%"}</td><td>${c.inI||0}</td></tr>`}).join("");
@@ -260,6 +281,34 @@ function rpYear(){const X=S.ov.x,R=S.ov.raw||[],yr=schoolYear(),B=X.BM,P=X.plans
     ${rpTile(B.moved,"Moved to at or above the cut",B.two?`${B.grew} of ${B.two} students improved`:"")}${rpTile(P.met,"Plans met goal and exited",`${P.active} still active`)}${rpTile(tsHours(ts.mins),"Teacher time saved","this school year (estimate)")}${rpTile(X.mins?Math.round(X.mins/60).toLocaleString()+" hrs":"—","Student practice time","")}</div>
    <h2>By class</h2><table><tr><th>Class</th><th>Students</th>${WINS.map(w=>`<th>${w}</th>`).join("")}<th>On track now</th><th>Plans met</th></tr>${cls}</table>
    <p class="muted" style="font-size:.8rem">Benchmark scores are the ones teachers entered or imported. “On track” is estimated from practice, not a state test score.</p></section>`)}
+
+/* ================= Growth report: Fall to now, by grade and by how much students practiced ================= */
+function growthData(R){const yr=schoolYear(),start=Date.UTC(+yr.slice(0,4),6,1),weeks=Math.max(1,(Date.now()-start)/(7*864e5)),G={},all=[];
+  R.forEach(e=>{const g=typeof subjLabel==="function"?subjLabel(e.cls.testId):e.cls.name;rpReal(e).forEach(r=>{let ms=0,mast=0,first=Infinity;
+    for(const [tid,pr] of Object.entries(r.prog||{})){if(tid[0]==="_"||!pr)continue;for(const [d,x] of Object.entries(pr.days||{})){const t=Date.parse(d+"T12:00:00Z");if(t<start)continue;first=Math.min(first,t);for(const v of Object.values(x||{}))ms+=(v&&v.ms)||0}
+      if(tid===e.cls.testId)for(const k of Object.values(pr.skills||{}))if(k&&k.status==="done"&&(k.doneAt||0)>=start)mast++}
+    const b=(r.bm||{})[yr]||{},late=b.Spring??b.Winter,wk=first===Infinity?weeks:Math.max(1,(Date.now()-first)/(7*864e5)),o={g,mpw:ms/60000/wk,mast,fall:b.Fall,late};all.push(o);(G[g]=G[g]||[]).push(o)})});
+  const both=a=>a.filter(o=>o.fall!=null&&o.late!=null),avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null,sum=a=>{const B=both(a);return {n:a.length,nb:B.length,fall:avg(B.map(o=>o.fall)),late:avg(B.map(o=>o.late)),gain:avg(B.map(o=>o.late-o.fall)),grew:B.filter(o=>o.late>o.fall).length,mast:a.reduce((x,o)=>x+o.mast,0),mpw:avg(a.map(o=>o.mpw))}};
+  const hi=all.filter(o=>o.mpw>=30),lo=all.filter(o=>o.mpw<30);
+  const ord=x=>/Grade (\d+)/.exec(x)?.[1]*1+(/ELA/.test(x)?.1:/Science/.test(x)?.2:0)||({"Algebra I":9,"Biology":10,"ACT Math":11,"WorkKeys":12}[x]||20);
+  return {yr,all:sum(all),grades:Object.entries(G).map(([g,a])=>({g,...sum(a)})).sort((a,b)=>ord(a.g)-ord(b.g)),hi:sum(hi),lo:sum(lo)}}
+function rpGrowth(){const D=growthData(S.ov.raw||[]),A=D.all,f=v=>v==null?"—":Math.round(v),pm=v=>v==null?"—":(v>0?"+":"")+(Math.round(v*10)/10);
+  const gs=D.grades.filter(x=>x.nb),max=100,W=640,bh=26;
+  const chart=gs.length?`<svg viewBox="0 0 ${W} ${gs.length*(bh*2+18)+24}" style="width:100%;max-width:680px" role="img" aria-label="Fall and latest benchmark averages by grade">${gs.map((x,i)=>{const y=i*(bh*2+18)+4,w1=x.fall/max*(W-220),w2=x.late/max*(W-220);
+    return `<text x="0" y="${y+bh+4}" font-size="14" font-weight="700">${esc(x.g)}</text><rect x="160" y="${y}" width="${w1}" height="${bh-4}" rx="4" fill="#b9c3d6"/><text x="${166+w1}" y="${y+bh-10}" font-size="13">Fall ${f(x.fall)}</text>
+      <rect x="160" y="${y+bh}" width="${w2}" height="${bh-4}" rx="4" fill="#1f7a4d"/><text x="${166+w2}" y="${y+2*bh-10}" font-size="13" font-weight="700">Now ${f(x.late)} (${pm(x.gain)})</text>`}).join("")}</svg>`:`<p class="muted">Enter Fall and Winter screener scores (Students page, Benchmarks) to see growth.</p>`;
+  const dose=D.hi.nb>=5&&D.lo.nb>=5;
+  printDoc("Growth report",`<section class="rp"><h1>Growth report · ${esc(TB.school.name)} · ${esc(D.yr)}</h1><p class="muted">Printed ${new Date().toLocaleDateString()} · ${A.n} students · no student names in this report</p>
+   <div class="kpis">${rpTile(pm(A.gain)+" pts","Average benchmark growth",A.nb?`Fall ${f(A.fall)} → now ${f(A.late)}, ${A.nb} students with both scores`:"Enter Fall and Winter scores")}
+    ${rpTile(A.nb?Math.round(A.grew/A.nb*100)+"%":"—","of students improved",A.nb?`${A.grew} of ${A.nb}`:"")}${rpTile(A.mast.toLocaleString(),"standards mastered in practice","this school year")}${rpTile(A.mpw==null?"—":Math.round(A.mpw),"minutes of practice per week","average per student")}</div>
+   <h2>Fall to now, by grade and subject</h2>${chart}
+   <table><tr><th>Grade / subject</th><th>Students</th><th>With both scores</th><th>Fall avg</th><th>Now avg</th><th>Change</th><th>Improved</th><th>Standards mastered</th></tr>
+    ${D.grades.map(x=>`<tr><td>${esc(x.g)}</td><td>${x.n}</td><td>${x.nb}</td><td>${f(x.fall)}</td><td>${f(x.late)}</td><td><b>${pm(x.gain)}</b></td><td>${x.nb?Math.round(x.grew/x.nb*100)+"%":"—"}</td><td>${x.mast}</td></tr>`).join("")}</table>
+   <h2>Did more practice go with more growth?</h2>
+   ${dose?`<table><tr><th>Students who practiced…</th><th>Students</th><th>Average growth</th><th>Improved</th></tr>
+     <tr><td>30+ minutes a week</td><td>${D.hi.nb}</td><td><b>${pm(D.hi.gain)} pts</b></td><td>${Math.round(D.hi.grew/D.hi.nb*100)}%</td></tr>
+     <tr><td>Less than 30 minutes a week</td><td>${D.lo.nb}</td><td><b>${pm(D.lo.gain)} pts</b></td><td>${Math.round(D.lo.grew/D.lo.nb*100)}%</td></tr></table>`:`<p class="muted">Not enough students in each group yet (needs 5 or more with both scores in each).</p>`}
+   <p class="muted" style="font-size:.8rem">Benchmark scores are the ones teachers entered or imported. Growth is what we observed this year, not a controlled study: students who practice more may differ in other ways too.</p></section>`)}
 
 /* ================= Learning games (Arcade 2.0): free to play, every answer is practice on its standard ================= */
 const LGAMES=[{id:"aa",name:"Area Architect",ico:"🏗️",src:"arcade/area-architect/index.html",stds:["3.MD.5","3.MD.6","3.MD.7"],grades:[3,4],

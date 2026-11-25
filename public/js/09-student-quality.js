@@ -430,7 +430,7 @@ function eaMake(id,g0){const m=String(id).match(/^!ea!(.+)!(v:(.+)|([A-E]))$/);i
    from the question's own explanations). The student finds the right answer; the walkthrough starts with Buddy's mistake. */
 const BD_EVERY=12,buddyOn=()=>S.demo||!(SB&&SB.cls&&SB.cls.buddy===false);
 function bdMake(id,g0){const m=String(id).match(/^!bd!(.+)!([^!]+)$/);if(!m)return null;const base=g0(m[1]),l=decodeURIComponent(m[2]);if(!base)return null;
-  const clean=x=>String(x).replace(/<[^>]+>/g,"").trim().replace(/\.$/,""),line=said=>`🦝 Buddy said the answer is ${said}. Buddy made a mistake! What is the right answer?`;
+  const clean=x=>String(x).replace(/<[^>]+>/g,"").trim().replace(/\.$/,""),line=said=>`Buddy said the answer is ${said}. Buddy made a mistake! What is the right answer?`;
   if(base.type==="input"){const w=base.whyIn&&base.whyIn[l];if(!w||String(l)===String(base.ans))return null;const mist=clean(w);if(!mist)return null;
     return {...base,_bd:true,_bdSaid:l,parts:[...base.parts,line(l)],whyIn:{...base.whyIn,[l]:`That’s Buddy’s answer, and it has his mistake. ${mist}.`},steps:[{say:`🦝 Buddy’s mistake: ${mist}.`},...(base.steps||[])]}}
   if(base.type!=="mc"||!base.why||l===base.ans||!base.why[l])return null;const c=base.choices[L.indexOf(l)];if(typeof c!=="string")return null;

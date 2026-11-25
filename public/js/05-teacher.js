@@ -74,7 +74,7 @@ function tClass(){
   const offS=CUR.students.filter(s=>s.prog.tutor?.off?.n);
   const offCard=offS.length?`<div class="card"><details><summary><b>⚠️ Off-topic Scout chats (${offS.reduce((a,s)=>a+s.prog.tutor.off.n,0)})</b> <span class="muted">Scout steered these students back to math. Tap to see what they asked.</span></summary>
    <ul>${offS.map(s=>`<li><b>${esc(s.name)}</b> (${s.prog.tutor.off.n}): ${(s.prog.tutor.off.last||[]).slice(-3).map(x=>`<span class="muted">“${esc(x.t)}”</span>`).join(", ")}</li>`).join("")}</ul></details></div>`:"";
-  return `${storyCard()}${startHere()}${nextCard()}${tsCard(CUR.raw)}${goalCard}${hsClassCard()}${readinessCard()}${evClassCard()}${stepsCard()}${handsCard()}${attnCard}${offCard}${groupsCard}<div class="card" id="every"><div class="top"><h2>Every student</h2><span class="row" style="gap:.4rem;margin:0"><button class="small" id="sub-day">🧑‍🏫 Sub Day</button><select id="hb-std" aria-label="Standard for the Help Buddy warm-up" style="max-width:220px"><option value="">🦝 Most of the class (auto)</option>${SKILLS.filter(k=>genOf(k)).map(k=>`<option value="${esc(k.id)}">${esc(k.std)} · ${esc(k.name)}</option>`).join("")}</select><button class="ghost small" id="help-buddy">🦝 Help Buddy warm-up</button><button class="ghost small" id="csv-dl">Download class data (CSV)</button></span></div>
+  return `${storyCard()}${startHere()}${countdownCard()}${nextCard()}${tsCard(CUR.raw)}${goalCard}${hsClassCard()}${readinessCard()}${evClassCard()}${stepsCard()}${handsCard()}${attnCard}${offCard}${groupsCard}<div class="card" id="every"><div class="top"><h2>Every student</h2><span class="row" style="gap:.4rem;margin:0"><button class="small" id="sub-day">🧑‍🏫 Sub Day</button><button class="small ghost" id="wk-pack">📄 Take-home packet</button><select id="hb-std" aria-label="Standard for the Help Buddy warm-up" style="max-width:220px"><option value="">🦝 Most of the class (auto)</option>${SKILLS.filter(k=>genOf(k)).map(k=>`<option value="${esc(k.id)}">${esc(k.std)} · ${esc(k.name)}</option>`).join("")}</select><button class="ghost small" id="help-buddy">🦝 Help Buddy warm-up</button><button class="ghost small" id="csv-dl">Download class data (CSV)</button></span></div>
    <p class="muted">Each student’s path skips any standard where they got every test question right. Students marked “sample” are examples and are not counted in your goal. Tap a name for their portfolio, or a column title to sort.</p>${filters}
    <div class="tablewrap" tabindex="0"><table class="roster"><thead><tr>${th("name","Student")}<th>Missed on test</th>${th("path","Path")}<th>Working on</th>${th("acc","Accuracy")}${th("rd","Readiness")}<th>Asked Scout</th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="muted">${CUR.students.length?"No students match.":"No students yet."}</td></tr>`}</tbody></table></div>
    <p class="muted" style="font-size:.85rem">Progress saves online, so students can use any device. <button class="link" id="reload">Refresh</button></p></div>${growthCard()}`;
@@ -462,13 +462,13 @@ function tTeachers(){
     <label class="f chk"><span><input type="checkbox" id="nt-admin"> School admin</span></label><button type="submit">Add teacher</button></form><p class="err" id="nt-err" role="alert"></p></div>
   <div class="card"><h2>Assign classes</h2><p class="muted">Pick the teacher for each class.</p>
    ${TB.classes.length?`<div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Class</th><th>Test</th><th>Teacher</th></tr></thead><tbody>${TB.classes.map(c=>`<tr><td><b>${esc(c.name)}</b></td><td>${esc(testName(c.testId))}</td><td><select data-asg="${c.id}" aria-label="Teacher for ${esc(c.name)}">${TB.teachers.map(t=>`<option value="${t.id}" ${t.id===c.teacherId?"selected":""}>${esc(t.name)}</option>`).join("")}</select></td></tr>`).join("")}</tbody></table></div><p class="muted" id="asg-msg" role="status"></p>`:`<p class="muted">No classes yet.</p>`}</div>
-  ${backupCard()}${yearCard()}${account}`;
+  ${backupCard()}${testDateCard()}${yearCard()}${account}`;
 }
 function wireTeachers(){
   wireGoogle("g-link",async cred=>{try{TB={...TB,...(await api("googleLink",{credential:cred}))};flash("g-msg","Google connected. Next time, tap Sign in with Google.");render()}catch(e){const m=document.getElementById("g-msg");if(m)m.textContent=e.message}},"continue_with");
   const cu=document.getElementById("c-unlink");if(cu)cu.onclick=async()=>{if(!confirm("Disconnect Clever? You'll sign in with your teacher code."))return;try{TB={...TB,...(await api("cleverUnlink",{}))};render()}catch(e){document.getElementById("g-msg").textContent=e.message}};
   const gu=document.getElementById("g-unlink");if(gu)gu.onclick=async()=>{if(!confirm("Disconnect Google? You'll sign in with your teacher code."))return;try{TB={...TB,...(await api("googleUnlink",{}))};render()}catch(e){document.getElementById("g-msg").textContent=e.message}};
-  wireBackups();wireYear();
+  wireBackups();wireYear();wireTestDate();
   document.getElementById("me-f").onsubmit=async e=>{e.preventDefault();busy(e.submitter,"Saving…");
     try{Object.assign(TB,await api("teacherSave",{id:TB.me.id,name:document.getElementById("me-name").value,code:document.getElementById("me-code").value.trim()}));TEACHER=TB.me.name;flash("me-msg","Saved.");render()}
     catch(er){document.getElementById("me-msg").textContent=er.message;e.submitter.disabled=false;e.submitter.textContent="Save"}};
@@ -837,28 +837,51 @@ function famMsg(s,std,lang){const H=HACT(),d=famData(s),f=famFirst(s),me=TB.me.n
   return [`Hi! This is ${me}.`,
     d.mins?`${f} practiced math for ${d.mins} minutes this week${mast.length?` and mastered ${join(mast)} 🎉`:""}.`:`${f} didn't practice much this week, so a little encouragement at home would help a lot!`,
     A?`Next we're working on ${A.n}. 5-minute idea: ${A.a[0].s}`:"",A?`More ideas: ${url}`:"","Thank you!"].filter(Boolean).join(" ")}
+/* parent phone numbers stay in this browser only (never sent to Path to Proficiency) */
+const famPhKey=()=>"ptp-ph-"+(CUR&&CUR.cls.id);
+const famPh=()=>{try{return JSON.parse(localStorage.getItem(famPhKey())||"{}")}catch(e){return {}}};
+const famPhSet=(sid,v)=>{try{const m=famPh();if(v)m[sid]=v;else delete m[sid];localStorage.setItem(famPhKey(),JSON.stringify(m))}catch(e){}};
+const famTel=v=>String(v||"").replace(/[^\d+]/g,"").slice(0,16);
+const smsHref=(ph,txt)=>`sms:${famTel(ph)}?&body=${encodeURIComponent(txt)}`;
+function famQueue(list,F,wk,hm){const Q=S.famQ,ph=famPh();if(Q==null)return "";if(Q>=list.length)return `<div class="card" style="border:2px solid var(--go)"><h2>🎉 All done!</h2><p>You went through every family this week.</p><button id="fq-close">Close</button></div>`;
+  const s=list[Q],pk=famPick(s),std=F.std[s.id]||(hm[s.id]&&hm[s.id].std)||pk?.std||"",lang=F.lang[s.id]||(hm[s.id]&&hm[s.id].lang)||(s.acc&&s.acc.es?"es":"en"),txt=F.txt[s.id+"|"+std+"|"+lang]??famMsg(s,std,lang);
+  return `<div class="card fam fq" data-sid="${s.id}" style="border:2px solid var(--go)"><div class="top"><h2 style="margin:0">📱 Family ${Q+1} of ${list.length}: ${esc(s.name)}</h2><button class="ghost small" id="fq-close">Stop</button></div>
+   <label class="f">Parent phone <span class="muted small">(saved on this device only)</span><input type="tel" data-fph="${s.id}" value="${esc(ph[s.id]||"")}" placeholder="(662) 555-0123" autocomplete="off"></label>
+   <textarea data-ftxt="${s.id}|${std}|${lang}" aria-label="Message for ${esc(s.name)}" rows="5" style="width:100%;font:inherit;padding:10px;border-radius:12px;border:2px solid var(--rule)">${esc(txt)}</textarea>
+   <div class="row"><a class="btn" data-fsend="${s.id}" data-how="text" data-next="1" href="${smsHref(ph[s.id],txt)}">📱 Text ${esc(famFirst(s))}’s family</a><button class="ghost" id="fq-skip">Skip →</button>${hm[s.id]?`<span class="pill go">Sent ✓ this week</span>`:""}</div>
+   <p class="muted small">Messages opens with the text ready. Send it, come back here, and the next family is waiting.</p></div>`}
 function tFamily(){const F=S.fam||(S.fam={lang:{},std:{},txt:{}}),wk=famWk(),H=HACT(),hm=CUR.cls.home&&CUR.cls.home.wk===wk?CUR.cls.home.picks||{}:{};
   if(!Object.keys(H).length)return `<div class="card"><p class="muted">Loading family activities…</p></div>`;
   const list=CUR.students.filter(s=>!isSample(s.raw||s));
   const sent=list.filter(s=>hm[s.id]).length,did=list.filter(s=>s.raw?.prog?._home?.done?.[wk]).length;
   const codes=Object.keys(H);
   return `<div class="card"><h2>🏠 Family updates · PTP Bridge</h2>
-   <p class="muted">Each message is written from that student’s practice this week, with a five-minute activity for home on the skill they need most. Edit anything. Tap <b>Text</b> to open your phone’s Messages app, or <b>Copy</b> to paste into Remind, ClassDojo or your district app. Parent phone numbers are never stored in Path to Proficiency.</p>
+   <p class="muted">Each message is written from that student’s practice this week, with a five-minute activity for home on the skill they need most. Edit anything. Tap <b>Text</b> to open your phone’s Messages app, or <b>Copy</b> to paste into Remind, ClassDojo or your district app. Parent phone numbers you type here stay on this device only. They are never sent to Path to Proficiency.</p>
    <div class="row" style="gap:8px"><span class="pill">Week of ${shortDate(wk)}</span><span class="pill go">${sent} of ${list.length} sent</span><span class="pill gold">🏠 ${did} home mission${did===1?"":"s"} done</span><a class="link" href="/home/" target="_blank" rel="noopener">See the family activity pages ↗</a></div>
+   <div class="row" style="margin-top:.6rem">${list.length?`<button id="fq-go">📱 Text every family, one by one</button>`:""}</div>
    <p class="muted" id="fam-msg" role="status"></p></div>
-   ${list.length?list.map(s=>{const pk=famPick(s),std=F.std[s.id]||(hm[s.id]&&hm[s.id].std)||pk?.std||"",lang=F.lang[s.id]||(hm[s.id]&&hm[s.id].lang)||(s.acc&&s.acc.es?"es":"en"),txt=F.txt[s.id+"|"+std+"|"+lang]??famMsg(s,std,lang),done=s.raw?.prog?._home?.done?.[wk];
+   ${famQueue(list,F,wk,hm)}
+   ${S.famQ!=null?"":list.length?list.map(s=>{const pk=famPick(s),std=F.std[s.id]||(hm[s.id]&&hm[s.id].std)||pk?.std||"",lang=F.lang[s.id]||(hm[s.id]&&hm[s.id].lang)||(s.acc&&s.acc.es?"es":"en"),txt=F.txt[s.id+"|"+std+"|"+lang]??famMsg(s,std,lang),done=s.raw?.prog?._home?.done?.[wk];
      return `<div class="card fam" data-sid="${s.id}"><div class="top"><h3 style="margin:0">${esc(s.name)}</h3><div class="row" style="gap:6px">${hm[s.id]?`<span class="pill go">Sent ✓</span>`:""}${done?`<span class="pill gold">🏠 Did the home mission!</span>`:""}</div></div>
       <div class="row"><label class="f" style="flex:2;min-width:200px">Home activity skill<select data-fstd="${s.id}"><option value="">No activity (progress only)</option>${codes.map(c=>`<option value="${c}" ${c===std?"selected":""}>${esc(c)} · ${esc(H[c].en.n)}${pk&&pk.std===c?(pk.why==="practice"?" (needs practice)":" (up next)"):""}</option>`).join("")}</select></label>
        <label class="f" style="flex:1;min-width:120px">Language<select data-flang="${s.id}"><option value="en" ${lang==="en"?"selected":""}>English</option><option value="es" ${lang==="es"?"selected":""}>Español</option></select></label></div>
       <textarea data-ftxt="${s.id}|${std}|${lang}" aria-label="Message for ${esc(s.name)}" rows="5" style="width:100%;font:inherit;padding:10px;border-radius:12px;border:2px solid var(--rule)">${esc(txt)}</textarea>
-      <div class="row"><a class="btn small" data-fsend="${s.id}" data-how="text" href="sms:?&body=${encodeURIComponent(txt)}">📱 Text</a><button class="ghost small" data-fsend="${s.id}" data-how="copy">📋 Copy</button><span class="muted" style="font-size:.85rem">${txt.length} characters</span></div></div>`}).join(""):`<div class="card"><p class="muted">Add students first.</p></div>`}`}
+      <label class="f" style="max-width:260px">Parent phone <span class="muted small">(this device only)</span><input type="tel" data-fph="${s.id}" value="${esc(famPh()[s.id]||"")}" placeholder="(662) 555-0123" autocomplete="off"></label>
+      <div class="row"><a class="btn small" data-fsend="${s.id}" data-how="text" href="${smsHref(famPh()[s.id],txt)}">📱 Text</a><button class="ghost small" data-fsend="${s.id}" data-how="copy">📋 Copy</button><span class="muted" style="font-size:.85rem">${txt.length} characters</span></div></div>`}).join(""):`<div class="card"><p class="muted">Add students first.</p></div>`}`}
 function wireFamily(){const F=S.fam||(S.fam={lang:{},std:{},txt:{}}),keep=fn=>()=>{const y=scrollY;fn();render();scrollTo(0,y)};
   if(!Object.keys(HACT()).length){setTimeout(()=>{if(S.tab==="home")render()},400);return}
   app.querySelectorAll("[data-fstd]").forEach(x=>x.onchange=keep(()=>{F.std[x.dataset.fstd]=x.value}));
   app.querySelectorAll("[data-flang]").forEach(x=>x.onchange=keep(()=>{F.lang[x.dataset.flang]=x.value}));
-  app.querySelectorAll("[data-ftxt]").forEach(x=>x.oninput=()=>{F.txt[x.dataset.ftxt]=x.value;const a=x.closest(".fam").querySelector('[data-how="text"]');if(a)a.href="sms:?&body="+encodeURIComponent(x.value)});
+  const relink=card=>{const a=card.querySelector('[data-how="text"]'),ta=card.querySelector("textarea"),ph=card.querySelector("[data-fph]");if(a&&ta)a.href=smsHref(ph?ph.value:"",ta.value)};
+  app.querySelectorAll("[data-ftxt]").forEach(x=>x.oninput=()=>{F.txt[x.dataset.ftxt]=x.value;relink(x.closest(".fam"))});
+  app.querySelectorAll("[data-fph]").forEach(x=>x.oninput=()=>{famPhSet(x.dataset.fph,famTel(x.value));relink(x.closest(".fam"))});
+  const fqList=()=>CUR.students.filter(s=>!isSample(s.raw||s)),fqGo=i=>{S.famQ=i;render();document.querySelector(".fq")?.scrollIntoView({block:"start"})};
+  const fg=document.getElementById("fq-go");if(fg)fg.onclick=()=>fqGo(0);
+  const fc=document.getElementById("fq-close");if(fc)fc.onclick=()=>{S.famQ=null;render()};
+  const fs=document.getElementById("fq-skip");if(fs)fs.onclick=()=>fqGo(S.famQ+1);
   app.querySelectorAll("[data-fsend]").forEach(b=>b.onclick=async e=>{const sid=b.dataset.fsend,card=b.closest(".fam"),ta=card.querySelector("textarea"),[,std,lang]=ta.dataset.ftxt.split("|");
     if(b.dataset.how==="copy"){e.preventDefault();try{await navigator.clipboard.writeText(ta.value);b.textContent="✓ Copied"}catch(er){ta.select();document.execCommand&&document.execCommand("copy");b.textContent="✓ Copied"}}
+    if(b.dataset.next)setTimeout(()=>{S.famQ=(S.famQ||0)+1;render();document.querySelector(".fq")?.scrollIntoView({block:"start"})},1200);
     if(S.demo||DEMO_T){return}
     try{const r=await api("homeMark",{classId:CUR.cls.id,wk:famWk(),sid,std,lang});CUR.cls.home=r.home;setTimeout(()=>{if(S.tab==="home"){const y=scrollY;render();scrollTo(0,y)}},b.dataset.how==="copy"?900:300)}catch(er){const m=document.getElementById("fam-msg");if(m)m.textContent=er.message}})}
 /* student side: this week's home mission */
@@ -1089,3 +1112,14 @@ function storyCard(){const st=DEMO_T&&TB&&TB.story;if(!st||!CUR||CUR.cls.id!==st
     <li><b>One small group, one 3-question check.</b> ${niceDay(st.d)}: 15 minutes on that one idea, then a short check aimed only at that mistake.</li>
     <li><b>The check showed who fixed it.</b> ${fixed} of ${who.length} fixed it. ${rows.map(x=>`${nameLink(x.s)} ${x.v?`<span class="pill ${x.v[0]}">${x.v[1]}</span>`:`<span class="pill">Not taken</span>`}`).join(" ")}</li>
    </ol><div class="row"><button class="small" data-std="${k.id}">See ${esc(k.std)}: who and why</button></div></div>`}
+
+/* ---------- state test countdown: days left, which standards most of the class hasn't mastered, and the pace ---------- */
+function countdownCard(){const T=TB.school&&TB.school.testDate;if(!T||!T.d)return "";const days=Math.ceil((Date.parse(T.d+"T08:00:00")-Date.now())/864e5);if(days<0||days>300)return "";
+  const real=realStudents();if(!real.length)return "";const by={},since=Date.now()-28*864e5;let left=0,recent=0;
+  real.forEach(s=>{const tr=trailFor(s);tr.forEach(k=>{const st=s.prog.skills[k.id]?.status,o=by[k.id]||(by[k.id]={k,n:0,m:0});o.n++;if(st==="done"||st==="skip")o.m++;else left++;if(st==="done"&&(s.prog.skills[k.id].doneAt||0)>=since)recent++})});
+  const weeks=Math.max(0,days/7),pace=recent/4/real.length,avgLeft=left/real.length,proj=pace*weeks,need=Object.values(by).filter(o=>o.n>=3&&o.m/o.n<.6).sort((a,b)=>a.m/a.n-b.m/b.n).slice(0,5);
+  const onPace=avgLeft<=0||proj>=avgLeft;
+  return `<div class="card cd-card"><div class="top"><h2 style="margin:0">⏳ ${esc(T.name||"State test")} in ${days} day${days===1?"":"s"}</h2><span class="muted small">${new Date(T.d+"T12:00:00").toLocaleDateString(undefined,{month:"long",day:"numeric"})} · about ${Math.round(weeks)} week${Math.round(weeks)===1?"":"s"}</span></div>
+   <p>${avgLeft<=0?"Every student has finished their trail. Keep reviewing.":`Each student has about <b>${avgLeft.toFixed(1)}</b> standard${avgLeft.toFixed(1)==="1.0"?"":"s"} left on their trail. At the pace of the last 4 weeks (<b>${(pace).toFixed(1)}</b> per student per week), that’s about <b>${Math.min(avgLeft,proj).toFixed(1)}</b> by test day. ${onPace?'<span class="pill go">On pace</span>':`<span class="pill gold">Behind pace</span> About ${((avgLeft-proj)/Math.max(1,weeks)).toFixed(1)} more per student per week would close the gap.`}`}</p>
+   ${need.length?`<h3 style="margin:.6rem 0 .3rem">Standards most of the class hasn’t mastered yet</h3><ul class="cd-list">${need.map(o=>`<li>${stdLink(o.k)} <span class="muted small">${esc(o.k.name)}</span> <span class="pill">${o.m} of ${o.n} mastered</span></li>`).join("")}</ul>`:""}
+   <p class="muted small">Mastered means passed the checkpoint in practice or got it right on the test. This is a planning guide, not a prediction of state test scores.</p></div>`}

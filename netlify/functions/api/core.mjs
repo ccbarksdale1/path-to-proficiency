@@ -136,7 +136,7 @@ export function makeApi({ store, env, tenant = null, hooks = null, googleVerify 
   function boot(ctx) {
     const { school, me, admin } = ctx;
     return {
-      me: { ...pubTeacher(me), ...(me.google ? { googleEmail: me.google.email } : {}), ...(me.clever ? { cleverName: me.clever.name || "Clever account" } : {}) }, school: { name: school.name, year: school.year || null, yearSaved: school.yearSaved || {} },
+      me: { ...pubTeacher(me), ...(me.google ? { googleEmail: me.google.email } : {}), ...(me.clever ? { cleverName: me.clever.name || "Clever account" } : {}) }, school: { name: school.name, year: school.year || null, yearSaved: school.yearSaved || {}, testDate: school.testDate || null },
       teachers: school.teachers.map(pubTeacher),
       classes: school.classes.filter(c => admin || c.teacherId === me.id).map(pubClass),
       allClassCount: school.classes.length,
@@ -1001,6 +1001,15 @@ How you teach:
   /* new school year: save a year-end copy that is never rotated out, then per class keep it, move it up a grade
      (same students and codes, next grade's standards; last year's progress stays under the old test), or empty it */
   const NEXT_GRADE = { std3: "std4", std4: "std5", std5: "std6", std6: "std7", std7: "std8", std8: "std9" };
+  /* the state test date, for the countdown: set by a school admin, or cleared */
+  A.testDateSave = async b => {
+    const ctx = await teacherCtx(b.token), { school } = ctx; if (!ctx.admin) bad("Only a school admin can set the state test date.", 403);
+    const d = str(b.date, 10), name = str(b.name, 40) || "State test";
+    if (d && (!/^\d{4}-\d{2}-\d{2}$/.test(d) || isNaN(Date.parse(d)))) bad("Pick a date.");
+    if (d) school.testDate = { d, name }; else delete school.testDate;
+    await saveSchool(school); await logAct(tName(ctx), "State test date set", d ? `${name}: ${d}` : "cleared");
+    return boot(ctx);
+  };
   A.yearStart = async b => {
     const ctx = await teacherCtx(b.token), { school } = ctx; if (!ctx.admin) bad("Only a school admin can start a new school year.", 403);
     if (b.confirm !== "NEW YEAR") bad("Type NEW YEAR to confirm.");

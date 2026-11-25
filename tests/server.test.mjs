@@ -300,7 +300,7 @@ test("district admin: sees every school in their own district, and nothing else"
   const o = await m.call("districtOverview", { token: da.token }), txt = JSON.stringify(o);
   assert.deepEqual(o.schools.map(s => s.id).sort(), ["alpha-es", "alpha-ms"]);
   assert.ok(txt.includes("Alpha Room") && txt.includes("Ms. Alpha"));
-  for (const x of ["Beta", "Bailey", B.cls.id]) assert.ok(!txt.includes(x), "district overview leaked " + x);
+  for (const x of ["Beta", "Bailey", B.cls.id, "Avery", A.roster[0].code]) assert.ok(!txt.includes(x), "district overview leaked " + x);
   assert.equal(o.schools.find(s => s.id === "alpha-es").classes[0].students, 2);
 });
 
@@ -560,6 +560,21 @@ test("Clever: off until the secret is set; first sign-in connects once, then Cle
   // disconnecting ends Clever sign-in for that teacher
   await m.call("cleverUnlink", { token: A.T });
   assert.equal((await m.call("cleverLogin", { code: "c:T1:teacher:Ms. Alpha" })).needLink, true);
+});
+
+test("district numbers: active this week, weekly trend, standards mastered this year, benchmark growth", async () => {
+  const { classAgg } = await import("../netlify/functions/api/router.mjs");
+  const now = Date.UTC(2026, 10, 25, 15), day = n => new Date(now - n * 864e5).toISOString().slice(0, 10);
+  const students = [{ id: "a", bm: { "2026-27": { Fall: 40, Winter: 55 } } }, { id: "b", bm: { "2026-27": { Fall: 60 } } }, { id: "c" }];
+  const progs = {
+    a: { std3: { skills: { k1: { status: "done", doneAt: now - 5 * 864e5 }, k2: { status: "skip" }, k3: { status: "done", doneAt: Date.UTC(2025, 9, 1) } }, days: { [day(1)]: { k1: { n: 10, ok: 8, ms: 600000 } }, [day(20)]: { k1: { n: 4, ok: 2 } } } } },
+    b: { std3: { skills: {}, days: { [day(15)]: { k1: { n: 5, ok: 5 } } } } }, c: {} };
+  const o = classAgg(students, progs, "std3", now);
+  assert.equal(o.students, 3); assert.equal(o.active, 1); assert.equal(o.active30, 2);
+  assert.equal(o.answers, 10); assert.equal(o.ok, 8); assert.equal(o.minutes, 10);
+  assert.equal(o.mastered, 1); assert.equal(o.masteredTest, 1); // last school year's mastery doesn't count
+  assert.equal(o.bmBoth, 1); assert.equal(o.bmNow - o.bmFall, 15);
+  assert.deepEqual(o.weeks, [0, 0, 0, 0, 0, 2, 0, 1]); // 15 and 20 days ago are both 2 weeks back
 });
 
 let failed = 0;

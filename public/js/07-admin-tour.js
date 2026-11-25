@@ -468,14 +468,55 @@ function districtSignin(){
       S.da.data=await api("districtOverview",{token:r.token});render()}catch(er){S.err=er.message;render()}};
 }
 SCREENS.districtSignin=districtSignin;
+const subjLabel=t=>{const m=/^std(\d+)$/.exec(t||"");if(t==="a1")return "Grade 3 Math";if(!m)return "Other (custom test)";const g=+m[1];
+  return g<=8?`Grade ${g} Math`:g===9?"Algebra I":g===10?"ACT Math":g===11?"WorkKeys":g===19?"Biology":g>=23?`Grade ${g-20} ELA`:g>=14?`Grade ${g-10} Science`:"Other"};
+/* the same sums the server makes for district leaders (used by the sample district) */
+function classAggJS(students,testId,now=Date.now()){const DAY=864e5,day=t=>new Date(t).toISOString().slice(0,10),d7=day(now-7*DAY),d30=day(now-30*DAY),d56=day(now-56*DAY),yr=schoolYear(),yStart=Date.UTC(+yr.slice(0,4),6,1);
+  const o={testId,students:students.length,active:0,active30:0,weeks:Array(8).fill(0),answers:0,ok:0,minutes:0,mastered:0,masteredTest:0,bmBoth:0,bmFall:0,bmNow:0};let ms=0;
+  for(const s of students){const all=s.prog||{},wk=new Set();let a7=false,a30=false;
+    for(const [tid,pr] of Object.entries(all)){if(tid[0]==="_"||!pr)continue;
+      for(const [dd,x] of Object.entries(pr.days||{})){if(dd<d56)continue;let n=0;for(const v of Object.values(x||{}))if(v&&v.n){n+=v.n;if(dd>=d7){o.answers+=v.n;o.ok+=v.ok||0;ms+=v.ms||0}}
+        if(!n)continue;if(dd>=d7)a7=true;if(dd>=d30)a30=true;wk.add(Math.min(7,Math.floor((now-Date.parse(dd+"T12:00:00Z"))/(7*DAY))))}
+      if(tid===testId)for(const k of Object.values(pr.skills||{})){if(!k)continue;if(k.status==="skip")o.masteredTest++;else if(k.status==="done"&&(k.doneAt||0)>=yStart)o.mastered++}}
+    if(a7)o.active++;if(a30)o.active30++;wk.forEach(w=>o.weeks[7-w]++);
+    const b=s.bm&&s.bm[yr];if(b&&b.Fall!=null){const late=b.Spring??b.Winter;if(late!=null){o.bmBoth++;o.bmFall+=b.Fall;o.bmNow+=late}}}
+  o.minutes=Math.round(ms/60000);return o}
+/* a pretend district made from the sample school's classes, split into an elementary, a middle and a high school */
+function demoDistrict(){const st=DEMO_T.store.classes,sch=[["Magnolia Elementary",["dc1","dc2","dc3","dc10","dc8"],4,5],["Magnolia Middle",["dc4","dc11"],2,2],["Magnolia High",["dc5","dc9","dc6","dc7"],3,3]];
+  return {district:{id:"sample",name:"Magnolia Public Schools (sample district)"},since:new Date(Date.now()-7*864e5).toISOString().slice(0,10),year:schoolYear(),demo:true,
+    schools:sch.map(([name,ids,ta,tt],i)=>({id:"s"+i,name,ready:true,teachers:tt,teachersActive:ta,classes:ids.filter(id=>st[id]).map(id=>{const c=st[id],real=c.students.filter(x=>!x.sample),t=TB.teachers.find(x=>x.id===c.cls.teacherId);return {name:c.cls.name,teacher:t?t.name:"",...classAggJS(real,c.cls.testId)}})}))}}
+function ddSum(classes){const o={students:0,active:0,active30:0,answers:0,ok:0,minutes:0,mastered:0,masteredTest:0,bmBoth:0,bmFall:0,bmNow:0,weeks:Array(8).fill(0)};
+  classes.forEach(c=>{for(const k in o)if(k==="weeks")c.weeks.forEach((v,i)=>o.weeks[i]+=v);else o[k]+=c[k]||0});return o}
+const ddPct=(a,b)=>b?Math.round(a/b*100):null,ddGrow=x=>x.bmBoth>=3?Math.round((x.bmNow-x.bmFall)/x.bmBoth*10)/10:null;
+function ddRow(label,x,extra=""){const pa=ddPct(x.active,x.students),g=ddGrow(x),acc=ddPct(x.ok,x.answers);
+  return `<td>${x.students}</td><td>${pa==null?"—":`<span style="white-space:nowrap"><span class="bar"><span style="width:${pa}%;background:${heat(pa)}"></span></span> ${pa}%</span>`}</td><td>${x.active?Math.round(x.minutes/x.active):"—"}</td><td>${acc==null?"—":acc+"%"}</td><td>${x.students?(x.mastered/x.students).toFixed(1):"—"}</td><td>${g==null?'<span class="muted small">not enough</span>':(g>0?"+":"")+g+" pts"}</td>${extra}`}
+function ddChart(w){const max=Math.max(1,...w),W=560,H=150,bw=W/8;
+  return `<svg viewBox="0 -22 ${W} ${H+50}" role="img" aria-label="Students who practiced each week, last 8 weeks: ${w.join(", ")}" style="width:100%;max-width:640px;height:auto">${w.map((v,i)=>{const h=Math.round(v/max*H);return `<rect x="${i*bw+10}" y="${H-h}" width="${bw-20}" height="${h}" rx="6" fill="${i===7?"#1f7a4d":"#9cc9b0"}"/><text x="${i*bw+bw/2}" y="${H-h-6}" text-anchor="middle" font-size="13" fill="currentColor">${v}</text><text x="${i*bw+bw/2}" y="${H+20}" text-anchor="middle" font-size="12" fill="currentColor" opacity=".7">${i===7?"This week":`${7-i} wk ago`}</text>`}).join("")}</svg>`}
 function districtHome(){const D=S.da;if(!D){S.screen="districtSignin";return render()}const d=D.data;
-  const sum=d?d.schools.reduce((t,s)=>{s.classes.forEach(c=>{t.st+=c.students;t.act+=c.active;t.n+=c.answers;t.ok+=c.accuracy==null?0:c.accuracy*c.answers/100;t.min+=c.minutes});return t},{st:0,act:0,n:0,ok:0,min:0}):null;
-  app.innerHTML=header(`<button class="ghost" id="ds-out">Sign out</button>`,`${esc(D.district.name)} · ${esc(D.name)}`)+(!d?`<div class="card"><p class="muted">Loading your schools…</p></div>`:`
-   <div class="card"><h2>${esc(D.district.name)}</h2><p class="muted">The last 7 days, since ${shortDate(d.since)}. Each school's teachers and students sign in to their own school.</p>
-    <div class="row" style="gap:8px"><span class="pill">${d.schools.length} school${d.schools.length===1?"":"s"}</span><span class="pill">${sum.st} students</span><span class="pill go">${sum.act} practiced this week</span><span class="pill">${sum.n} answers</span><span class="pill">${sum.n?Math.round(sum.ok/sum.n*100)+"% accuracy":"no answers yet"}</span><span class="pill">${sum.min} minutes</span></div></div>
-   ${d.schools.map(s=>`<div class="card"><div class="top"><h3 style="margin:0">${esc(s.name)}</h3>${s.ready?`<span class="muted small">${s.teachers} teacher${s.teachers===1?"":"s"} · ${s.classes.length} class${s.classes.length===1?"":"es"}</span>`:`<span class="pill gold">Not set up yet</span>`}</div>
-     ${s.classes.length?`<div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Class</th><th>Teacher</th><th>Students</th><th>Practiced this week</th><th>Answers</th><th>Accuracy</th><th>Minutes</th></tr></thead><tbody>${s.classes.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.teacher)}</td><td>${c.students}</td><td>${c.active} of ${c.students}</td><td>${c.answers}</td><td>${c.accuracy==null?"—":c.accuracy+"%"}</td><td>${c.minutes}</td></tr>`).join("")}</tbody></table></div>`:s.ready?`<p class="muted">No classes yet.</p>`:""}</div>`).join("")}`);
-  document.getElementById("ds-out").onclick=()=>{S.da=null;S.screen="landing";render()};
+  if(!d){app.innerHTML=header(`<button class="ghost" id="ds-out">Sign out</button>`,`${esc(D.district.name)}`)+`<div class="card"><p class="muted">Loading your schools…</p></div>`;document.getElementById("ds-out").onclick=()=>{S.da=null;S.screen="landing";render()};return}
+  const ready=d.schools.filter(s=>s.ready),all=ddSum(ready.flatMap(s=>s.classes)),T=ready.reduce((a,s)=>({t:a.t+s.teachers,a:a.a+(s.teachersActive||0)}),{t:0,a:0});
+  const pa=ddPct(all.active,all.students),g=ddGrow(all),tile=(v,l,sub)=>`<div class="kpi"><b>${v}</b><span>${l}</span>${sub?`<small>${sub}</small>`:""}</div>`;
+  const byS=ready.map(s=>({s,x:ddSum(s.classes)})),byG={};ready.forEach(s=>s.classes.forEach(c=>(byG[subjLabel(c.testId)]=byG[subjLabel(c.testId)]||[]).push(c)));
+  const gOrder=Object.keys(byG).sort((a,b)=>{const n=x=>/Grade (\d+)/.exec(x)?.[1]*1||({"Algebra I":9,"Biology":10,"ACT Math":11,"WorkKeys":12}[x]||20);return n(a)-n(b)||a.localeCompare(b)});
+  const TH=`<th>Students</th><th>Practiced this week</th><th>Minutes per active student</th><th>Accuracy</th><th>Standards mastered per student</th><th>Benchmark growth</th>`;
+  app.innerHTML=header(`${d.demo?`<button class="ghost" id="ds-back">Back to the sample school</button>`:`<button class="ghost" id="ds-csv">Download CSV</button><button class="ghost" id="ds-out">Sign out</button>`}`,`${esc(D.district.name)} · ${esc(D.name)}`)+`
+   <div class="card ov-hero"><div class="top"><div><span class="label">District dashboard · ${esc(d.year||"")}</span><h2>${esc(D.district.name)}</h2></div><span class="muted small">Last 7 days, since ${shortDate(d.since)} · no student names on this page</span></div>
+    <div class="kpis">${tile(ready.length,"schools",`${T.a} of ${T.t} teachers signed in this week`)}${tile(all.students,"students")}${tile(pa==null?"—":pa+"%","practiced this week",`${all.active} students · ${ddPct(all.active30,all.students)??0}% this month`)}
+     ${tile(all.minutes,"minutes of practice this week",all.active?`about ${Math.round(all.minutes/all.active)} per active student`:"")}${tile(all.mastered,"standards mastered this year",`in practice, plus ${all.masteredTest} shown on placement tests`)}
+     ${tile(g==null?"—":(g>0?"+":"")+g,"benchmark points gained",g==null?"Enter Fall and Winter screener scores to see growth":`Fall to latest, ${all.bmBoth} students with both scores`)}</div></div>
+   <div class="card"><h2>Students practicing each week</h2><p class="muted small">How many students practiced at least once each week, across every school.</p>${ddChart(all.weeks)}</div>
+   <div class="card"><h2>Schools side by side</h2><div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>School</th>${TH}<th>Teachers active</th></tr></thead><tbody>
+    ${byS.map(({s,x})=>`<tr><td><b>${esc(s.name)}</b><br><span class="muted small">${s.classes.length} class${s.classes.length===1?"":"es"}</span></td>${ddRow(s.name,x,`<td>${s.teachersActive??"—"} of ${s.teachers}</td>`)}</tr>`).join("")}
+    ${d.schools.filter(s=>!s.ready).map(s=>`<tr><td><b>${esc(s.name)}</b></td><td colspan="7"><span class="pill gold">Not set up yet</span></td></tr>`).join("")}</tbody></table></div>
+    <p class="muted small">Benchmark growth is the average change from Fall to the latest screener window this year, for students with both scores. It's what we observed, not a controlled study.</p></div>
+   <div class="card"><h2>By grade and subject</h2><div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Grade / subject</th>${TH}</tr></thead><tbody>
+    ${gOrder.map(k=>`<tr><td><b>${esc(k)}</b><br><span class="muted small">${byG[k].length} class${byG[k].length===1?"":"es"}</span></td>${ddRow(k,ddSum(byG[k]))}</tr>`).join("")}</tbody></table></div></div>
+   ${ready.map(s=>`<details class="card"><summary><b>${esc(s.name)}</b>: every class</summary><div class="tablewrap" tabindex="0"><table class="roster"><thead><tr><th>Class</th><th>Teacher</th>${TH}</tr></thead><tbody>${s.classes.map(c=>`<tr><td>${esc(c.name)}<br><span class="muted small">${esc(subjLabel(c.testId))}</span></td><td>${esc(c.teacher)}</td>${ddRow(c.name,c)}</tr>`).join("")}</tbody></table></div></details>`).join("")}`;
+  const out=document.getElementById("ds-out");if(out)out.onclick=()=>{S.da=null;S.screen="landing";render()};
+  const bk=document.getElementById("ds-back");if(bk)bk.onclick=()=>{S.da=null;S.screen="teacher";render()};
+  const csv=document.getElementById("ds-csv");if(csv)csv.onclick=()=>{const q=v=>`"${String(v??"").replace(/"/g,'""')}"`,rows=[["School","Class","Teacher","Grade/subject","Students","Practiced this week","Minutes this week","Answers this week","Accuracy %","Standards mastered this year","Shown on placement test","Students with Fall+latest benchmark","Benchmark growth (pts)"]];
+    ready.forEach(s=>s.classes.forEach(c=>rows.push([s.name,c.name,c.teacher,subjLabel(c.testId),c.students,c.active,c.minutes,c.answers,ddPct(c.ok,c.answers)??"",c.mastered,c.masteredTest,c.bmBoth,c.bmBoth?Math.round((c.bmNow-c.bmFall)/c.bmBoth*10)/10:""])));
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([rows.map(r=>r.map(q).join(",")).join("\n")],{type:"text/csv"}));a.download=`${D.district.id}-district-${new Date().toISOString().slice(0,10)}.csv`;document.body.append(a);a.click();a.remove()};
 }
 SCREENS.districtHome=districtHome;
 
@@ -570,7 +611,7 @@ function demoBuild(){
     store.classes[cls.id]={cls,rev:"demo",students:raws}});
   db=keep.db;useTest(null);addExtras([]);
   const tests=[{id:"a1",name:"Grade 3 benchmark (older 30-question test: enter missed question numbers)",builtIn:true,grade:"3",nq:30,skills:8},...GRADES.map(g=>({id:"std"+g,name:stdTestName(g),builtIn:true,grade:g===9?"Algebra I":g===10?"ACT Math":g===11?"WorkKeys":g>=23?"ELA "+(g-20):g===19?"Biology":g>=14?"Science "+(g-10):String(g),nq:0,skills:(useTest({id:"std"+g}),SKILLS.length)}))];useTest(null);
-  const tb={me:teachers[0],school:{name:"Magnolia Public Schools (sample school)"},teachers,classes:DEMO_CLASSES.map(c=>store.classes[c.id].cls),allClassCount:DEMO_CLASSES.length,tests,hidden:[],ai:false,license:null,story:store.story||null};
+  const tdY=new Date().getMonth()>=5?new Date().getFullYear()+1:new Date().getFullYear(),tb={me:teachers[0],school:{name:"Magnolia Public Schools (sample school)",testDate:{d:`${tdY}-04-26`,name:"MAAP (sample date)"}},teachers,classes:DEMO_CLASSES.map(c=>store.classes[c.id].cls),allClassCount:DEMO_CLASSES.length,tests,hidden:[],ai:false,license:null,story:store.story||null};
   return {tb,store};
 }
 const demoNo=()=>{throw new Error("This is the sample school, so changes aren’t saved. Sign in to your own school to do this.")};
@@ -663,7 +704,7 @@ function tOverview(){
   const X=O.x,gap=X.prof==null?null:X.goal-X.prof,P=X.plans;
   const tile=(v,l,sub,c)=>`<div class="kpi ${c||""}"><b>${v}</b><span>${l}</span>${sub?`<small>${sub}</small>`:""}</div>`;
   const byG={};X.classes.forEach(x=>(byG[x.g]=byG[x.g]||[]).push(x));
-  return `<div class="card ov-hero"><div class="top"><div><span class="label">${esc(TB.school.name)}</span><h2>School overview</h2></div><span class="muted" style="font-size:.85rem">${X.N} students · ${X.classes.length} classes · updated just now</span></div>
+  return `<div class="card ov-hero"><div class="top"><div><span class="label">${esc(TB.school.name)}</span><h2>School overview</h2></div><span class="muted" style="font-size:.85rem">${X.N} students · ${X.classes.length} classes · updated just now${DEMO_T?` · <button class="link" id="dd-demo">See the district view</button>`:""}</span></div>
     <div class="kpis">
      ${tile(X.prof==null?"Not enough data yet":X.prof+"%","Estimated proficiency",X.prof==null?`Only ${X.ev} of ${X.N} students have enough practice or test data so far`:`Based on ${X.ev} of ${X.N} students with enough data · target ${X.goal}%${gap>0?` · ${gap} points to go`:" · target met"}`,X.prof==null?"":X.prof>=X.goal?"go":"gold")}
      ${tile(X.interv,"Students in intervention",`${P.active} on an IMP · ${P.t2} Tier 2 · ${P.t3} Tier 3`,"")}
@@ -691,7 +732,7 @@ function tOverview(){
 async function ovLoad(){S.ov={loading:true};try{const d=await api("classData",{ids:TB.classes.map(c=>c.id)});
   for(const e of d.classes){const id=e.cls.testId;if(id&&id!=="a1"&&!isStdT(id)&&!TESTS[id]){try{TESTS[id]=(await api("testGet",{id})).test}catch(er){}}}
   S.ov={x:ovCompute(d.classes),raw:d.classes}}catch(e){S.ov={err:e.message}}if(S.screen==="teacher"&&S.tt==="overview"){render();if(S.tour!=null)tourGo(S.tour)}}
-function wireOverview(){app.querySelectorAll("[data-ovc]").forEach(b=>b.onclick=()=>openClass(b.dataset.ovc,"class"));[["rp-week",rpWeek],["rp-dm",rpDM],["rp-year",rpYear]].forEach(([id,f])=>{const b=document.getElementById(id);if(b)b.onclick=f})}
+function wireOverview(){const dd=document.getElementById("dd-demo");if(dd)dd.onclick=()=>{S.da={token:"demo",name:"Dr. Sample, Superintendent",district:{id:"sample",name:"Magnolia Public Schools (sample district)"},data:demoDistrict()};S.screen="districtHome";render();window.scrollTo(0,0)};app.querySelectorAll("[data-ovc]").forEach(b=>b.onclick=()=>openClass(b.dataset.ovc,"class"));[["rp-week",rpWeek],["rp-dm",rpDM],["rp-year",rpYear],["rp-grow",rpGrowth]].forEach(([id,f])=>{const b=document.getElementById(id);if(b)b.onclick=f})}
 
 /* ================= Pages for schools: demo requests, Founding Schools, Mississippi intervention ================= */
 const ROLES={parent:"Parent",homeschool:"Homeschool parent",teacher:"Teacher",principal:"Principal",assistant:"Assistant principal",coach:"Math coach / interventionist",district:"District leader",other:"Other"};

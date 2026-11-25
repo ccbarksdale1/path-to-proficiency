@@ -31,6 +31,28 @@ export function tokenTenant(token) {
   try { const p = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString()); return typeof p.d === "string" && ID.test(p.d) ? p.d : null } catch { return null }
 }
 
+/* one class, summed for district leaders: no names leave this function */
+export const schoolYear = t => { const d = new Date(t), y = d.getUTCFullYear() - (d.getUTCMonth() < 6 ? 1 : 0); return `${y}-${String((y + 1) % 100).padStart(2, "0")}` };
+export function classAgg(students, progs, testId, now) {
+  const DAY = 864e5, day = t => new Date(t).toISOString().slice(0, 10), d7 = day(now - 7 * DAY), d30 = day(now - 30 * DAY), d56 = day(now - 56 * DAY);
+  const yr = schoolYear(now), yStart = Date.UTC(+yr.slice(0, 4), 6, 1);
+  const o = { testId, students: students.length, active: 0, active30: 0, weeks: Array(8).fill(0), answers: 0, ok: 0, minutes: 0, mastered: 0, masteredTest: 0, bmBoth: 0, bmFall: 0, bmNow: 0 };
+  let ms = 0;
+  for (const s of students) {
+    const all = progs[s.id] || {}, wk = new Set(); let a7 = false, a30 = false;
+    for (const [tid, pr] of Object.entries(all)) { if (tid[0] === "_" || !pr) continue;
+      for (const [dd, x] of Object.entries(pr.days || {})) { if (dd < d56) continue; let n = 0;
+        for (const v of Object.values(x || {})) if (v && v.n) { n += v.n; if (dd >= d7) { o.answers += v.n; o.ok += v.ok || 0; ms += v.ms || 0 } }
+        if (!n) continue; if (dd >= d7) a7 = true; if (dd >= d30) a30 = true;
+        wk.add(Math.min(7, Math.floor((now - Date.parse(dd + "T12:00:00Z")) / (7 * DAY)))) }
+      if (tid === testId) for (const k of Object.values(pr.skills || {})) { if (!k) continue; if (k.status === "skip") o.masteredTest++; else if (k.status === "done" && (k.doneAt || 0) >= yStart) o.mastered++ } }
+    if (a7) o.active++; if (a30) o.active30++; wk.forEach(w => o.weeks[7 - w]++);
+    const b = s.bm && s.bm[yr]; if (b && b.Fall != null) { const late = b.Spring ?? b.Winter; if (late != null) { o.bmBoth++; o.bmFall += b.Fall; o.bmNow += late } }
+  }
+  o.minutes = Math.round(ms / 60000);
+  return o;
+}
+
 export function makeRouter({ getStore, env, googleVerify = null, cleverVerify = null }) {
   const multi = env.MULTI_DISTRICT === "on";
   const VER = { ...(googleVerify ? { googleVerify } : {}), ...(cleverVerify ? { cleverVerify } : {}) };
@@ -233,26 +255,21 @@ export function makeRouter({ getStore, env, googleVerify = null, cleverVerify = 
       if (!p || p.r !== "da") no(401, "Please sign in again.");
       const d = await getR("district/" + p.g);
       if (!d || !(d.admins || []).some(a => a.id === p.id)) no(401, "Please sign in again.");
-      const since = Date.now() - 7 * 864e5, sinceDay = new Date(since).toISOString().slice(0, 10), schools = [];
+      const now = Date.now(), sinceDay = new Date(now - 7 * 864e5).toISOString().slice(0, 10), schools = [];
       for (const rec of (await allR("school/")).filter(s => s.district === d.id)) {
         const st = schoolStore(rec.id), school = (await st.get("school", { type: "json" })) ?? null;
         if (!school) { schools.push({ id: rec.id, name: rec.name, ready: false, classes: [] }); continue }
         const classes = [];
         for (const c of school.classes) {
-          const roster = ((await st.get("roster/" + c.id, { type: "json" })) ?? { students: [] }).students.filter(x => !x.sample);
-          let active = 0, n = 0, ok = 0, ms = 0;
-          for (const s of roster) {
-            const all = (await st.get(`prog/${c.id}/${s.id}`, { type: "json" })) ?? {};
-            let act = false;
-            for (const [tid, pr] of Object.entries(all)) { if (tid[0] === "_" || !pr || !pr.days) continue;
-              for (const [day, x] of Object.entries(pr.days)) { if (day < sinceDay) continue; for (const v of Object.values(x || {})) { if (v && v.n) { act = true; n += v.n; ok += v.ok || 0; ms += v.ms || 0 } } } }
-            if (act) active++;
-          }
-          classes.push({ name: c.name, teacher: school.teachers.find(t => t.id === c.teacherId)?.name || "", students: roster.length, active, answers: n, accuracy: n ? Math.round(ok / n * 100) : null, minutes: Math.round(ms / 60000) });
+          const students = ((await st.get("roster/" + c.id, { type: "json" })) ?? { students: [] }).students.filter(x => !x.sample);
+          const progs = {};
+          for (const s of students) progs[s.id] = (await st.get(`prog/${c.id}/${s.id}`, { type: "json" })) ?? {};
+          classes.push({ name: c.name, teacher: school.teachers.find(t => t.id === c.teacherId)?.name || "", ...classAgg(students, progs, c.testId, now) });
         }
-        schools.push({ id: rec.id, name: school.name || rec.name, ready: true, teachers: school.teachers.length, classes });
+        let tSeen = 0; for (const t of school.teachers) { const r = (await st.get("seen/t/" + t.id, { type: "json" })) ?? null; if (r && r.last >= now - 7 * 864e5) tSeen++ }
+        schools.push({ id: rec.id, name: school.name || rec.name, ready: true, teachers: school.teachers.length, teachersActive: tSeen, classes });
       }
-      return { district: { id: d.id, name: d.name }, since: sinceDay, schools };
+      return { district: { id: d.id, name: d.name }, since: sinceDay, year: schoolYear(now), schools };
     },
   };
 

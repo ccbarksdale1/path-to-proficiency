@@ -472,6 +472,11 @@ function yearCard(){
    <p class="err" id="yr-err" role="alert"></p>
    ${saved.length?`<p class="muted small">Year-end copies: ${saved.map(([y,k])=>`<button class="link" data-bkd="${esc(k)}">${esc(y)} (download)</button>`).join(" · ")}</p>`:""}</div>`;
 }
+function testDateCard(){if(!isAdmin())return"";const T=TB.school.testDate||{};
+  return `<div class="card" id="td-card"><h2>⏳ State test countdown</h2><p class="muted">Set your state test date (for example, the first day of your school’s MAAP window). Every class page then shows how many days are left and which standards still need work. Check the date on your district’s testing calendar.</p>
+   <form class="grid" id="td-f"><label class="f">Test name<input id="td-n" value="${esc(T.name||"MAAP")}" maxlength="40"></label><label class="f">First day of testing<input id="td-d" type="date" value="${esc(T.d||"")}"></label><button type="submit">Save</button>${T.d?`<button type="button" class="ghost" id="td-x">Clear</button>`:""}</form><p class="muted small" id="td-msg" role="status"></p></div>`}
+function wireTestDate(){const f=document.getElementById("td-f");if(!f)return;const go=async(date,name)=>{try{Object.assign(TB,await api("testDateSave",{date,name}));render()}catch(e){document.getElementById("td-msg").textContent=e.message}};
+  f.onsubmit=e=>{e.preventDefault();go(document.getElementById("td-d").value,document.getElementById("td-n").value.trim())};const x=document.getElementById("td-x");if(x)x.onclick=()=>go("","")}
 function wireYear(){
   const f=document.getElementById("yr-f");if(!f)return;
   app.querySelectorAll("[data-yr]").forEach(x=>x.onchange=()=>{S.yr[x.dataset.yr]=x.value});

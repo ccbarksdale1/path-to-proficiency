@@ -143,6 +143,10 @@ async function sendChat(text){
   c.busy=false;if(S.screen==="practice"&&S.chat===c){render();document.getElementById("chat-in")?.focus()}
 }
 
+/* Find Buddy's Mistake: Buddy beside the question, confused until the student gets it right */
+function bdStrip(q){if(!q||!q._bd||typeof buddySVG!=="function")return "";const es=S.lang==="es",aha=S.result==="right",said=esc(String(q._bdSaid));
+  const msg=aha?(es?"¡Ahhh! Ya veo mi error. ¡Gracias!":"Ohhh! I see my mistake now. Thanks!"):S.result==="wrong"?(es?"Hmm… los dos nos equivocamos. Veamos los pasos.":"Hmm… we both got stuck. Let’s look at the steps."):(es?`Yo dije <b>${said}</b>… ¿me equivoqué?`:`I said <b>${said}</b>… did I mess up?`);
+  return `<div class="bd-strip${aha?" aha":""}" aria-live="polite"><div class="bd-pic">${buddySVG(aha?"aha":"huh")}</div><div class="bd-say">${msg}</div></div>`}
 function practice(){
   const s=S.student,p=s.prog,k=SKILLS.find(x=>x.id===S.k),sk=p.skills[k.id],q=S.q,MASTERY=MAST();
   const nKeys=q.keys.length,found=foundKeys(q,S.hl).size;
@@ -161,7 +165,7 @@ function practice(){
     ${S.rev?"":`<span class="flags" aria-label="Checkpoint progress: ${sk.streak} of ${MASTERY} stars"><span class="muted" style="font-size:.85rem;margin-right:4px">${t("Checkpoint")}</span>${Array.from({length:MASTERY},(_,i)=>`<i class="${i<sk.streak?'on':''}">${i<sk.streak?'★':i+1}</i>`).join("")}</span>`}</div>
    <div class="steps-bar"><span class="on"></span><span class="${S.step>1?'on':''}"></span><span class="${S.result?'on':''}"></span></div>
    ${S.lang==="es"&&subjOf(gradeOf())!=="math"?`<p class="muted small" lang="es">Las preguntas y los textos de ${isELA(gradeOf())?"lectura":"ciencias"} están en inglés, como en el examen estatal. Las instrucciones, Chirp y la ayuda de Scout están en español.</p>`:""}
-   <div class="notebook ${S.step>1?'ro':''}"><div class="row" style="justify-content:space-between"><span class="label">${S.q&&S.q._ea?`<span class="pill purple">${t("Think deeper")}</span> `:""}${S.rev?t(S.rvKind?"Check-up: on your own":"Review question"):t(qLabel(S.qid).replace(/ #\d+$/,""))+(qLabel(S.qid).match(/ #\d+$/)||[""])[0]}</span><div class="row">${sayBtn("say-q",t("🔊 Read to me"))}<button class="ghost small" id="rep-btn" title="Report a problem" aria-label="Report a problem with this question">🚩</button></div></div>${bodyHTML(q,S.hl,S.step===1?"tap":S.kwSkip?"plain":"check")}</div>${hsToolsBar()}${reportBox()}${below}${chatHTML()}${lbHTML()}`;
+   <div class="notebook ${S.step>1?'ro':''}"><div class="row" style="justify-content:space-between"><span class="label">${S.q&&S.q._ea?`<span class="pill purple">${t("Think deeper")}</span> `:""}${S.rev?t(S.rvKind?"Check-up: on your own":"Review question"):t(qLabel(S.qid).replace(/ #\d+$/,""))+(qLabel(S.qid).match(/ #\d+$/)||[""])[0]}</span><div class="row">${sayBtn("say-q",t("🔊 Read to me"))}<button class="ghost small" id="rep-btn" title="Report a problem" aria-label="Report a problem with this question">🚩</button></div></div>${bdStrip(q)}${bodyHTML(q,S.hl,S.step===1?"tap":S.kwSkip?"plain":"check")}</div>${hsToolsBar()}${reportBox()}${below}${chatHTML()}${lbHTML()}`;
   document.getElementById("back").onclick=()=>{stopPlay();S.screen="home";render()};
   wireChat();wireReport();wireLang();wireHsTools();roMark();wireLook();wireHelp(q);
   const sq=document.getElementById("say-q"); if(sq) sq.onclick=()=>{stopPlay();speak(S.step===1?q.parts.map(p=>typeof p==="string"?p:p.eq||p.fig||"").join(". "):qSpeech(q))};
@@ -525,7 +529,7 @@ function teacher(){
   app.querySelectorAll("details.dd").forEach(d=>d.ontoggle=()=>{if(d.open)app.querySelectorAll("details.dd").forEach(o=>{if(o!==d)o.open=false})});
   if(!window._ddClose){window._ddClose=1;document.addEventListener("click",e=>{if(!e.target.closest("details.dd"))document.querySelectorAll("details.dd[open]").forEach(d=>d.open=false)})}
   app.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;S.err="";S.mtssId=null;S.rcpt=null;S.xtNew=false;S.stdId=null;S.stuId=null;render();window.scrollTo(0,0)});
-  const sdb=document.getElementById("sub-day");if(sdb)sdb.onclick=subDay;const hbb=document.getElementById("help-buddy");if(hbb)hbb.onclick=()=>helpBuddy((document.getElementById("hb-std")||{}).value);
+  const sdb=document.getElementById("sub-day");if(sdb)sdb.onclick=subDay;const wkb=document.getElementById("wk-pack");if(wkb)wkb.onclick=weekPacket;const hbb=document.getElementById("help-buddy");if(hbb)hbb.onclick=()=>helpBuddy((document.getElementById("hb-std")||{}).value);
   const cd=document.getElementById("csv-dl");if(cd)cd.onclick=()=>saveFile(`${CUR.cls.name.replace(/[^\w]+/g,"-")}-${new Date().toISOString().slice(0,10)}.csv`,classCSV());
   if(tt==="class"&&CUR)({class:()=>{wireHands();if(S.stdId)wireMis()},why:wireMis,plan:wirePlanner,fluency:wireFluency,mtss:wireMtss,ip:wireIP,bench:wireBench,home:wireFamily,celebrate:wireCelebrate,pace:wirePace,badges:wireBadges,bd:wireBreak,items:wireQuality,setup:wireSetup,settings:wireSettings})[S.tab||"class"]();
   else ({classes:wireClasses,compare:wireCompare,standards:wireStandards,tests:wireTests,reports:wireReports,teachers:wireTeachers,tutors:wireTutors,leads:wireLeads,overview:wireOverview,class:wireClasses})[tt]();
