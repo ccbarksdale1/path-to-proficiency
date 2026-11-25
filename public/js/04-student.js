@@ -74,7 +74,7 @@ function newQ(){S.assisted=false;if(S.hand&&!S.demo)api("handLower",{}).catch(()
   while(sk.queue.length&&(!getQ(sk.queue[0])||isHidden(sk.queue[0])))sk.queue.shift(); topUp(sk,k.id);
   S.k=k.id;S.qid=sk.queue[0];markSeen(sk,S.qid);
   if(dokMixOn()&&(S.dokN=(S.dokN||0)+1)%DOK_MIX_EVERY===0){const ea=eaIdFor(k);if(ea)S.qid=ea} /* match the state test mix: some DOK 3 */
-  if(buddyOn()&&S.qid[0]!=="!"&&(S.bdN=(S.bdN||0)+1)%BD_EVERY===0){const bd=bdIdFor(S.qid);if(bd)S.qid=bd} /* Find Buddy's Mistake */
+  if(buddyOn()&&S.qid[0]!=="!"&&(S.bdN=(S.bdN||0)+1)%bdEvery()===0){const bd=bdIdFor(S.qid);if(bd)S.qid=bd} /* Find Buddy's Mistake */
   S.q=viewQ(getQ(S.qid));S.step=step0(S.q);if(S.step===1&&kwMode()==="on"&&(sk.streak||0)>=4&&!(S.q&&S.q._ea)&&!planOn(S.q)&&(S.kwN=(S.kwN||0)+1)%3){S.step=2;S.kwFade=true}S.kwSkip=S.step===2;S.bare=S.step===2&&kwMode()!=="off";S.shownAt=Date.now();S.hl=new Set();S.sel=[];S.result=null;S.r=0;S.full=false;S.mastered=false;S.chat=null;stopPlay()}
 
 function answerArea(q){const h=answerArea0(q);return S.confPending&&!S.result?h.replace('<button id="check"','<button id="check" hidden')+confHTML():h}

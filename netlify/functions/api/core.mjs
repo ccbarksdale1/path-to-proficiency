@@ -90,7 +90,7 @@ export function makeApi({ store, env, tenant = null, hooks = null, googleVerify 
   /* ---------- helpers ---------- */
   const codeHash = (school, code) => sha(school.salt + ":" + code);
   const pubTeacher = t => ({ id: t.id, name: t.name, admin: !!t.admin, google: !!t.google, clever: !!t.clever });
-  const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false, music: c.music !== false, chal: c.chal !== false, choose: c.choose !== false, gofur: c.gofur !== false, dokmix: c.dokmix !== false, buddy: c.buddy !== false, handCool: c.handCool || 0, pace: c.pace || null, home: c.home || null, kw: ["on", "optional", "off"].includes(c.kw) ? c.kw : "auto",
+  const pubClass = c => ({ id: c.id, name: c.name, teacherId: c.teacherId, join: c.join, testId: c.testId || "a1", goal: c.goal ?? 60, mastery: c.mastery ?? 10, videos: c.videos || {}, tutor: c.tutor !== false, chirp: c.chirp !== false, music: c.music !== false, chal: c.chal !== false, choose: c.choose !== false, gofur: c.gofur !== false, dokmix: c.dokmix !== false, buddy: c.buddy !== false, bdEvery: [6, 12, 20].includes(c.bdEvery) ? c.bdEvery : 12, handCool: c.handCool || 0, pace: c.pace || null, home: c.home || null, kw: ["on", "optional", "off"].includes(c.kw) ? c.kw : "auto",
     flu: { on: c.flu?.on !== false, secs: c.flu?.secs || 180, pass: c.flu?.pass || 28, n: c.flu?.n || 30 },
     games: { on: c.games?.on !== false, mins: c.games?.mins || 3 },
     ip: { on: c.ip?.on !== false, cut: c.ip?.cut || 60 } });
@@ -411,6 +411,7 @@ How you teach:
       gofur: b.gofur === undefined ? c.gofur !== false : !!b.gofur, // Go Further: next grade after the summit
       dokmix: b.dokmix === undefined ? c.dokmix !== false : !!b.dokmix, // match the state test DOK mix
       buddy: b.buddy === undefined ? c.buddy !== false : !!b.buddy, // Find Buddy's Mistake in practice
+      bdEvery: b.bdEvery === undefined ? ([6, 12, 20].includes(c.bdEvery) ? c.bdEvery : 12) : [6, 12, 20].includes(+b.bdEvery) ? +b.bdEvery : 12, // how often Buddy shows up
       pace: b.pace === undefined ? (c.pace || null) : (p => { const d = x => /^\d{4}-\d{2}-\d{2}$/.test(x) ? x : null; return p && typeof p === "object" ? { start: d(p.start), test: d(p.test), off: Math.max(0, Math.min(20, Math.round(+p.off || 0))) } : null })(b.pace), // pacing guide dates, so they follow the teacher across devices
       handCool: b.handCool === undefined ? (c.handCool || 0) : [0, 3, 5, 10].includes(+b.handCool) ? +b.handCool : 0, // 3 Before Me: minutes between asks
       kw: ["auto", "on", "optional", "off"].includes(b.kw) ? b.kw : (c.kw || "auto"),

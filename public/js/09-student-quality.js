@@ -428,7 +428,7 @@ function eaMake(id,g0){const m=String(id).match(/^!ea!(.+)!(v:(.+)|([A-E]))$/);i
 /* ================= Find Buddy's Mistake =================
    Every BD_EVERY practice questions, a regular question comes with Buddy's wrong answer (a real common mistake
    from the question's own explanations). The student finds the right answer; the walkthrough starts with Buddy's mistake. */
-const BD_EVERY=12,buddyOn=()=>S.demo||!(SB&&SB.cls&&SB.cls.buddy===false);
+const BD_EVERY=12,bdEvery=()=>(SB&&SB.cls&&[6,12,20].includes(SB.cls.bdEvery))?SB.cls.bdEvery:BD_EVERY,buddyOn=()=>S.demo||!(SB&&SB.cls&&SB.cls.buddy===false);
 function bdMake(id,g0){const m=String(id).match(/^!bd!(.+)!([^!]+)$/);if(!m)return null;const base=g0(m[1]),l=decodeURIComponent(m[2]);if(!base)return null;
   const clean=x=>String(x).replace(/<[^>]+>/g,"").trim().replace(/\.$/,""),line=said=>`Buddy said the answer is ${said}. Buddy made a mistake! What is the right answer?`;
   if(base.type==="input"){const w=base.whyIn&&base.whyIn[l];if(!w||String(l)===String(base.ans))return null;const mist=clean(w);if(!mist)return null;

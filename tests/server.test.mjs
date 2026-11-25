@@ -577,6 +577,16 @@ test("district numbers: active this week, weekly trend, standards mastered this 
   assert.deepEqual(o.weeks, [0, 0, 0, 0, 0, 2, 0, 1]); // 15 and 20 days ago are both 2 weeks back
 });
 
+test("Buddy can be turned off or set to show up rarely, sometimes, or often", async () => {
+  const s = await school();
+  const c = cl => s.call("classSave", { token: s.T, id: s.cls.id, name: "Room 1", ...cl }).then(r => r.cls);
+  assert.equal((await c({})).bdEvery, 12);
+  assert.equal((await c({ bdEvery: 6 })).bdEvery, 6);
+  assert.equal((await c({ bdEvery: 99 })).bdEvery, 12);
+  const off = await c({ buddy: false }); assert.equal(off.buddy, false);
+  assert.equal((await c({ buddy: true, bdEvery: 20 })).bdEvery, 20);
+});
+
 let failed = 0;
 for (const t of tests) {
   try { await t.fn(); console.log("  ok   " + t.name) }
