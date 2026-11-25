@@ -53,3 +53,7 @@ Set `MULTI_DISTRICT=on` in Netlify to turn it on. Each school then gets its own 
 ### Question quality audit
 
 `python3 tests/audit.py [--grade 10] [--n 60]` generates many questions per skill and flags repeats, one answer coming up too often, wrong choices that are way off, and duplicate choices.
+
+
+## Question integrity check
+`python3 tests/integrity.py --n 30` makes about 19,000 questions across every test (math 3–8, Algebra I, ACT, WorkKeys, science, ELA, the Grade 3 benchmark) and the fixed question bank, and fails on broken text (undefined/NaN), answers that aren't among the choices, duplicate choices, a wrong choice equal to the answer, questions that won't draw, and wrong arithmetic answers. Run it before every push.
