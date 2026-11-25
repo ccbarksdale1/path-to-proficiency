@@ -58,23 +58,101 @@ function subDay(){const list=realStudents();if(!list.length){alert("Add students
   const key=`<section class="sd-page"><h1>Answer key (for the teacher)</h1>${packs.map(({s,qs})=>`<p><b>${esc(s.name)}</b>: ${qs.map((x,i)=>`${i+1}. ${esc(ansText(x.q))}`).join(" · ")||"no problems"}</p>`).join("")}</section>`;
   w.document.write(`<!doctype html><html lang="en"><meta charset="utf-8"><title>Sub Day · ${esc(c.name)}</title>${css}<style>body{background:#fff;color:#111;padding:0}.sd-page{padding:24px;break-after:page;page-break-after:always}.sd-page:last-child{break-after:auto}.sd-head{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:8px;font-size:1.1rem}.sd-q{display:flex;gap:10px;break-inside:avoid;page-break-inside:avoid;margin:14px 0;padding-bottom:10px;border-bottom:1px dashed #bbb}.sd-n{font-size:1.1rem}.sd-ch div{margin:4px 0}.sd-codes,.sd-mx{border-collapse:collapse;margin-top:10px}.sd-codes td,.sd-codes th,.sd-mx td,.sd-mx th{border:1px solid #999;padding:4px 10px;text-align:left}@media print{button{display:none}}</style><div class="sd-wrap">${cover}${pk}${key}</div><script>setTimeout(()=>print(),700)<\/script>`);w.document.close()}
 
+/* ================= Buddy the raccoon (our own drawing) =================
+   mood "huh": confused (head tilted, one brow up, scratching his head, question marks)
+   mood "aha": figured it out (big smile, lightbulb) */
+function buddySVG(mood="huh"){const aha=mood==="aha";
+  return `<svg class="buddy ${aha?"aha":"huh"}" viewBox="0 0 240 280" role="img" aria-label="${aha?"Buddy the raccoon, smiling: he gets it now":"Buddy the raccoon, scratching his head, confused"}" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="bdFur" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a7abb4"/><stop offset="1" stop-color="#7f848f"/></linearGradient></defs>
+  <!-- tail -->
+  <g transform="rotate(-25 175 215)"><rect x="150" y="190" width="38" height="78" rx="19" fill="#8a8f99"/>
+   <rect x="150" y="208" width="38" height="11" fill="#3b3f47"/><rect x="150" y="232" width="38" height="11" fill="#3b3f47"/><rect x="150" y="255" width="38" height="11" rx="5" fill="#3b3f47"/></g>
+  <!-- body -->
+  <ellipse cx="118" cy="228" rx="58" ry="46" fill="url(#bdFur)"/><ellipse cx="118" cy="238" rx="34" ry="30" fill="#e9e6df"/>
+  <ellipse cx="92" cy="270" rx="18" ry="9" fill="#3b3f47"/><ellipse cx="146" cy="270" rx="18" ry="9" fill="#3b3f47"/>
+  <!-- head (tilted when confused) -->
+  <g transform="rotate(${aha?0:-12} 118 120)">
+   <ellipse cx="70" cy="62" rx="24" ry="28" transform="rotate(-28 70 62)" fill="#7f848f"/><ellipse cx="72" cy="66" rx="13" ry="17" transform="rotate(-28 72 66)" fill="#3b3f47"/>
+   <ellipse cx="166" cy="62" rx="24" ry="28" transform="rotate(28 166 62)" fill="#7f848f"/><ellipse cx="164" cy="66" rx="13" ry="17" transform="rotate(28 164 66)" fill="#3b3f47"/>
+   <ellipse cx="118" cy="118" rx="70" ry="60" fill="url(#bdFur)"/>
+   <path d="M60 128 Q118 170 176 128 Q170 168 118 176 Q66 168 60 128 Z" fill="#f1eee8"/>
+   <!-- mask -->
+   <path d="M52 108 Q84 86 112 108 Q118 114 124 108 Q152 86 184 108 Q182 132 152 134 Q132 134 118 122 Q104 134 84 134 Q54 132 52 108 Z" fill="#2f333a"/>
+   <path d="M90 82 Q118 70 146 82 Q118 92 90 82 Z" fill="#e9e6df"/>
+   <!-- eyes -->
+   <circle cx="88" cy="112" r="13" fill="#fff"/><circle cx="148" cy="112" r="13" fill="#fff"/>
+   ${aha?`<path d="M80 114 Q88 104 96 114" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M140 114 Q148 104 156 114" stroke="#111" stroke-width="4" fill="none" stroke-linecap="round"/>`
+        :`<circle cx="92" cy="108" r="6.5" fill="#111"/><circle cx="144" cy="114" r="5" fill="#111"/><circle cx="94" cy="106" r="2" fill="#fff"/><circle cx="146" cy="112" r="1.6" fill="#fff"/>`}
+   <!-- brows -->
+   ${aha?`<path d="M74 92 Q88 84 100 92" stroke="#2f333a" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M136 92 Q148 84 162 92" stroke="#2f333a" stroke-width="5" fill="none" stroke-linecap="round"/>`
+        :`<path d="M74 86 Q88 74 102 84" stroke="#2f333a" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M136 98 L160 96" stroke="#2f333a" stroke-width="5" fill="none" stroke-linecap="round"/>`}
+   <!-- nose and mouth -->
+   <ellipse cx="118" cy="140" rx="10" ry="7" fill="#1d1f24"/><ellipse cx="115" cy="138" rx="3" ry="1.8" fill="#666"/>
+   ${aha?`<path d="M100 152 Q118 172 136 152 Q118 160 100 152 Z" fill="#7a2e2e" stroke="#1d1f24" stroke-width="3" stroke-linejoin="round"/>`
+        :`<path d="M102 158 Q108 152 114 158 Q120 164 126 158 Q132 152 136 157" stroke="#1d1f24" stroke-width="3.5" fill="none" stroke-linecap="round"/>`}
+  </g>
+  <!-- arm: scratching head when confused, thumbs-up when he gets it -->
+  ${aha?`<path d="M168 212 Q198 196 200 160" stroke="#7f848f" stroke-width="18" fill="none" stroke-linecap="round"/><ellipse cx="201" cy="148" rx="16" ry="14" fill="#3b3f47"/>
+         <circle cx="188" cy="132" r="5.5" fill="#3b3f47"/><circle cx="198" cy="128" r="5.5" fill="#3b3f47"/><circle cx="208" cy="129" r="5.5" fill="#3b3f47"/><circle cx="216" cy="136" r="5" fill="#3b3f47"/>
+         <path d="M222 112 l8 -8 M228 128 h10 M212 104 l2 -10" stroke="#ffd54a" stroke-width="4" stroke-linecap="round"/>`
+       :`<path d="M164 214 Q206 180 182 92" stroke="#7f848f" stroke-width="18" fill="none" stroke-linecap="round"/><ellipse cx="178" cy="84" rx="15" ry="12" fill="#3b3f47"/>
+         <path d="M162 70 l6 -6 M174 64 l4 -8 M186 66 l2 -8" stroke="#3b3f47" stroke-width="3" stroke-linecap="round"/>`}
+  <path d="M70 214 Q54 236 74 250" stroke="#7f848f" stroke-width="18" fill="none" stroke-linecap="round"/>
+  <!-- question marks or a lightbulb -->
+  ${aha?`<g class="bd-pop"><circle cx="40" cy="44" r="22" fill="#ffd54a" stroke="#c99400" stroke-width="3"/><rect x="31" y="64" width="18" height="12" rx="3" fill="#9aa0a6"/>
+          <path d="M40 8 v-6 M10 22 l-6 -4 M70 22 l6 -4 M4 50 h-6 M76 50 h6" stroke="#c99400" stroke-width="4" stroke-linecap="round"/></g>`
+       :`<g class="bd-q"><text x="18" y="70" font-family="Fredoka,Arial Rounded MT Bold,Arial,sans-serif" font-weight="700" font-size="54" fill="#6b4fd8">?</text>
+          <text x="196" y="40" font-family="Fredoka,Arial Rounded MT Bold,Arial,sans-serif" font-weight="700" font-size="38" fill="#e2683c" transform="rotate(14 206 30)">?</text>
+          <text x="44" y="22" font-family="Fredoka,Arial Rounded MT Bold,Arial,sans-serif" font-weight="700" font-size="28" fill="#2f9e6b" transform="rotate(-12 50 14)">?</text></g>`}
+ </svg>`}
+
 /* ================= Help Buddy warm-up: a projector slideshow of Buddy problems on the skill most of the class is on ================= */
-function helpBuddy(pick){const list=realStudents();const tally={};list.forEach(s=>{const k=curSkill(s);if(k)tally[k.id]=(tally[k.id]||0)+1});
+function helpBuddy(pick){const pick0=a=>a[Math.floor(Math.random()*a.length)];const list=realStudents();const tally={};list.forEach(s=>{const k=curSkill(s);if(k)tally[k.id]=(tally[k.id]||0)+1});
   const ids=Object.keys(tally).sort((a,b)=>tally[b]-tally[a]),k=(pick&&SKILLS.find(x=>x.id===pick))||SKILLS.find(x=>x.id===ids[0])||trailBase(list[0]||{prog:{skills:{}}})[0]||SKILLS[0];
   const g=genOf(k),pool=[...k.twins,...k.qs.map(n=>"q"+n)],slides=[];let tries=0;
   while(slides.length<4&&tries++<60){const base=g?`~${g}~${Math.floor(Math.random()*1e9)}`:pool[tries-1];if(!base)break;const bd=bdIdFor(base);if(!bd)continue;const q=getQ(bd);if(!q)continue;
     const l=bd.slice(bd.lastIndexOf("!")+1),mist=(q.steps[0]&&q.steps[0].say||"").replace(/^🦝 /,"");
-    if(q.type==="input"){slides.push({body:bodyHTML(q,null,"print"),ch:`<div class="hb-c">Buddy’s answer: <b>${esc(q._bdSaid)}</b> <span class="hb-tag">← Buddy</span></div>`,ans:esc(String(q.ans)),mist});continue}
-    slides.push({body:bodyHTML(q,null,"print"),ch:q.choices.map((c,j)=>`<div class="hb-c" data-l="${L[j]}"><b>${L[j]}.</b> ${choiceInner(c)}${L[j]===l?' <span class="hb-tag">← Buddy</span>':""}</div>`).join(""),ans:q.ans,mist})}
+    const said=q.type==="input"?esc(String(q._bdSaid)):l,say=pick0(["I picked "+said+"… I think?","Hmm. I got "+said+". Did I mess up?",said+"! …Wait. Is that right?","I’m pretty sure it’s "+said+". Pretty sure…"]);
+    const qb={...q,parts:q.parts.slice(0,-1)};
+    if(q.type==="input"){slides.push({body:bodyHTML(qb,null,"print"),ch:`<div class="hb-c bd-pick">Buddy’s answer: <b>${esc(q._bdSaid)}</b> <span class="hb-tag">🐾 Buddy</span></div>`,ans:esc(String(q.ans)),mist,say});continue}
+    slides.push({body:bodyHTML(qb,null,"print"),ch:q.choices.map((c,j)=>`<div class="hb-c${L[j]===l?" bd-pick":""}" data-l="${L[j]}"><b class="hb-l">${L[j]}</b> <span>${choiceInner(c)}</span>${L[j]===l?' <span class="hb-tag">🐾 Buddy’s pick</span>':""}</div>`).join(""),ans:q.ans,mist,say})}
   if(!slides.length){alert("Buddy needs multiple-choice questions with common mistakes, and this standard doesn’t have enough. Pick another standard.");return}
   const w=window.open("","_blank");if(!w){alert("Allow pop-ups to show the warm-up.");return}
   const css=pageCSS();
-  w.document.write(`<!doctype html><html lang="en"><meta charset="utf-8"><title>Help Buddy · ${esc(k.std)}</title>${css}<style>body{background:#fff;color:#111;font-size:24px;max-width:1100px;margin:0 auto;padding:24px}.qtext{font-size:1.6rem!important}.hb-c{font-size:1.4rem;margin:10px 0;padding:8px 14px;border-radius:10px}.hb-c.ok{background:#dff3e6;font-weight:700}.hb-tag{color:#b03a2e;font-weight:700}.hb-m{font-size:1.3rem;background:#fff6e0;padding:12px 16px;border-radius:10px}.hb-nav{display:flex;gap:12px;margin-top:20px}.hb-nav button{font-size:1.1rem}</style>
-   <h1>🦝 Help Buddy! <span class="muted" style="font-size:1rem">${esc(k.name)} · ${esc(k.std)}</span></h1><div id="hb"></div>
-   <script>const S=${JSON.stringify(slides).replace(/</g,"\\u003c")};let i=0,open=false;
-   function show(){const s=S[i];document.getElementById("hb").innerHTML='<p class="muted">Problem '+(i+1)+' of '+S.length+'. Talk with a partner: what did Buddy do wrong? What is the right answer?</p>'+s.body+'<div>'+s.ch+'</div>'+(open?'<p class="hb-m"><b>Right answer: '+s.ans+'.</b> '+s.mist+'</p>':'')+'<div class="hb-nav"><button class="ghost" id="p" '+(i?'':'disabled')+'>← Back</button><button id="r">'+(open?'Hide answer':'Show answer')+'</button><button class="ghost" id="n" '+(i<S.length-1?'':'disabled')+'>Next →</button></div>';
+  w.document.write(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Help Buddy · ${esc(k.std)}</title>${css}<style>
+   body{background:#f4f1ea;color:#1d1f24;font-size:24px;margin:0;min-height:100vh}
+   .hb-top{background:#2f333a;color:#fff;display:flex;align-items:center;gap:16px;padding:14px 28px;flex-wrap:wrap}
+   .hb-top h1{margin:0;font-family:Fredoka,Lexend,sans-serif;font-size:2rem;color:#fff}.hb-chip{background:#ffd54a;color:#2f333a;border-radius:99px;padding:4px 14px;font-size:1rem;font-weight:700}
+   .hb-dots{margin-left:auto;display:flex;gap:8px}.hb-dots i{width:14px;height:14px;border-radius:50%;background:#6b707a}.hb-dots i.on{background:#ffd54a}
+   .stage{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:28px;max-width:1280px;margin:0 auto;padding:26px 28px;align-items:start}
+   .bd-side{position:sticky;top:20px;text-align:center}.bd-side svg{width:100%;height:auto}
+   .bd-bubble{position:relative;background:#fff;border:3px solid #2f333a;border-radius:22px;padding:14px 18px;font-family:Fredoka,Lexend,sans-serif;font-size:1.35rem;line-height:1.3;margin-bottom:14px;box-shadow:0 4px 0 #2f333a}
+   .bd-bubble:after{content:"";position:absolute;left:46%;bottom:-18px;border:15px solid transparent;border-top-color:#2f333a;border-bottom:0}
+   .bd-bubble.aha{background:#fff8d6}
+   .qcard{background:#fff;border-radius:22px;padding:24px 28px;box-shadow:0 6px 24px rgba(0,0,0,.08)}
+   .hb-ask{font-size:1.05rem;color:#555;margin:0 0 10px}.qtext{font-size:1.6rem!important}
+   .hb-c{font-size:1.4rem;margin:12px 0;padding:12px 16px;border-radius:14px;border:2px solid #e4e0d6;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+   .hb-l{display:inline-grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#2f333a;color:#fff;flex:none}
+   .hb-c.bd-pick{border-color:#e2683c;background:#fff3ec}.hb-tag{margin-left:auto;color:#b03a2e;font-weight:700;font-size:1.05rem}
+   .hb-c.ok{background:#dff3e6;border-color:#2f9e6b;font-weight:700}.hb-c.ok .hb-l{background:#2f9e6b}
+   .hb-m{font-size:1.3rem;background:#fff8d6;border-left:6px solid #ffd54a;padding:14px 18px;border-radius:12px;margin-top:16px}
+   .hb-nav{display:flex;gap:12px;margin-top:22px;flex-wrap:wrap}.hb-nav button{font-size:1.15rem;padding:12px 22px}
+   .bd-q{animation:bob 2.4s ease-in-out infinite;transform-origin:center}.bd-pop{animation:pop .5s ease-out}
+   @keyframes bob{50%{transform:translateY(-6px)}}@keyframes pop{from{transform:scale(.4);opacity:0}}
+   @media (prefers-reduced-motion:reduce){.bd-q,.bd-pop{animation:none}}
+   @media (max-width:760px){.stage{grid-template-columns:1fr}.bd-side{position:static;max-width:240px;margin:0 auto}}
+   @media print{.hb-nav{display:none}}
+  </style>
+   <header class="hb-top"><h1>🦝 Help Buddy!</h1><span class="hb-chip">${esc(k.std)}</span><span style="opacity:.85;font-size:1rem">${esc(k.name)}</span><span class="hb-dots" id="dots"></span></header>
+   <main class="stage"><div class="bd-side" id="bd"></div><div class="qcard" id="hb"></div></main>
+   <script>const S=${JSON.stringify(slides).replace(/</g,"\\u003c")},HUH=${JSON.stringify(buddySVG("huh")).replace(/</g,"\\u003c")},AHA=${JSON.stringify(buddySVG("aha")).replace(/</g,"\\u003c")};let i=0,open=false;
+   function show(){const s=S[i];
+     document.getElementById("dots").innerHTML=S.map((_,j)=>'<i class="'+(j<=i?'on':'')+'"></i>').join("");
+     document.getElementById("bd").innerHTML=(open?'<div class="bd-bubble aha">Ohhh! I see my mistake now!</div>'+AHA:'<div class="bd-bubble">'+s.say+'</div>'+HUH);
+     document.getElementById("hb").innerHTML='<p class="hb-ask">Problem '+(i+1)+' of '+S.length+' · Buddy made a mistake! Talk with a partner: what did he do wrong? What is the right answer?</p>'+s.body+'<div>'+s.ch+'</div>'+(open?'<p class="hb-m"><b>Right answer: '+s.ans+'.</b> '+s.mist+'</p>':'')+'<div class="hb-nav"><button class="ghost" id="p" '+(i?'':'disabled')+'>← Back</button><button id="r">'+(open?'Hide answer':'Show answer')+'</button><button class="ghost" id="n" '+(i<S.length-1?'':'disabled')+'>Next →</button></div>';
      if(open)document.querySelectorAll('.hb-c').forEach(e=>{if(e.dataset.l===s.ans)e.classList.add('ok')});
      document.getElementById('p').onclick=()=>{i--;open=false;show()};document.getElementById('n').onclick=()=>{i++;open=false;show()};document.getElementById('r').onclick=()=>{open=!open;show()}}
+   document.addEventListener("keydown",e=>{if(e.key==="ArrowRight"&&i<S.length-1){i++;open=false;show()}else if(e.key==="ArrowLeft"&&i>0){i--;open=false;show()}else if(e.key===" "){e.preventDefault();open=!open;show()}});
    show();<\/script>`);w.document.close()}
 
 /* ================= Screener import: upload a screener/benchmark score file, fill one window for every student,
